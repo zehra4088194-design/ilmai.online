@@ -385,3 +385,6 @@ button:disabled { cursor: not-allowed; opacity: .52; }
 @media (max-width: 640px) {
   .comparison-grid { grid-template-columns: 1fr; }
 }
+
+.template-cover-image { position: absolute; inset: 0; background-position: center; background-size: cover; background-repeat: no-repeat; transition: transform .5s ease; }
+.template-card:hover .template-cover-image { transform: scale(1.04); }
