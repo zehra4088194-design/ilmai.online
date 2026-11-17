@@ -6,6 +6,7 @@ export type Template = {
   label: string;
   description: string;
   accent: string;
+  coverImage?: string;
   starterPrompt: string;
   coverPrompt: string;
 };
