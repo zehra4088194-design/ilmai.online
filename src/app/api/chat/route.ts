@@ -72,6 +72,17 @@ export async function POST(request: NextRequest) {
     }
 
     const usage = payload?.usage ?? {};
+    const apiCostUsd = usage.cost !== undefined && Number.isFinite(Number(usage.cost))
+      ? Number(usage.cost)
+      : null;
+    const configuredMarkup = Number(process.env.ILM_MARKUP_PERCENT ?? "25");
+    const markupPercent = Number.isFinite(configuredMarkup)
+      ? Math.min(500, Math.max(0, configuredMarkup))
+      : 25;
+    const billableCostUsd = apiCostUsd === null
+      ? null
+      : Number((apiCostUsd * (1 + markupPercent / 100)).toFixed(8));
+
     return NextResponse.json({
       content,
       model: payload?.model || model,
@@ -79,7 +90,9 @@ export async function POST(request: NextRequest) {
         inputTokens: Number(usage.prompt_tokens ?? 0),
         outputTokens: Number(usage.completion_tokens ?? 0),
         totalTokens: Number(usage.total_tokens ?? 0),
-        apiCostUsd: typeof usage.cost === "number" ? usage.cost : null
+        apiCostUsd,
+        billableCostUsd,
+        markupPercent
       }
     });
   } catch (error) {
