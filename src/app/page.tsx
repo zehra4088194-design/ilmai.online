@@ -289,7 +289,7 @@ export default function Home() {
         <div className="side-section-label">WORKSPACE</div>
         <nav className="side-nav">
           <button className={view === "home" || view === "chat" ? "active" : ""} onClick={() => setView(messages.length ? "chat" : "home")}><MessageCircle size={17} /> AI Chat</button>
-          <button className={view === "templates" ? "active" : ""} onClick={() => setView("templates")}><Layers3 size={17} /> Prompt templates <span className="nav-count">12</span></button>
+          <button className={view === "templates" ? "active" : ""} onClick={() => setView("templates")}><Layers3 size={17} /> Prompt templates <span className="nav-count">{templates.length}</span></button>
           <button className={view === "library" ? "active" : ""} onClick={() => setView("library")}><BookOpen size={17} /> My library</button>
         </nav>
         <div className="side-section-label recent-label">YOUR TOOLS</div>
