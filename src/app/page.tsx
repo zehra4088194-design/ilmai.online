@@ -75,12 +75,14 @@ function TemplateCard({ item, onUse, onCopy }: { item: Template; onUse: (item: T
   return (
     <article className="template-card">
       <div className={"template-art art-" + item.accent}>
-        <div className="art-glow" />
-        <div className="art-orbit orbit-one" />
-        <div className="art-orbit orbit-two" />
-        <div className="art-icon"><Icon size={25} strokeWidth={1.55} /></div>
-        <span className="art-label">{item.category === "Presentations" ? "SLIDE DESIGN" : item.category === "Videos" ? "VIDEO STORY" : "VISUAL ASSET"}</span>
-        <div className="art-lines"><i /><i /><i /></div>
+        {item.coverImage ? <div className="template-cover-image" style={{ backgroundImage: "url(" + item.coverImage + ")" }} /> : <>
+          <div className="art-glow" />
+          <div className="art-orbit orbit-one" />
+          <div className="art-orbit orbit-two" />
+          <div className="art-icon"><Icon size={25} strokeWidth={1.55} /></div>
+          <span className="art-label">{item.category === "Presentations" ? "SLIDE DESIGN" : item.category === "Videos" ? "VIDEO STORY" : "VISUAL ASSET"}</span>
+          <div className="art-lines"><i /><i /><i /></div>
+        </>}
       </div>
       <div className="template-card-body">
         <div className="template-meta"><span>{item.category}</span><span className="template-dot" />{item.label}</div>
