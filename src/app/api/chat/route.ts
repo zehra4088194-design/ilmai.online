@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
             typeof (item as ChatMessage).content === "string"
           )
           .slice(-24)
-          .map((item) => ({ role: item.role, content: item.content.slice(0, 18000) }))
+          .map((item: ChatMessage) => ({ role: item.role, content: item.content.slice(0, 18000) }))
       : [];
 
     if (!model || !/^[a-zA-Z0-9._:/-]{2,180}$/.test(model)) {
