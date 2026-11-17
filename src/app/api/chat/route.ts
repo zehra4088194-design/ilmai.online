@@ -54,7 +54,6 @@ export async function POST(request: NextRequest) {
         model,
         messages: [{ role: "system", content: system }, ...messages],
         temperature: task === "quiz" ? 0.35 : 0.7,
-        ...(task === "quiz" ? { response_format: { type: "json_object" } } : {}),
         usage: { include: true }
       }),
       signal: AbortSignal.timeout(85000)
