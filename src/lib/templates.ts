@@ -132,4 +132,35 @@ export const templates: Template[] = [
     starterPrompt: "Create a thumbnail concept for a lesson video titled [TITLE] about [TOPIC]. Suggest one instantly understandable focal visual, a short headline of 2–5 words, expressive composition, high contrast, and a clear visual hierarchy. Keep the design professional and readable at small sizes. Do not fabricate claims or statistics.",
     coverPrompt: "Bold but refined educational video thumbnail background, rich emerald and teal gradient, one large dimensional abstract object suggesting discovery, crisp rim lighting, energetic diagonal composition, clear empty area for a short headline, no text or letters, 16:9 landscape.",
   }
+  ,
+  {
+    id: "classroom-photo",
+    title: "A real classroom moment",
+    category: "Images",
+    label: "Photo prompt",
+    description: "Create warm, authentic classroom photography for lessons and course pages.",
+    accent: "mint",
+    starterPrompt: "Create a photorealistic editorial photograph showing [CLASSROOM MOMENT / TOPIC] for an educational platform. Describe the subject, natural expressions, environment, camera angle, lens feel, lighting, colour palette, and composition. Keep the scene authentic and respectful, avoid staged stock-photo clichés, and leave uncluttered negative space for optional design overlays. No text, no watermark, no logos.",
+    coverPrompt: "Photorealistic editorial photograph for a premium education brand: a sunlit contemporary classroom with natural window light, warm candid details, thoughtful composition, subtle sage and cream tones, authentic documentary photography, generous negative space, no readable text, no visible logos, 16:9 landscape.",
+  },
+  {
+    id: "study-desk-photo",
+    title: "The perfect study scene",
+    category: "Images",
+    label: "Lifestyle photo",
+    description: "Generate beautiful desk and study-space photos for student-focused pages.",
+    accent: "peach",
+    starterPrompt: "Create a premium photorealistic lifestyle photograph of [STUDY SETUP / LEARNING ACTIVITY]. Include believable stationery, books, a laptop or tablet only if relevant, natural light, tasteful props, realistic materials, and a clear focal point. Specify a camera angle and depth of field. Keep the scene uncluttered and visually calm, with no readable text or brand logos.",
+    coverPrompt: "High-end lifestyle photograph of a calm student study desk near a large window, natural morning sunlight, elegant notebook and pencils, subtle greenery, warm ivory and soft sage palette, premium magazine photography, realistic materials and gentle shadows, no readable text, no logos, 4:5 portrait.",
+  },
+  {
+    id: "learning-product-photo",
+    title: "Learning product photography",
+    category: "Images",
+    label: "Product photo",
+    description: "Create polished mock product photos for notes, workbooks, and learning kits.",
+    accent: "blue",
+    starterPrompt: "Create a professional product photography brief for [EDUCATIONAL PRODUCT]. Describe the product arrangement, camera angle, lighting setup, background material, shadows, colour palette, and any secondary props. Show the product clearly and realistically with premium e-commerce styling. Do not add fake brand names, random text, or invented product features.",
+    coverPrompt: "Premium studio product photograph of a neatly arranged educational workbook, flashcards and stationery on a softly textured ivory surface, gentle sage-green accent props, crisp natural studio lighting, subtle realistic shadows, clean e-commerce editorial art direction, no readable text, no logos, 4:5 portrait.",
+  }
 ];
