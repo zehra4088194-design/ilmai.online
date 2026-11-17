@@ -12,6 +12,7 @@ A light, modern AI workspace for students and teachers. It combines multi-model 
 - Prompt library with ready-to-use prompts for presentations, video scripts, posters, infographics, worksheets, and thumbnails.
 - Each template has a separate **cover-art prompt**. Use it to generate the actual background image, then replace the CSS artwork placeholder with your image.
 - Token usage display when the provider returns usage metadata.
+- Server-calculated estimated billable API cost using a configurable default 25% markup, when OpenRouter returns provider cost metadata.
 - No mock AI answers: the chat clearly reports when the API key has not been configured.
 
 ## Run locally
@@ -32,6 +33,7 @@ Open http://localhost:3000.
 
 - `OPENROUTER_API_KEY` — required; server-side only.
 - `NEXT_PUBLIC_SITE_URL` — optional; used for OpenRouter request attribution.
+- `ILM_MARKUP_PERCENT` — optional; defaults to `25` and is applied to provider-reported API cost for the displayed estimate.
 
 Never add the OpenRouter key to a `NEXT_PUBLIC_*` variable, commit a real `.env.local`, or expose provider secrets in client components.
 
@@ -45,7 +47,7 @@ Set `OPENROUTER_API_KEY` and `NEXT_PUBLIC_SITE_URL` in the new app's server envi
 
 This repository starts with a functional AI workspace, not a pretend fully provisioned SaaS backend. Before public launch, connect a **new, separate Supabase project** for authentication, user profiles, role permissions, conversation persistence, quiz history, prompt library favourites, usage events, and credit wallets. Add server-side rate limiting, per-user quotas, verified model-cost accounting, payment subscriptions, and admin controls before accepting paid users.
 
-The credit rate and margin must be calculated from actual OpenRouter usage / model pricing on the server. Keep the planned 25% markup configurable; do not use a hard-coded message fee. Provider-reported cost and token counts are displayed only when returned by the provider.
+The planned 25% markup is configurable through `ILM_MARKUP_PERCENT` and is used only to display a projected billable API cost when OpenRouter returns usage cost metadata. This is not yet a wallet debit or realised profit. The per-credit USD conversion, persistent wallet deduction, monthly allowance, payment fees, taxes, and payment subscriptions must be finalised and implemented with the separate Supabase backend before charging users. Do not use a hard-coded per-message fee. Provider-reported cost and token counts are displayed only when returned by the provider.
 
 ## Template artwork workflow
 
