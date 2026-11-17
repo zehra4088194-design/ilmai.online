@@ -20,7 +20,8 @@ type ModelOption = {
 type Usage = { inputTokens: number; outputTokens: number; totalTokens: number; apiCostUsd: number | null; billableCostUsd: number | null; markupPercent: number };
 type QuizQuestion = { question: string; options: string[]; correctIndex: number; explanation: string };
 type QuizData = { title: string; instructions: string; questions: QuizQuestion[] };
-type Message = { id: string; role: "user" | "assistant"; content: string; usage?: Usage; quiz?: QuizData; model?: string };
+type ComparisonResponse = { model: string; content?: string; error?: string; usage?: Usage };
+type Message = { id: string; role: "user" | "assistant"; content: string; usage?: Usage; quiz?: QuizData; model?: string; compare?: ComparisonResponse[] };
 
 const starterPrompts = [
   { icon: Lightbulb, title: "Explain a difficult topic", prompt: "Explain photosynthesis step by step for a beginner, using a simple analogy and a real-life example." },
@@ -101,6 +102,8 @@ export default function Home() {
   const [draft, setDraft] = useState("");
   const [models, setModels] = useState<ModelOption[]>([]);
   const [model, setModel] = useState("");
+  const [compareEnabled, setCompareEnabled] = useState(false);
+  const [compareModel, setCompareModel] = useState("");
   const [modelsLoading, setModelsLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -116,6 +119,7 @@ export default function Home() {
       const list: ModelOption[] = Array.isArray(data.models) ? data.models : [];
       setModels(list);
       if (list.length) setModel(list[0].id);
+      if (list.length > 1) setCompareModel(list[1].id);
     }).catch(() => setModels([])).finally(() => setModelsLoading(false));
   }, []);
 
@@ -152,33 +156,72 @@ export default function Home() {
       setToast("Choose a model first");
       return;
     }
+    const targetModels = task === "chat" && compareEnabled && compareModel && compareModel !== model
+      ? [model, compareModel]
+      : [model];
     setBusy(true);
     try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model,
-          task,
-          messages: nextMessages.map((message) => ({ role: message.role, content: message.content }))
-        })
-      });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || "AI request failed");
-      if (task === "quiz") {
-        let quiz: QuizData;
+      const sendToModel = async (targetModel: string) => {
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: targetModel,
+            task,
+            messages: nextMessages.map((message) => ({ role: message.role, content: message.content }))
+          })
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || "AI request failed");
+        return payload;
+      };
+
+      const results = await Promise.all(targetModels.map(async (targetModel): Promise<{ model: string; payload?: any; error?: string }> => {
         try {
-          const clean = String(payload.content).replace(/^\s*```(?:json)?/i, "").replace(/```\s*$/, "").trim();
+          const payload = await sendToModel(targetModel);
+          return { model: payload.model || targetModel, payload };
+        } catch (error) {
+          return { model: targetModel, error: error instanceof Error ? error.message : "This model could not complete the request." };
+        }
+      }));
+
+      if (task === "quiz") {
+        const result = results[0];
+        if (!result?.payload) throw new Error(result?.error || "Quiz generation failed");
+        try {
+          const fence = String.fromCharCode(96).repeat(3);
+          const clean = String(result.payload.content).replace(new RegExp("^\\\\s*" + fence + "(?:json)?", "i"), "").replace(new RegExp(fence + "\\\\s*$"), "").trim();
           const parsed = JSON.parse(clean);
           if (!parsed.title || !Array.isArray(parsed.questions) || !parsed.questions.length) throw new Error("Invalid quiz");
-          quiz = { title: parsed.title, instructions: parsed.instructions || "Choose the best answer for each question.", questions: parsed.questions.slice(0, 10) };
-          setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "assistant", content: "I made a quick quiz from our conversation. Give it a try!", quiz, model: payload.model, usage: payload.usage }]);
+          const quiz: QuizData = {
+            title: parsed.title,
+            instructions: parsed.instructions || "Choose the best answer for each question.",
+            questions: parsed.questions.slice(0, 10).map((question: QuizQuestion) => ({
+              question: String(question.question || ""),
+              options: Array.isArray(question.options) ? question.options.slice(0, 4).map(String) : [],
+              correctIndex: Math.max(0, Math.min(3, Number(question.correctIndex) || 0)),
+              explanation: String(question.explanation || "")
+            }))
+          };
+          if (quiz.questions.some((question) => !question.question || question.options.length !== 4)) throw new Error("Invalid question format");
+          setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "assistant", content: "I made a quick quiz from our conversation. Give it a try!", quiz, model: result.payload.model, usage: result.payload.usage }]);
         } catch {
-          setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "assistant", content: payload.content, model: payload.model, usage: payload.usage }]);
+          setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "assistant", content: result.payload.content, model: result.payload.model, usage: result.payload.usage }]);
           setToast("The model replied, but its quiz format could not be displayed as an interactive quiz.");
         }
+      } else if (results.length > 1) {
+        setMessages((prev) => [...prev, {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: "Here are both model responses side by side.",
+          compare: results.map((result) => result.payload
+            ? { model: result.model, content: result.payload.content, usage: result.payload.usage }
+            : { model: result.model, error: result.error || "This model could not complete the request." })
+        }]);
       } else {
-        setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "assistant", content: payload.content, model: payload.model, usage: payload.usage }]);
+        const result = results[0];
+        if (!result?.payload) throw new Error(result?.error || "AI request failed");
+        setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "assistant", content: result.payload.content, model: result.model, usage: result.payload.usage }]);
       }
     } catch (error) {
       setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "assistant", content: "I couldn't complete that request. " + (error instanceof Error ? error.message : "Please try again.") }]);
@@ -301,7 +344,7 @@ export default function Home() {
               <form className="home-composer" onSubmit={(event) => sendMessage(event)}>
                 <div className="composer-topline"><span className="composer-spark"><Sparkles size={15} /></span><span>YOUR NEXT BIG IDEA STARTS HERE</span><span className="composer-shortcut">AI workspace</span></div>
                 <textarea ref={textareaRef} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void sendMessage(); } }} placeholder={role === "Teacher" ? "Plan a lesson, create a worksheet, explain a concept..." : "Ask anything, explore an idea, or start creating..."} rows={2} />
-                <div className="composer-bottom"><div className="composer-tools"><button type="button" onClick={() => setView("templates")}><Layers3 size={15} /> Templates</button><button type="button" onClick={createQuiz}><GraduationCap size={15} /> Make a quiz</button></div><button className="send-button" type="submit" disabled={!draft.trim() || busy || !canChat}><Send size={16} /><span>Send</span><ArrowUpRight size={14} /></button></div>
+                <div className="composer-bottom"><div className="composer-tools"><button type="button" onClick={() => setView("templates")}><Layers3 size={15} /> Templates</button><button type="button" onClick={createQuiz}><GraduationCap size={15} /> Make a quiz</button><button type="button" className={compareEnabled ? "compare-active" : ""} onClick={() => setCompareEnabled(!compareEnabled)}><Layers3 size={14} /> {compareEnabled ? "Compare on" : "Compare models"}</button></div><button className="send-button" type="submit" disabled={!draft.trim() || busy || !canChat}><Send size={16} /><span>Send</span><ArrowUpRight size={14} /></button></div>
               </form>
               <div className="model-footnote"><span className="model-status" />{modelsLoading ? "Loading live AI models..." : selectedModel ? <><strong>{selectedModel.name}</strong>{selectedModel.isFree ? <span className="free-tag">FREE</span> : <span>via OpenRouter</span>}</> : "AI model connection needs setup"}<span className="model-footnote-spacer" /><span>Choose your model in the chat header</span></div>
             </div>
@@ -320,16 +363,16 @@ export default function Home() {
         ) : (
           <div className="chat-layout">
             <div className="chat-main">
-              <div className="chat-toolbar"><div className="chat-title"><div className="chat-title-icon"><Sparkles size={16} /></div><div><strong>New conversation</strong><span>{selectedModel ? selectedModel.name : "Choose an AI model"}</span></div></div><div className="chat-toolbar-actions"><button className="button secondary small" onClick={createQuiz} disabled={busy || !messages.length}><GraduationCap size={14} /> Make a quiz</button><button className="icon-button" onClick={newChat} aria-label="New conversation"><Plus size={17} /></button></div></div>
+              <div className="chat-toolbar"><div className="chat-title"><div className="chat-title-icon"><Sparkles size={16} /></div><div><strong>New conversation</strong><span>{selectedModel ? selectedModel.name : "Choose an AI model"}</span></div></div><div className="chat-toolbar-actions"><button className={"button secondary small" + (compareEnabled ? " compare-active" : "")} onClick={() => setCompareEnabled(!compareEnabled)}><Layers3 size={14} /> {compareEnabled ? "Compare on" : "Compare"}</button><button className="button secondary small" onClick={createQuiz} disabled={busy || !messages.length}><GraduationCap size={14} /> Make a quiz</button><button className="icon-button" onClick={newChat} aria-label="New conversation"><Plus size={17} /></button></div></div>
               <div className="messages-area">
-                {messages.length === 0 ? <div className="chat-empty"><div className="chat-empty-icon"><MessageCircle size={24} /></div><span className="eyebrow">A FRESH PAGE</span><h2>Let's think this through.</h2><p>Ask a question, brainstorm a project, or use a template to get moving.</p><div className="chat-starters">{starterPrompts.slice(0, 3).map((item) => <button key={item.title} onClick={() => setDraft(item.prompt)}><span>{item.title}</span><ArrowUpRight size={14} /></button>)}</div></div> : messages.map((message) => <div className={"message-row " + message.role} key={message.id}><div className="message-avatar">{message.role === "assistant" ? <Sparkles size={15} /> : "I"}</div><div className="message-body"><div className="message-author">{message.role === "assistant" ? "Ilm AI" : "You"}{message.role === "assistant" && message.model && <span>{message.model.split("/").pop()}</span>}</div>{message.quiz ? <QuizCard quiz={message.quiz} /> : <div className="message-content">{message.content.split("\n").map((line, index) => <p key={index}>{line || <>&nbsp;</>}</p>)}</div>}{message.usage && <div className="message-usage"><Zap size={12} /> {message.usage.totalTokens.toLocaleString()} tokens <span>·</span> {message.usage.inputTokens.toLocaleString()} in / {message.usage.outputTokens.toLocaleString()} out{typeof message.usage.billableCostUsd === "number" && <><span>·</span><strong>~${message.usage.billableCostUsd.toFixed(5)}</strong><span>estimated with {message.usage.markupPercent}% margin</span></>}</div>}</div></div>)}
+                {messages.length === 0 ? <div className="chat-empty"><div className="chat-empty-icon"><MessageCircle size={24} /></div><span className="eyebrow">A FRESH PAGE</span><h2>Let's think this through.</h2><p>Ask a question, brainstorm a project, or use a template to get moving.</p><div className="chat-starters">{starterPrompts.slice(0, 3).map((item) => <button key={item.title} onClick={() => setDraft(item.prompt)}><span>{item.title}</span><ArrowUpRight size={14} /></button>)}</div></div> : messages.map((message) => <div className={"message-row " + message.role} key={message.id}><div className="message-avatar">{message.role === "assistant" ? <Sparkles size={15} /> : "I"}</div><div className="message-body"><div className="message-author">{message.role === "assistant" ? "Ilm AI" : "You"}{message.role === "assistant" && message.model && <span>{message.model.split("/").pop()}</span>}</div>{message.compare ? <div className="comparison-grid">{message.compare.map((response, index) => <section className="comparison-card" key={response.model + index}><div className="comparison-heading"><span className="comparison-model-dot">{index + 1}</span><strong>{response.model.split("/").pop()}</strong></div>{response.error ? <p className="comparison-error">{response.error}</p> : <div className="message-content">{(response.content || "").split("\\n").map((line, lineIndex) => <p key={lineIndex}>{line || <>&nbsp;</>}</p>)}</div>}{response.usage && <div className="message-usage"><Zap size={12} /> {response.usage.totalTokens.toLocaleString()} tokens{typeof response.usage.billableCostUsd === "number" && <><span>·</span><strong>~${response.usage.billableCostUsd.toFixed(5)}</strong></>}</div>}</section>)}</div> : message.quiz ? <QuizCard quiz={message.quiz} /> : <div className="message-content">{message.content.split("\\n").map((line, index) => <p key={index}>{line || <>&nbsp;</>}</p>)}</div>}{message.usage && <div className="message-usage"><Zap size={12} /> {message.usage.totalTokens.toLocaleString()} tokens <span>·</span> {message.usage.inputTokens.toLocaleString()} in / {message.usage.outputTokens.toLocaleString()} out{typeof message.usage.billableCostUsd === "number" && <><span>·</span><strong>~${message.usage.billableCostUsd.toFixed(5)}</strong><span>estimated with {message.usage.markupPercent}% margin</span></>}</div>}</div></div>)}
                 {busy && <div className="message-row assistant"><div className="message-avatar"><Sparkles size={15} /></div><div className="message-body"><div className="message-author">Ilm AI <span>Thinking</span></div><div className="thinking-indicator"><i /><i /><i /><span>Putting the pieces together...</span></div></div></div>}
                 <div ref={bottomRef} />
               </div>
               <div className="chat-input-dock">
                 <form className="chat-composer" onSubmit={(event) => sendMessage(event)}>
                   <textarea ref={textareaRef} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void sendMessage(); } }} placeholder="Message Ilm AI..." rows={2} />
-                  <div className="chat-composer-bottom"><div className="composer-tools"><button type="button" onClick={() => setView("templates")}><Layers3 size={14} /> Templates</button><button type="button" onClick={createQuiz} disabled={busy || !messages.length}><GraduationCap size={14} /> Quiz from chat</button></div><button className="send-button" type="submit" disabled={!draft.trim() || busy || !canChat}><Send size={16} /></button></div>
+                  <div className="chat-composer-bottom"><div className="composer-tools"><button type="button" onClick={() => setView("templates")}><Layers3 size={14} /> Templates</button><button type="button" onClick={createQuiz} disabled={busy || !messages.length}><GraduationCap size={14} /> Quiz from chat</button><button type="button" className={compareEnabled ? "compare-active" : ""} onClick={() => setCompareEnabled(!compareEnabled)}><Layers3 size={14} /> Compare</button></div><button className="send-button" type="submit" disabled={!draft.trim() || busy || !canChat}><Send size={16} /></button></div>
                 </form>
                 <div className="chat-disclaimer">AI can make mistakes. Check important information from trusted sources.</div>
               </div>
@@ -338,6 +381,7 @@ export default function Home() {
               <div className="panel-heading"><div><span className="eyebrow">YOUR AI SETUP</span><h3>Make it yours</h3></div><Settings2 size={17} /></div>
               <label className="field-label" htmlFor="model-select">AI MODEL</label>
               <div className="select-wrap"><select id="model-select" value={model} onChange={(event) => setModel(event.target.value)} disabled={modelsLoading || !models.length}><option value="">{modelsLoading ? "Loading models..." : "Choose a model"}</option>{models.map((item) => <option value={item.id} key={item.id}>{item.name}{item.isFree ? " · Free" : ""}</option>)}</select><ChevronDown size={15} /></div>
+              {compareEnabled && <div className="compare-model-field"><label className="field-label" htmlFor="compare-model-select">SECOND MODEL</label><div className="select-wrap"><select id="compare-model-select" value={compareModel} onChange={(event) => setCompareModel(event.target.value)} disabled={modelsLoading || !models.length}><option value="">Choose a second model</option>{models.filter((item) => item.id !== model).map((item) => <option value={item.id} key={item.id}>{item.name}{item.isFree ? " · Free" : ""}</option>)}</select><ChevronDown size={15} /></div><p>Both models receive the same prompt. Usage is measured separately.</p></div>}
               {selectedModel && <div className="model-detail"><div><span>Input / 1M tokens</span><strong>{selectedModel.inputPrice === 0 ? "Free" : "$" + (selectedModel.inputPrice * 1000000).toFixed(3)}</strong></div><div><span>Output / 1M tokens</span><strong>{selectedModel.outputPrice === 0 ? "Free" : "$" + (selectedModel.outputPrice * 1000000).toFixed(3)}</strong></div><div><span>Context window</span><strong>{selectedModel.contextLength ? selectedModel.contextLength.toLocaleString() : "Provider default"}</strong></div></div>}
               <div className="panel-divider" />
               <div className="panel-feature"><div className="panel-feature-icon mint"><GraduationCap size={17} /></div><div><strong>Quiz in the conversation</strong><p>Turn what you just discussed into a quick interactive test.</p><button onClick={createQuiz} disabled={!messages.length || busy}>Create from this chat <ArrowRight size={13} /></button></div></div>
