@@ -1,0 +1,134 @@
+export type TemplateCategory = "Presentations" | "Videos" | "Images";
+export type Template = {
+  id: string;
+  title: string;
+  category: TemplateCategory;
+  label: string;
+  description: string;
+  accent: string;
+  starterPrompt: string;
+  coverPrompt: string;
+};
+
+export const templates: Template[] = [
+  {
+    id: "lesson-deck",
+    title: "The beautiful lesson deck",
+    category: "Presentations",
+    label: "For teachers",
+    description: "Turn any topic into a clear, visual classroom presentation.",
+    accent: "lavender",
+    starterPrompt: "Create a polished 12-slide teaching presentation about [TOPIC] for [GRADE / AGE]. Start with learning objectives, explain concepts step by step using simple language, include real-world examples, visual diagram suggestions, one classroom activity, three discussion questions, a recap, and a short exit ticket. Keep each slide concise, accessible, and visually engaging. Add speaker notes for the teacher.",
+    coverPrompt: "Create a premium editorial presentation cover background for an education technology platform. Abstract paper layers, soft lilac and warm ivory gradients, delicate translucent 3D geometric forms, subtle depth, refined studio lighting, generous empty space on the left for a title, no text, no letters, no logos, 16:9 landscape.",
+  },
+  {
+    id: "science-story",
+    title: "Science, made visual",
+    category: "Presentations",
+    label: "Visual explainer",
+    description: "Explain complex science with diagrams and memorable examples.",
+    accent: "mint",
+    starterPrompt: "Build a visual science presentation explaining [SCIENCE TOPIC] to [AUDIENCE]. Use an engaging hook, a simple explanation, labelled diagram descriptions, a step-by-step process, a real-life connection, a misconception check, a mini experiment or observation activity, and a final knowledge check. For every slide, provide a title, no more than 4 concise bullets, visual direction, and speaker notes.",
+    coverPrompt: "A sophisticated science education presentation background, luminous translucent glass molecular forms, delicate green and aqua gradients, clean ivory canvas, soft floating particles, subtle scientific linework, elegant depth, no text or labels, large clear space for typography, 16:9 landscape.",
+  },
+  {
+    id: "exam-revision",
+    title: "Exam-ready revision",
+    category: "Presentations",
+    label: "For students",
+    description: "Make a focused revision deck with key facts and practice.",
+    accent: "peach",
+    starterPrompt: "Create an exam revision presentation for [SUBJECT / TOPIC] at [GRADE / EXAM LEVEL]. Prioritise the most important concepts, definitions, formulas, common mistakes, memory aids, worked examples, and likely question styles. Include a quick-recall slide, a worked problem, five practice questions with answers in the final section, and a one-page recap. Keep the explanations accurate and age-appropriate.",
+    coverPrompt: "A premium study notes cover background, warm peach and cream paper textures, subtle embossed grid lines, elegant stacked translucent cards and a soft golden glow, modern editorial stationery photography, no text, no writing, no logos, open space for a title, 16:9 landscape.",
+  },
+  {
+    id: "pitch-deck",
+    title: "Pitch it with clarity",
+    category: "Presentations",
+    label: "For projects",
+    description: "Shape an idea into a confident, professional pitch deck.",
+    accent: "blue",
+    starterPrompt: "Create a compelling 10-slide pitch deck for [IDEA / PROJECT] aimed at [AUDIENCE]. Include the problem, audience insight, proposed solution, how it works, unique value, evidence or assumptions to validate, delivery plan, impact, resources needed, and a clear next step. Use concise headlines, strong narrative flow, and suggested visuals. Flag any facts that need verification.",
+    coverPrompt: "Minimal premium presentation cover, deep cobalt to soft sky blue gradient, sculptural translucent 3D ribbon and glass shapes, refined softbox lighting, crisp modern editorial art direction, balanced negative space, no text, no logos, 16:9 landscape.",
+  },
+  {
+    id: "reel-script",
+    title: "The 45-second learning reel",
+    category: "Videos",
+    label: "Short-form video",
+    description: "Turn one idea into a fast, engaging educational video.",
+    accent: "rose",
+    starterPrompt: "Write a 45-second educational short video about [TOPIC] for [AUDIENCE]. Give me a strong first-2-second hook, a natural voiceover, a scene-by-scene shot list, on-screen caption ideas, b-roll suggestions, sound design cues, and a satisfying ending with one call to action. Keep it accurate, conversational, and easy to edit for vertical 9:16 video.",
+    coverPrompt: "A cinematic vertical video storyboard background for a modern education creator, warm coral and plum gradient, floating translucent film-frame shapes, soft motion blur trails, polished studio lighting, modern creator aesthetic, no text, no interface, 9:16 vertical composition.",
+  },
+  {
+    id: "lesson-video",
+    title: "Teacher's lesson film",
+    category: "Videos",
+    label: "For teachers",
+    description: "Plan a complete mini-lesson with voiceover and visuals.",
+    accent: "mint",
+    starterPrompt: "Plan a 3-minute teaching video about [TOPIC] for [GRADE]. Structure it into a hook, explanation, visual demonstration, guided example, recap, and one question for learners. Write the complete voiceover, scene-by-scene visual plan, camera or screen recording direction, simple animation notes, and accessible captions. Avoid unsupported facts and explain any technical terms.",
+    coverPrompt: "Elegant cinematic classroom video background, late afternoon sun rays through a modern creative learning studio, soft sage green and warm cream palette, subtle floating dust, cinematic depth of field, premium documentary still, no people, no text, 16:9 landscape.",
+  },
+  {
+    id: "course-intro",
+    title: "Course intro trailer",
+    category: "Videos",
+    label: "Course launch",
+    description: "Give a course or learning series a memorable opening.",
+    accent: "blue",
+    starterPrompt: "Write a 30-second trailer for a learning course called [COURSE NAME] about [SUBJECT]. Include a curiosity-led hook, the transformation learners can expect, three exciting things they will discover, suggested shots, music mood, motion-graphic cues, voiceover, and a concise invitation to begin. Make it inspiring without making unrealistic promises.",
+    coverPrompt: "Premium cinematic course trailer background with layered abstract 3D shapes, electric blue fading into soft lavender, elegant volumetric light, subtle motion streaks, modern learning brand mood, no text, no logos, wide 16:9 composition.",
+  },
+  {
+    id: "study-infographic",
+    title: "One-page visual explainer",
+    category: "Images",
+    label: "Study visual",
+    description: "Turn a difficult concept into a clean learning infographic.",
+    accent: "mint",
+    starterPrompt: "Design the content for a one-page infographic explaining [TOPIC] to [AUDIENCE]. Organise it into a clear headline, a one-sentence overview, 4–6 key points, one process or comparison, a real-world example, and a short takeaway. Suggest an intuitive visual hierarchy, icon ideas, and concise labels. Keep every statement accurate and easy to scan.",
+    coverPrompt: "A refined educational infographic background with soft mint, ivory and emerald shapes, subtle thin grid, delicate rounded panels, translucent glass accents, ample whitespace for diagrams and labels, high-end editorial design, no text, 4:5 portrait.",
+  },
+  {
+    id: "social-poster",
+    title: "Class announcement poster",
+    category: "Images",
+    label: "For teachers",
+    description: "Create a friendly, modern poster for a class or event.",
+    accent: "peach",
+    starterPrompt: "Create the layout and exact copy for a polished class announcement poster about [EVENT / ANNOUNCEMENT]. Audience: [AUDIENCE]. Include a clear headline, essential details, date and time placeholders, a short supporting line, and a clear action. Suggest a strong visual concept and a balanced layout. Do not invent missing event details.",
+    coverPrompt: "Beautiful modern education event poster background, playful but premium abstract paper cut shapes, warm apricot, butter yellow and cream palette, tasteful dimensional details, energetic composition with a clear central title area, no words, no letters, no logos, 4:5 portrait.",
+  },
+  {
+    id: "concept-cover",
+    title: "Topic cover artwork",
+    category: "Images",
+    label: "Visual asset",
+    description: "Generate a beautiful cover visual for any lesson or topic.",
+    accent: "lavender",
+    starterPrompt: "Create a visual art direction brief for a topic cover about [TOPIC]. Choose one central metaphor or visual subject, define the mood and palette, and describe a clean composition suitable for a modern learning platform. Keep it recognisable, uncluttered, culturally neutral, and free from text or logos.",
+    coverPrompt: "Premium abstract learning platform artwork with a single elegant sculptural object that symbolises discovery and curiosity, soft emerald green, mint and ivory palette, fine material detail, natural studio lighting, clean uncluttered composition, no text, no letters, no logo, 4:5 portrait.",
+  },
+  {
+    id: "worksheet",
+    title: "Interactive worksheet",
+    category: "Images",
+    label: "Class activity",
+    description: "Build a worksheet students can complete independently.",
+    accent: "blue",
+    starterPrompt: "Create a printable worksheet about [TOPIC] for [GRADE]. Include a short instruction section, a warm-up, a mix of 5 question types, space for written answers, one challenge question, and a reflection prompt. Add a separate answer key for the teacher. Use clear language and avoid requiring materials that were not specified.",
+    coverPrompt: "Minimal printable worksheet background design, white and pale blue paper, elegant fine ruled lines, small subtle geometric corner details, very light blue accent shapes, lots of clean writing space, no text, no numbers, no logos, A4 portrait.",
+  },
+  {
+    id: "thumbnail",
+    title: "Lesson thumbnail",
+    category: "Images",
+    label: "Video cover",
+    description: "Create a bold visual thumbnail for a lesson or explainer.",
+    accent: "rose",
+    starterPrompt: "Create a thumbnail concept for a lesson video titled [TITLE] about [TOPIC]. Suggest one instantly understandable focal visual, a short headline of 2–5 words, expressive composition, high contrast, and a clear visual hierarchy. Keep the design professional and readable at small sizes. Do not fabricate claims or statistics.",
+    coverPrompt: "Bold but refined educational video thumbnail background, rich emerald and teal gradient, one large dimensional abstract object suggesting discovery, crisp rim lighting, energetic diagonal composition, clear empty area for a short headline, no text or letters, 16:9 landscape.",
+  }
+];
