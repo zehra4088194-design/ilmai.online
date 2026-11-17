@@ -56,7 +56,7 @@ In `src/lib/templates.ts`, every template includes:
 - `starterPrompt`: the prompt copied into the chat composer.
 - `coverPrompt`: a separate prompt for generating the template card's cover/background image.
 
-Generate the cover art with the matching aspect ratio, then replace the corresponding `template-art` CSS illustration in `src/app/page.tsx` with an image asset. Keep the original `coverPrompt` as the asset-generation reference.
+Generate the cover art with the matching aspect ratio and add it under `public/template-covers/` using the template ID as the filename (for example, `lesson-deck.webp`). Then add `coverImage: "/template-covers/lesson-deck.webp"` to that template object in `src/lib/templates.ts`. The card automatically displays your image and keeps its fallback artwork until a cover is assigned. Keep the original `coverPrompt` as the asset-generation reference.
 
 ## Stack
 
