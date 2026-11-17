@@ -8,6 +8,7 @@ A light, modern AI workspace for students and teachers. It combines multi-model 
 - Responsive workspace shell with animated micro-interactions.
 - OpenRouter model catalogue loaded dynamically at runtime (free models appear first, followed by low-cost models).
 - Server-side OpenRouter chat proxy. The API key is never sent to the browser.
+- Side-by-side comparison mode: send the same prompt and conversation to two models, with token usage and cost estimates shown separately.
 - Interactive five-question quiz generation from the active conversation.
 - Prompt library with ready-to-use prompts for presentations, video scripts, posters, infographics, worksheets, and thumbnails.
 - Each template has a separate **cover-art prompt**. Use it to generate the actual background image, then replace the CSS artwork placeholder with your image.
