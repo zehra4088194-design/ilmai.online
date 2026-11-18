@@ -1,0 +1,14 @@
+node_modules
+.next
+out
+.env
+.env.*
+!.env.example
+*.log
+*.keystore
+*.jks
+*.apk
+*.aab
+.DS_Store
+next-env.d.ts
+tsconfig.tsbuildinfo

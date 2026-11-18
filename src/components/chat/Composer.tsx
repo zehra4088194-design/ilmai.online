@@ -1,0 +1,48 @@
+'use client';
+import { useEffect, useRef } from 'react';
+import { ArrowUp, Square } from 'lucide-react';
+import { iconFor } from '@/components/icons';
+import { cn } from '@/lib/utils';
+import type { UserFeature } from '@/lib/features';
+
+const COMPOSER_FEATURES = ['file_upload', 'web_search', 'voice_input'];
+
+export function Composer({ value, onChange, onSend, onStop, busy, features, onUnavailable, placeholder = 'Ask anything…  /  کچھ بھی پوچھیں' }: {
+  value: string; onChange: (v: string) => void; onSend: () => void; onStop: () => void; busy: boolean;
+  features: UserFeature[]; onUnavailable: (f: UserFeature) => void; placeholder?: string;
+}) {
+  const ta = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const el = ta.current;
+    if (!el) return;
+    el.style.height = '0px';
+    el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+  }, [value]);
+
+  const extras = features.filter((f) => COMPOSER_FEATURES.includes(f.key));
+
+  return (
+    <div className="glass mx-auto w-full max-w-3xl rounded-3xl p-2.5 shadow-soft transition focus-within:shadow-glow">
+      <textarea ref={ta} rows={1} dir="auto" value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); if (!busy) onSend(); } }}
+        className="max-h-52 w-full resize-none bg-transparent px-3 py-2 text-[0.95rem] outline-none placeholder:text-muted-foreground/70" />
+      <div className="flex items-center gap-1 px-1 pt-1">
+        {extras.map((f) => {
+          const Icon = iconFor(f.icon);
+          return (
+            <button key={f.key} type="button" title={f.state === 'active' ? f.label : `${f.label} – coming soon`} onClick={() => onUnavailable(f)}
+              className={cn('btn-ghost h-9 w-9 !p-0', f.state !== 'active' && 'opacity-50')}><Icon className="h-[18px] w-[18px]" /></button>
+          );
+        })}
+        <span className="ml-1 hidden text-xs text-muted-foreground sm:inline">Enter to send · Shift+Enter for new line</span>
+        <div className="ml-auto">
+          {busy ? (
+            <button onClick={onStop} className="btn-primary h-10 w-10 !rounded-full !p-0" aria-label="Stop"><Square className="h-4 w-4 fill-current" /></button>
+          ) : (
+            <button onClick={onSend} disabled={!value.trim()} className="btn-primary h-10 w-10 !rounded-full !p-0" aria-label="Send"><ArrowUp className="h-5 w-5" /></button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
