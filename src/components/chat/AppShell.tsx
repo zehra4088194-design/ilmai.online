@@ -36,8 +36,8 @@ export const useApp = () => {
   return c;
 };
 
-export function AppShell({ user, features, modes, announcement, children }: {
-  user: ShellUser; features: UserFeature[]; modes: Mode[]; announcement: { enabled: boolean; text: string }; children: React.ReactNode;
+export function AppShell({ user, features, modes, announcement, banner, children }: {
+  user: ShellUser; features: UserFeature[]; modes: Mode[]; announcement: { enabled: boolean; text: string }; banner?: { title: string; altText: string; url: string } | null; children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [credits, setCredits] = useState(user.credits);
@@ -85,6 +85,12 @@ export function AppShell({ user, features, modes, announcement, children }: {
         </AnimatePresence>
 
         <main className="flex min-w-0 flex-1 flex-col">
+          {banner?.url && (
+            <div className="relative w-full overflow-hidden bg-muted">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={banner.url} alt={banner.altText || banner.title || 'Ilm AI announcement'} className="max-h-40 w-full object-cover sm:max-h-52"/>
+            </div>
+          )}
           {announcement.enabled && announcement.text && (
             <div className="flex items-center justify-center gap-2 bg-primary px-4 py-1.5 text-center text-xs font-semibold text-primary-foreground"><Megaphone className="h-3.5 w-3.5 shrink-0" />{announcement.text}</div>
           )}
