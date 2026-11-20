@@ -10,7 +10,7 @@ import { adminClient } from '@/lib/supabase/admin';
 import { AttachmentIds, attachmentContent, validateAttachments, type Attachment } from '@/lib/attachments';
 import {
   RegenerateInput, StudioPolicySchema, TestConfigSchema, QuestionSchema, AnswerSchema,
-  parseGeneratedTest, reviseQuestions, questionChanged, validateAnswers,
+  parseGeneratedTest, reviseQuestions, questionChanged, validateAnswers, sanitizeStudentPaper,
   type TestQuestion, type TestAnswer,
 } from '@/lib/test-studio';
 
@@ -140,8 +140,6 @@ export const POST = handle(async (req: NextRequest, { params }: Ctx) => {
     if (generated.questions.length !== selected.length)
       throw new HttpError(502, 'The model returned the wrong number of replacement questions', 'invalid_regeneration');
 
-    const stableIdByGeneratedId = new Map<string, string>();
-    generated.questions.forEach((question, index) => stableIdByGeneratedId.set(question.id, selected[index].id));
     const replacementByStableId = new Map<string, TestQuestion>();
     generated.questions.forEach((question, index) => {
       replacementByStableId.set(selected[index].id, {
@@ -211,7 +209,7 @@ export const POST = handle(async (req: NextRequest, { params }: Ctx) => {
     const updatedPaper = {
       id, version: body.expectedVersion + 1, config, questions: revised,
     };
-    const safePaper = await import('@/lib/test-studio').then(({ sanitizeStudentPaper }) => sanitizeStudentPaper(updatedPaper));
+    const safePaper = sanitizeStudentPaper(updatedPaper);
     return json({
       paper: safePaper,
       warnings: generated.warnings,
