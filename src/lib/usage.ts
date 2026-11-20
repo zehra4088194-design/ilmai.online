@@ -3,7 +3,7 @@ import { adminClient } from '@/lib/supabase/admin';
 
 export type UsageInput = {
   userId: string | null;
-  kind: 'chat' | 'compare' | 'image' | 'video' | 'presentation' | 'test';
+  kind: 'chat' | 'compare' | 'image' | 'video' | 'presentation' | 'test' | 'quiz' | 'suggest';
   model?: string | null;
   promptTokens?: number;
   completionTokens?: number;
@@ -32,4 +32,12 @@ export async function logUsage(u: UsageInput) {
   } catch (e) {
     console.error('[usage] failed to log', e);
   }
+}
+
+/** How many events of a kind a user produced in the last 24 h (used for daily caps on free-model features). */
+export async function countLast24h(userId: string, kind: string) {
+  const since = new Date(Date.now() - 864e5).toISOString();
+  const { count } = await adminClient().from('usage_events').select('id', { count: 'exact', head: true })
+    .eq('user_id', userId).eq('kind', kind).gte('created_at', since);
+  return count ?? 0;
 }

@@ -6,7 +6,7 @@ import type { Plan } from '@/lib/auth';
 
 export type FeatureKey =
   | 'text_chat' | 'compare_models' | 'image_generation' | 'video_generation'
-  | 'presentations' | 'teacher_tests' | 'file_upload' | 'web_search' | 'voice_input';
+  | 'presentations' | 'teacher_tests' | 'file_upload' | 'web_search' | 'voice_input' | 'quiz' | 'suggestions';
 
 export type FeatureFlag = {
   key: FeatureKey | string;

@@ -14,6 +14,11 @@ export type AppSettings = {
   max_history_messages: number;
   max_upload_mb: number;
   system_prompt: string;
+  max_parallel_models: number;
+  utility_models: string;
+  suggestions_per_day: number;
+  quizzes_per_day: number;
+  quiz_max_questions: number;
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -28,6 +33,11 @@ export const DEFAULT_SETTINGS: AppSettings = {
   max_history_messages: 30,
   max_upload_mb: 15,
   system_prompt: 'You are Ilm AI, a helpful assistant.',
+  max_parallel_models: 4,
+  utility_models: '',
+  suggestions_per_day: 300,
+  quizzes_per_day: 40,
+  quiz_max_questions: 20,
 };
 
 export const getSettings = unstable_cache(

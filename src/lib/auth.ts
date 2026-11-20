@@ -18,6 +18,8 @@ export type Profile = {
   is_banned: boolean;
   preferred_model: string | null;
   language: string;
+  audience: 'student' | 'teacher';
+  grade: string | null;
   created_at: string;
 };
 

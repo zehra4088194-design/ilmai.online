@@ -5,11 +5,11 @@ import { iconFor } from '@/components/icons';
 import { cn } from '@/lib/utils';
 import type { UserFeature } from '@/lib/features';
 
-const COMPOSER_FEATURES = ['file_upload', 'web_search', 'voice_input'];
+const COMPOSER_FEATURES = ['quiz', 'file_upload', 'web_search', 'voice_input'];
 
-export function Composer({ value, onChange, onSend, onStop, busy, features, onUnavailable, placeholder = 'Ask anything…  /  کچھ بھی پوچھیں' }: {
+export function Composer({ value, onChange, onSend, onStop, busy, features, onUnavailable, onQuiz, placeholder = 'Ask anything…  /  کچھ بھی پوچھیں' }: {
   value: string; onChange: (v: string) => void; onSend: () => void; onStop: () => void; busy: boolean;
-  features: UserFeature[]; onUnavailable: (f: UserFeature) => void; placeholder?: string;
+  features: UserFeature[]; onUnavailable: (f: UserFeature) => void; onQuiz?: () => void; placeholder?: string;
 }) {
   const ta = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
@@ -19,7 +19,7 @@ export function Composer({ value, onChange, onSend, onStop, busy, features, onUn
     el.style.height = Math.min(el.scrollHeight, 200) + 'px';
   }, [value]);
 
-  const extras = features.filter((f) => COMPOSER_FEATURES.includes(f.key));
+  const extras = features.filter((f) => COMPOSER_FEATURES.includes(f.key) && (f.key !== 'quiz' || (f.state === 'active' && onQuiz)));
 
   return (
     <div className="glass mx-auto w-full max-w-3xl rounded-3xl p-2.5 shadow-soft transition focus-within:shadow-glow">
@@ -30,8 +30,8 @@ export function Composer({ value, onChange, onSend, onStop, busy, features, onUn
         {extras.map((f) => {
           const Icon = iconFor(f.icon);
           return (
-            <button key={f.key} type="button" title={f.state === 'active' ? f.label : `${f.label} – coming soon`} onClick={() => onUnavailable(f)}
-              className={cn('btn-ghost h-9 w-9 !p-0', f.state !== 'active' && 'opacity-50')}><Icon className="h-[18px] w-[18px]" /></button>
+            <button key={f.key} type="button" title={f.key === 'quiz' ? 'Create a quiz' : f.state === 'active' ? f.label : `${f.label} – coming soon`} onClick={() => (f.key === 'quiz' ? onQuiz?.() : onUnavailable(f))}
+              className={cn('btn-ghost h-9 w-9 !p-0', f.state !== 'active' && f.key !== 'quiz' && 'opacity-50')}><Icon className="h-[18px] w-[18px]" /></button>
           );
         })}
         <span className="ml-1 hidden text-xs text-muted-foreground sm:inline">Enter to send · Shift+Enter for new line</span>

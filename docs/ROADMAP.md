@@ -7,6 +7,11 @@ Done: see README table. Below is **what to build next**, in order, with enough d
 - Verify image model id (`feature_flags.config.default_model`) against https://openrouter.ai/models?output_modalities=image .
 
 ## 1. Polish phase-1 chat
+- **Per-answer actions**: regenerate one model's answer, "👍 best answer" (store in `messages.meta.best` → analytics on which model users prefer), "continue with this model only".
+- **KaTeX** maths rendering in `Markdown.tsx` (`remark-math` + `rehype-katex`); then relax the "plain-text maths" line in `lib/prompt.ts`.
+- **Onboarding**: first-login modal to choose Student/Teacher + class (fields exist: `profiles.audience/grade`).
+- **Student progress page**: quiz history, weak topics (from `quiz_attempts`), streaks. **Teacher**: share a quiz by link / class code, see class results (new tables `classes`, `class_members`).
+- Quiz → printable PDF with answer key (reuse the PDF worker from §5).
 - Regenerate / edit-last-message, stop-and-keep partial, conversation export (PDF/Markdown).
 - Replace `prompt()/confirm()` in the sidebar with proper modals.
 - Per-message token/cost badge (data already in `messages.prompt_tokens/completion_tokens/cost_usd`).

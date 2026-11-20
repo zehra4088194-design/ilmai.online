@@ -41,10 +41,11 @@ export async function orStream(body: Record<string, unknown>, signal?: AbortSign
 }
 
 /** Non-streaming chat completion. */
-export async function orChat(body: Record<string, unknown>) {
+export async function orChat(body: Record<string, unknown>, signal?: AbortSignal) {
   const res = await fetch(`${OR_BASE}/chat/completions`, {
     method: 'POST',
     headers: headers(),
+    signal,
     body: JSON.stringify({ ...body, stream: false, usage: { include: true } }),
   });
   const j = await res.json().catch(() => ({}));

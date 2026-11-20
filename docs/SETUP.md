@@ -2,7 +2,7 @@
 
 ## 1. Supabase (naya account)
 1. https://supabase.com → New project (region: Singapore/Mumbai, strong DB password save kar lo).
-2. **SQL Editor → New query** → `supabase/migrations/0001_init.sql` ka poora content paste → **Run**.
+2. **SQL Editor → New query** → pehle `supabase/migrations/0001_init.sql` paste → **Run**. Phir naya query → `supabase/migrations/0002_modes_quiz_suggestions.sql` paste → **Run** (dono, isi tarteeb se).
 3. **Project Settings → API**: copy karo
    - `Project URL` → `NEXT_PUBLIC_SUPABASE_URL`
    - `anon public` key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
@@ -14,6 +14,12 @@
 
 ## 2. OpenRouter
 https://openrouter.ai/keys → key banao → `OPENROUTER_API_KEY`. Credits add karo. Settings → "Limits" mein monthly spend limit zaroor lagao.
+
+### Free models (suggestions + quiz)
+Suggestions aur quizzes **free models** se chalte hain (user ke credits nahi katte). Dhyan rakho:
+- Agar free model par "no endpoints / data policy" jaisa error aaye to OpenRouter → **Settings → Privacy** mein free models allow karo.
+- Free models par rate limit / daily limit hoti hai (OpenRouter docs mein current limits dekho; credits add karne se limit barh sakti hai) aur ye limit **tumhare saare users mein share** hoti hai. Isliye app mein per-user daily caps hain (`/admin/settings`).
+- Free models aate-jate rehte hain. App automatically live catalogue se best free models chunti hai aur ek fail ho to agla try karti hai. Chaho to `/admin/settings → Free models` mein apni list pin kar do (comma separated).
 
 ## 3. Backblaze B2
 1. Buckets → Create bucket `ilmai-media`, **Private**.

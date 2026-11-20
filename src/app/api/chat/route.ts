@@ -5,24 +5,31 @@ import { requireUserApi } from '@/lib/auth';
 import { requireFeature } from '@/lib/features';
 import { getSettings } from '@/lib/settings';
 import { getModel, canUseTier } from '@/lib/models';
+import { getMode } from '@/lib/modes';
+import { buildSystemPrompt } from '@/lib/prompt';
+import { buildHistory } from '@/lib/history';
 import { orStream, type ChatMessage } from '@/lib/openrouter';
 import { adminClient } from '@/lib/supabase/admin';
 import { creditsFor, addCredits } from '@/lib/credits';
 import { logUsage } from '@/lib/usage';
-import { truncate } from '@/lib/utils';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
+/**
+ * One call = ONE model answering ONE user message.
+ * The browser first stores the user message (POST /api/conversations[/:id/messages]) and then calls this route
+ * once per selected model – in parallel for multi-model chat. Every answer is saved with meta.turn = userMessageId.
+ */
 const Body = z.object({
-  conversationId: z.string().uuid().optional(),
+  conversationId: z.string().uuid(),
+  userMessageId: z.string().uuid(),
   model: z.string().min(3).max(200),
-  message: z.string().min(1).max(20000),
-  /** compare mode: nothing is saved, history is supplied by the client */
-  ephemeral: z.boolean().optional(),
-  history: z.array(z.object({ role: z.enum(['user', 'assistant']), content: z.string().max(50000) })).max(40).optional(),
+  multi: z.boolean().optional(),
 });
+
+type Row = { id: string; role: 'user' | 'assistant' | 'system'; content: string; model: string | null; meta: { kind?: string } | null };
 
 export const POST = handle(async (req: NextRequest) => {
   const { profile, isAdmin } = await requireUserApi();
@@ -32,55 +39,46 @@ export const POST = handle(async (req: NextRequest) => {
   if (settings.maintenance_mode && !isAdmin)
     throw new HttpError(503, 'Ilm AI is under maintenance. Please try again soon.', 'maintenance');
 
-  await requireFeature(body.ephemeral ? 'compare_models' : 'text_chat', profile.plan, isAdmin);
+  await requireFeature('text_chat', profile.plan, isAdmin);
+  if (body.multi) await requireFeature('compare_models', profile.plan, isAdmin);
 
   const model = await getModel(body.model);
   if (!model || (!model.enabled && !isAdmin)) throw new HttpError(400, 'This model is not available', 'model_unavailable');
-  if (!isAdmin && !canUseTier(profile.plan, model.tier))
-    throw new HttpError(403, `This model needs the ${model.tier} plan`, 'plan_required');
+  if (!isAdmin && !canUseTier(profile.plan, model.tier)) throw new HttpError(403, `This model needs the ${model.tier} plan`, 'plan_required');
   if (!isAdmin && profile.credits_balance <= 0) throw new HttpError(402, 'You are out of credits', 'out_of_credits');
 
   const db = adminClient();
-  let conversationId: string | null = body.conversationId ?? null;
-  let history: ChatMessage[] = [];
+  const { data: conv } = await db.from('conversations').select('id,mode').eq('id', body.conversationId).eq('user_id', profile.id).maybeSingle();
+  if (!conv) throw new HttpError(404, 'Conversation not found');
+  const { data: userMsg } = await db.from('messages').select('id,content,created_at')
+    .eq('id', body.userMessageId).eq('conversation_id', conv.id).eq('user_id', profile.id).eq('role', 'user').maybeSingle();
+  if (!userMsg) throw new HttpError(404, 'Message not found');
 
-  if (body.ephemeral) {
-    history = body.history ?? [];
-  } else {
-    if (conversationId) {
-      const { data: conv } = await db.from('conversations').select('id').eq('id', conversationId).eq('user_id', profile.id).maybeSingle();
-      if (!conv) throw new HttpError(404, 'Conversation not found');
-      const { data: rows } = await db
-        .from('messages').select('role,content').eq('conversation_id', conversationId)
-        .order('created_at', { ascending: false }).limit(settings.max_history_messages);
-      history = (rows ?? []).reverse().map((r) => ({ role: r.role as 'user' | 'assistant', content: r.content as string }));
-    } else {
-      const { data: conv, error } = await db
-        .from('conversations')
-        .insert({ user_id: profile.id, title: truncate(body.message.replace(/\s+/g, ' ').trim(), 60), model: model.id })
-        .select('id').single();
-      if (error) throw error;
-      conversationId = conv.id as string;
-    }
-    await db.from('messages').insert({ conversation_id: conversationId, user_id: profile.id, role: 'user', content: body.message });
-  }
+  /* ---- history: everything BEFORE this user message. In multi-model chats each model sees its own earlier answers. ---- */
+  const turnsToKeep = Math.max(2, Math.floor(settings.max_history_messages / 2));
+  const { data: rows } = await db.from('messages').select('id,role,content,model,meta')
+    .eq('conversation_id', conv.id).lt('created_at', userMsg.created_at)
+    .order('created_at', { ascending: false }).limit(turnsToKeep * 6);
+  const history: ChatMessage[] = buildHistory(((rows ?? []) as Row[]).reverse(), model.id, turnsToKeep);
 
+  const mode = await getMode(conv.mode);
   const messages: ChatMessage[] = [
-    { role: 'system', content: settings.system_prompt },
+    { role: 'system', content: buildSystemPrompt({ settings, mode, audience: profile.audience ?? 'student', grade: profile.grade }) },
     ...history,
-    { role: 'user', content: body.message },
+    { role: 'user', content: userMsg.content as string },
   ];
 
   const ac = new AbortController();
   req.signal.addEventListener('abort', () => ac.abort());
   const started = Date.now();
+  const kind = body.multi ? 'compare' : 'chat';
 
   const upstream = await orStream({ model: model.id, messages }, ac.signal);
   if (!upstream.ok || !upstream.body) {
     const t = await upstream.text().catch(() => '');
     let msg = `Model error (${upstream.status})`;
     try { msg = JSON.parse(t)?.error?.message ?? msg; } catch { /* ignore */ }
-    await logUsage({ userId: profile.id, kind: body.ephemeral ? 'compare' : 'chat', model: model.id, status: 'error', error: msg, latencyMs: Date.now() - started });
+    await logUsage({ userId: profile.id, kind, model: model.id, status: 'error', error: msg, latencyMs: Date.now() - started });
     throw new HttpError(502, msg, 'upstream_error');
   }
 
@@ -93,17 +91,16 @@ export const POST = handle(async (req: NextRequest) => {
     const ct = usage?.completion_tokens ?? Math.ceil(full.length / 4);
     const cost = usage?.cost ?? 0;
     const charge = !isAdmin && (full || usage) ? creditsFor(cost, pt + ct, settings) : 0;
-    if (!body.ephemeral && full && conversationId) {
+    if (full) {
       await db.from('messages').insert({
-        conversation_id: conversationId, user_id: profile.id, role: 'assistant', content: full,
-        model: model.id, prompt_tokens: pt, completion_tokens: ct, cost_usd: cost,
+        conversation_id: conv.id, user_id: profile.id, role: 'assistant', content: full,
+        model: model.id, prompt_tokens: pt, completion_tokens: ct, cost_usd: cost, meta: { turn: userMsg.id },
       });
-      await db.from('conversations').update({ updated_at: new Date().toISOString(), model: model.id }).eq('id', conversationId);
+      await db.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', conv.id);
     }
-    if (charge) await addCredits(profile.id, -charge, `${body.ephemeral ? 'compare' : 'chat'}:${model.id}`).catch((e) => console.error(e));
+    if (charge) await addCredits(profile.id, -charge, `${kind}:${model.id}`).catch((e) => console.error(e));
     await logUsage({
-      userId: profile.id, kind: body.ephemeral ? 'compare' : 'chat', model: model.id,
-      promptTokens: pt, completionTokens: ct, costUsd: cost, creditsUsed: charge,
+      userId: profile.id, kind, model: model.id, promptTokens: pt, completionTokens: ct, costUsd: cost, creditsUsed: charge,
       latencyMs: Date.now() - started, status: errMsg && !full ? 'error' : 'ok', error: errMsg,
     });
   };
@@ -115,7 +112,7 @@ export const POST = handle(async (req: NextRequest) => {
       const dec = new TextDecoder();
       let buf = '';
       try {
-        while (true) {
+        for (;;) {
           const { done, value } = await reader.read();
           if (done) break;
           buf += dec.decode(value, { stream: true });
@@ -128,11 +125,7 @@ export const POST = handle(async (req: NextRequest) => {
             if (!data || data === '[DONE]') continue;
             try {
               const j = JSON.parse(data);
-              if (j.error) {
-                errMsg = j.error.message ?? 'Upstream error';
-                controller.enqueue(enc.encode(`\n\n⚠️ ${errMsg}`));
-                continue;
-              }
+              if (j.error) { errMsg = j.error.message ?? 'Upstream error'; controller.enqueue(enc.encode(`\n\n⚠️ ${errMsg}`)); continue; }
               const delta = j.choices?.[0]?.delta?.content;
               if (delta) { full += delta; controller.enqueue(enc.encode(delta)); }
               if (j.usage) usage = j.usage;
@@ -150,11 +143,6 @@ export const POST = handle(async (req: NextRequest) => {
   });
 
   return new Response(stream, {
-    headers: {
-      'Content-Type': 'text/plain; charset=utf-8',
-      'Cache-Control': 'no-cache, no-transform',
-      'X-Accel-Buffering': 'no',
-      'X-Conversation-Id': conversationId ?? '',
-    },
+    headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', 'X-Accel-Buffering': 'no' },
   });
 });

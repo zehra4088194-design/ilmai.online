@@ -2,13 +2,14 @@ import { Wrench } from 'lucide-react';
 import { requireUserPage } from '@/lib/auth';
 import { featuresForUser } from '@/lib/features';
 import { getSettings } from '@/lib/settings';
+import { getModes } from '@/lib/modes';
 import { AppShell } from '@/components/chat/AppShell';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { profile, isAdmin } = await requireUserPage();
-  const [features, settings] = await Promise.all([featuresForUser(profile.plan, isAdmin), getSettings()]);
+  const [features, settings, modes] = await Promise.all([featuresForUser(profile.plan, isAdmin), getSettings(), getModes()]);
 
   if (settings.maintenance_mode && !isAdmin) {
     return (
@@ -24,8 +25,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <AppShell
-      user={{ name: profile.full_name ?? '', email: profile.email ?? '', plan: profile.plan, credits: profile.credits_balance, isAdmin }}
+      user={{ id: profile.id, name: profile.full_name ?? '', email: profile.email ?? '', plan: profile.plan, credits: profile.credits_balance, isAdmin, audience: profile.audience ?? 'student' }}
       features={features}
+      modes={modes}
       announcement={settings.announcement}
     >
       {children}

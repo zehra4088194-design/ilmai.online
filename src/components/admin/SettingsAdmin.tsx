@@ -13,6 +13,10 @@ const NUM: { key: keyof AppSettings; label: string; hint: string }[] = [
   { key: 'min_credits_per_msg', label: 'Minimum credits per message', hint: 'Floor price, even for free models' },
   { key: 'max_history_messages', label: 'Messages of history sent to the model', hint: 'Lower = cheaper' },
   { key: 'max_upload_mb', label: 'Max upload size (MB)', hint: 'For images / PDFs' },
+  { key: 'max_parallel_models', label: 'Models answering at once', hint: 'AI-Fiesta-style multi-model chat (1 = single model)' },
+  { key: 'suggestions_per_day', label: 'Suggestions per user per day', hint: 'Free-model calls – protects the shared free quota' },
+  { key: 'quizzes_per_day', label: 'Quizzes per user per day', hint: 'Free-model calls' },
+  { key: 'quiz_max_questions', label: 'Max questions per quiz', hint: 'Hard cap for the quiz builder' },
 ];
 
 export function SettingsAdmin({ initial }: { initial: AppSettings }) {
@@ -44,6 +48,12 @@ export function SettingsAdmin({ initial }: { initial: AppSettings }) {
               <span className="text-xs text-muted-foreground">{hint}</span></label>
           ))}
         </div>
+      </section>
+
+      <section className="card space-y-3 p-4">
+        <p className="font-bold">Free models for suggestions &amp; quizzes</p>
+        <p className="text-sm text-muted-foreground">Leave empty to auto-pick the best free OpenRouter models. Or pin your own, comma separated (tried in order, e.g. <code>meta-llama/llama-3.3-70b-instruct:free, google/gemma-3-27b-it:free</code>).</p>
+        <div className="flex gap-2"><input className="input" placeholder="auto" value={s.utility_models} onChange={(e) => upd('utility_models', e.target.value)} /><button className="btn-outline" onClick={() => save('utility_models', s.utility_models)}><Save className="h-4 w-4" /></button></div>
       </section>
 
       <section className="card space-y-3 p-4">

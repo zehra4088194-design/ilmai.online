@@ -3,51 +3,47 @@
 ```
 src/
   app/
-    page.tsx                      landing
-    (auth)/login | signup         Supabase email+password / Google
-    (app)/                        signed-in user app (layout = AppShell sidebar)
-      chat/[[...id]]              ChatView (streaming)
-      compare                     CompareView
-      tools/[key]                 per-feature screens (image, presentations, placeholders)
-      settings
-    admin/                        admin panel (layout checks role)
-      page (analytics) · features · models · users · usage · media · skills · settings
+    page.tsx                         landing
+    (auth)/login | signup
+    (app)/                           signed-in app, layout = AppShell (sidebar)
+      chat/[[...id]]                 ChatView  (?mode=<slug> starts a chat in a study mode)
+      tools/[key]                    image, presentations, placeholders
+      settings                       name, Student/Teacher, class level, theme
+    admin/                           overview · features · models · modes · users · usage · media · skills · settings
     api/
-      chat                        streaming proxy → OpenRouter, saves messages, charges credits
-      conversations[/id]          list / messages / rename / pin / delete (RLS client)
-      models · features · me      data for the UI
-      generate/{image,presentation,video,test}
-      media/upload-url · media/[id]    B2 signed URLs
-      admin/*                     admin mutations (requireAdminApi + revalidateTag)
-      cron/daily-credits          Bearer CRON_SECRET
-  components/ {chat, admin, tools, landing, ui}
+      chat                           ONE model answers ONE stored user message (streamed)
+      conversations[/id[/messages]]  create (with first message) / load / rename / pin / delete / add message
+      suggest                        3 follow-up ideas (free models)
+      quiz/generate · quiz/[id] · quiz/[id]/attempt
+      models · features · me
+      generate/{image,presentation,video,test}   media/{upload-url,[id]}
+      admin/*   cron/daily-credits
+  components/ {chat, quiz, admin, tools, landing, ui}
   lib/
-    auth.ts        getAuth / requireUserPage / requireAdminApi …
-    features.ts    feature flags, per-user state, requireFeature()
-    settings.ts    app_settings (cached, tag 'settings')
-    models.ts      OpenRouter catalogue ⊕ model_settings overrides (tag 'models')
-    openrouter.ts  fetch wrappers (stream + non-stream)
-    credits.ts · usage.ts · media.ts · storage/b2.ts
-    supabase/{client,server,admin}.ts
-supabase/migrations/0001_init.sql
+    auth · features · settings · modes · models · openrouter · credits · usage · media · storage/b2
+    prompt.ts       system prompt = global prompt + active mode + user context (student/teacher, grade)
+    history.ts      pure fn: rows → messages for one model (multi-model aware)  [unit-tested]
+    utility-ai.ts   "free model" helper with fall-through chain (suggestions, quizzes)
+    quiz.ts · json-extract.ts   quiz prompt + strict validation/normalisation of LLM JSON [unit-tested]
+supabase/migrations/0001_init.sql  0002_modes_quiz_suggestions.sql
 ```
 
-## Chat data flow
-1. Browser `POST /api/chat {conversationId?, model, message}` (history is **loaded from the DB**, never trusted from the client).
-2. Server: auth → maintenance → `requireFeature('text_chat')` → model enabled & tier ≤ plan → credits > 0.
-3. Creates the conversation (first message), stores the user message, calls OpenRouter with `stream:true` + `usage.include`.
-4. Streams plain text deltas to the browser; header `X-Conversation-Id` lets the client update the URL.
-5. On finish (or abort): stores the assistant message, charges credits = `ceil(cost_usd × credits_per_usd)`, inserts a `usage_events` row.
+## Multi-model chat flow (AI-Fiesta style)
+1. Browser stores the user message first: `POST /api/conversations {firstMessage, mode}` (new chat) or `POST /api/conversations/:id/messages`. → `userMessageId`.
+2. Browser calls `POST /api/chat {conversationId, userMessageId, model, multi}` **once per selected model, in parallel**. Each response streams into its own column.
+3. Server: auth → maintenance → feature flags (`text_chat`, + `compare_models` if multi) → model enabled & tier ≤ plan → credits > 0 → loads history *before* that message with `buildHistory()` (each model sees its own earlier answers) → system prompt via `buildSystemPrompt()` → OpenRouter stream.
+4. On finish: saves the assistant message with `meta.turn = userMessageId`, charges credits (`ceil(cost_usd × credits_per_usd)`), logs `usage_events`.
+5. UI groups messages into turns (`groupMessages`): 1 answer = normal chat, >1 = columns (swipe on mobile).
 
-## Feature flags
-`enabled` / `visible` / `coming_soon` / `min_plan` → `stateFor()` returns `active | locked_plan | coming_soon | hidden`. Admins always get `active`.
+## Modes (Student / Teacher "plugins")
+Table `modes` (slug, audience, name, name_ur, icon, description, **system_prompt**, starters[], tool, is_active). Sidebar shows modes for the user's `profiles.audience` (toggle at top). `conversations.mode` remembers the mode; the chat route injects its prompt. `tool = 'quiz'` shows the quiz builder on the start screen. Add/edit in `/admin/modes`.
 
-## Credits
-`profiles.credits_balance`, ledger in `credit_transactions`, atomic via SQL function `grant_credits`. New users get `default_credits`; `/api/cron/daily-credits` tops free users up to `daily_free_credits`.
+## Quiz engine
+`POST /api/quiz/generate` → `utilityChat()` (free models, retry on a different model) → `parseQuiz()` (drops invalid/duplicate questions, shuffles options and re-points the answer) → rows in `quizzes` + an assistant message with `meta = {kind:'quiz', quiz_id}`. `QuizCard` renders it; `POST /api/quiz/:id/attempt` scores **on the server** from the stored key and saves to `quiz_attempts`. Caps: `quizzes_per_day`, `quiz_max_questions`.
+
+## Free-model "utility" calls
+Suggestions and quizzes use free OpenRouter models (auto-picked from the live catalogue, preference order in `utility-ai.ts`, or pinned via setting `utility_models`). Every call falls through to the next model on error/rate-limit. They cost the user no credits; per-user daily caps protect the shared free quota. If a free model errors, the UI simply shows no suggestions.
 
 ## Security model
-- RLS on every table. Browser (anon key) can read only its own rows and the public config tables; it can update only `full_name, avatar_url, preferred_model, language, last_seen_at` on `profiles` (column grants) – so nobody can make themselves admin or give themselves credits.
-- All privileged work uses the service-role key **on the server only**.
-- Admin = `profiles.role = 'admin'` or email in `ADMIN_EMAILS`.
-- B2 bucket is private; users get short-lived signed URLs.
-- Known gaps (see ROADMAP): per-IP rate limiting, abuse/captcha on sign-up, moderation.
+RLS on every table; the browser can only update `full_name, avatar_url, preferred_model, language, last_seen_at, audience, grade` on `profiles` (column grants). All privileged work uses the service-role key on the server. Admin = `profiles.role='admin'` or `ADMIN_EMAILS`. B2 bucket private + signed URLs. Quiz scores computed server-side.
+Known gaps: per-IP rate limiting, sign-up abuse protection, moderation, KaTeX maths rendering.

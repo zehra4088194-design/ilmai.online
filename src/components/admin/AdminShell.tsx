@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, ToggleRight, Cpu, Users, Activity, HardDrive, Puzzle, Settings2, ArrowLeft, Menu, X, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, ToggleRight, Cpu, Users, Activity, HardDrive, Puzzle, Settings2, ArrowLeft, Menu, X, ShieldCheck, GraduationCap } from 'lucide-react';
 import { Logo } from '@/components/ui/Logo';
 import { ThemeToggle } from '@/components/ui/ThemeControls';
 import { cn } from '@/lib/utils';
@@ -11,6 +11,7 @@ const NAV = [
   { href: '/admin', label: 'Overview', Icon: LayoutDashboard },
   { href: '/admin/features', label: 'Features', Icon: ToggleRight },
   { href: '/admin/models', label: 'Models', Icon: Cpu },
+  { href: '/admin/modes', label: 'Study modes', Icon: GraduationCap },
   { href: '/admin/users', label: 'Users & credits', Icon: Users },
   { href: '/admin/usage', label: 'Usage log', Icon: Activity },
   { href: '/admin/media', label: 'Media (B2)', Icon: HardDrive },

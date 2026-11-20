@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Users, UserPlus, Zap, MessageSquare, Hash, DollarSign, Coins, AlertTriangle, Timer, HardDrive, Database } from 'lucide-react';
+import { Users, UserPlus, Zap, MessageSquare, Hash, DollarSign, Coins, AlertTriangle, Timer, HardDrive, Database, CircleHelp, Target, Trophy, Lightbulb } from 'lucide-react';
 import { adminClient } from '@/lib/supabase/admin';
 import { PageHead } from '@/components/admin/AdminShell';
 import { StatCard } from '@/components/admin/StatCard';
@@ -43,6 +43,17 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
     );
   }
   const o = data as Overview;
+
+  // learning analytics (quizzes + suggestions)
+  const since = new Date(Date.now() - days * 864e5).toISOString();
+  const db = adminClient();
+  const [qz, at, sg] = await Promise.all([
+    db.from('quizzes').select('id', { count: 'exact', head: true }).gte('created_at', since),
+    db.from('quiz_attempts').select('score,total').gte('created_at', since).limit(2000),
+    db.from('usage_events').select('id', { count: 'exact', head: true }).eq('kind', 'suggest').gte('created_at', since),
+  ]);
+  const attempts = (at.data ?? []) as { score: number; total: number }[];
+  const avgScore = attempts.length ? Math.round((attempts.reduce((n, a) => n + (a.total ? a.score / a.total : 0), 0) / attempts.length) * 100) : 0;
   const mb = (o.media_bytes / 1048576).toFixed(1);
 
   return (
@@ -64,6 +75,14 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
         <StatCard i={7} Icon={AlertTriangle} label="Errors" value={fmtNum(o.errors_period)} hint={o.requests_period ? `${((o.errors_period / o.requests_period) * 100).toFixed(1)}% of requests` : undefined} />
         <StatCard i={8} Icon={Timer} label="Avg latency" value={`${((o.avg_latency_ms ?? 0) / 1000).toFixed(1)}s`} />
         <StatCard i={9} Icon={HardDrive} label="Media stored" value={fmtNum(o.media_total)} hint={`${mb} MB in B2`} />
+      </div>
+
+      <h2 className="mb-3 mt-8 text-sm font-bold uppercase tracking-wider text-muted-foreground">Learning</h2>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <StatCard i={0} Icon={CircleHelp} label="Quizzes created" value={fmtNum(qz.count ?? 0)} />
+        <StatCard i={1} Icon={Target} label="Quiz attempts" value={fmtNum(attempts.length)} />
+        <StatCard i={2} Icon={Trophy} label="Average score" value={`${avgScore}%`} />
+        <StatCard i={3} Icon={Lightbulb} label="Suggestions served" value={fmtNum(sg.count ?? 0)} hint="free models" />
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">

@@ -1,91 +1,96 @@
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useParams } from 'next/navigation';
-import { AnimatePresence, motion } from 'framer-motion';
-import { Copy, Check, GraduationCap, FileEdit, Calculator, BookOpen, AlertTriangle } from 'lucide-react';
-import { LogoMark } from '@/components/ui/Logo';
-import { Markdown } from '@/components/chat/Markdown';
-import { ModelPicker } from '@/components/chat/ModelPicker';
-import { Composer } from '@/components/chat/Composer';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { MobileTopBar, useApp } from '@/components/chat/AppShell';
+import { ModelBar } from '@/components/chat/ModelBar';
+import { Composer } from '@/components/chat/Composer';
+import { TurnView } from '@/components/chat/TurnView';
+import { Suggestions } from '@/components/chat/Suggestions';
+import { EmptyState } from '@/components/chat/EmptyState';
+import { QuizBuilder, type QuizCreated } from '@/components/quiz/QuizBuilder';
+import { QuizDialog } from '@/components/quiz/QuizDialog';
+import { groupMessages, type Msg } from '@/components/chat/types';
 import { useModels } from '@/components/chat/useModels';
 import { useToast } from '@/components/providers';
-import { cn } from '@/lib/utils';
+import { iconFor } from '@/components/icons';
+import { api } from '@/lib/client-api';
 
-type Msg = { id: string; role: 'user' | 'assistant'; content: string; model?: string | null; streaming?: boolean; error?: boolean };
-
-const SUGGESTIONS = [
-  { Icon: GraduationCap, t: 'Explain photosynthesis in simple words', s: 'For a class 9 student' },
-  { Icon: FileEdit, t: 'Write a polite leave application for school', s: 'Short and formal' },
-  { Icon: Calculator, t: 'Solve 2x + 5 = 17 step by step', s: 'With a quick check' },
-  { Icon: BookOpen, t: 'Ek chhoti si akhlaqi kahani Urdu mein likho', s: 'اردو میں' },
-];
+type ServerMsg = { id: string; role: 'user' | 'assistant'; content: string; model: string | null; meta: Msg['meta'] };
 
 export function ChatView() {
-  const params = useParams<{ id?: string[] }>();
-  const routeId = params.id?.[0] ?? null;
-  const { features, refreshConversations, refreshMe } = useApp();
+  const pathname = usePathname();
+  const sp = useSearchParams();
+  const routeId = pathname.startsWith('/chat/') ? pathname.split('/')[2] || null : null;
+  const modeParam = sp.get('mode');
+
+  const { modes, features, featureOn, audience, refreshConversations, refreshMe } = useApp();
   const toast = useToast();
-  const { models, modelId, setModelId, loading: modelsLoading } = useModels();
+  const { models, selected, toggle, maxParallel, loading: modelsLoading } = useModels();
 
   const [messages, setMessages] = useState<Msg[]>([]);
+  const [modeSlug, setModeSlug] = useState<string | null>(modeParam);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [loadingChat, setLoadingChat] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [sugLoading, setSugLoading] = useState(false);
+  const [quizDlg, setQuizDlg] = useState<{ topic?: string; context?: string } | null>(null);
+
   const convRef = useRef<string | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
+  const aborts = useRef<AbortController[]>([]);
+  const sugToken = useRef(0);
   const endRef = useRef<HTMLDivElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
 
-  /* load / reset when the URL's conversation id changes (but not when WE set it after the first message) */
+  const mode = useMemo(() => modes.find((m) => m.slug === modeSlug) ?? null, [modes, modeSlug]);
+  const names = useMemo(() => new Map(models.map((m) => [m.id, m.name.replace(/^[^:]+:\s*/, '')])), [models]);
+  const groups = useMemo(() => groupMessages(messages), [messages]);
+
+  /* ---- load / reset when the conversation in the URL changes (not when WE set it after the first message) ---- */
   useEffect(() => {
     if (routeId === convRef.current) return;
-    abortRef.current?.abort();
+    aborts.current.forEach((a) => a.abort());
     convRef.current = routeId;
-    setBusy(false);
+    sugToken.current++;
+    setBusy(false); setSuggestions([]); setSugLoading(false);
     if (!routeId) { setMessages([]); return; }
     setLoadingChat(true);
-    fetch(`/api/conversations/${routeId}`).then((r) => r.json()).then((j) => {
-      setMessages((j.messages ?? []).map((m: { id: string; role: 'user' | 'assistant'; content: string; model: string | null }) => ({ ...m })));
-      stick.current = true;
-    }).catch(() => toast('Could not load this chat', 'err')).finally(() => setLoadingChat(false));
+    api<{ conversation: { mode: string | null }; messages: ServerMsg[] }>(`/api/conversations/${routeId}`, 'GET')
+      .then((j) => { setMessages(j.messages.map((m) => ({ id: m.id, role: m.role, content: m.content, model: m.model, meta: m.meta }))); setModeSlug(j.conversation?.mode ?? null); stick.current = true; })
+      .catch(() => toast('Could not load this chat', 'err'))
+      .finally(() => setLoadingChat(false));
   }, [routeId, toast]);
 
-  useEffect(() => { if (stick.current) endRef.current?.scrollIntoView({ block: 'end' }); }, [messages]);
+  useEffect(() => { if (!routeId) setModeSlug(modeParam); }, [routeId, modeParam]);
+  useEffect(() => { if (stick.current) endRef.current?.scrollIntoView({ block: 'end' }); }, [messages, suggestions]);
 
   const onScroll = () => {
     const el = scroller.current;
-    if (el) stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 140;
+    if (el) stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 160;
   };
 
-  const send = useCallback(async (text?: string) => {
-    const t = (text ?? input).trim();
-    if (!t || busy) return;
-    if (!modelId) { toast('Please choose a model first', 'err'); return; }
-    setInput('');
-    setBusy(true);
-    stick.current = true;
-    const aid = crypto.randomUUID();
-    setMessages((m) => [...m, { id: crypto.randomUUID(), role: 'user', content: t }, { id: aid, role: 'assistant', content: '', streaming: true, model: modelId }]);
-    const ac = new AbortController();
-    abortRef.current = ac;
-    const patch = (p: Partial<Msg>) => setMessages((m) => m.map((x) => (x.id === aid ? { ...x, ...p } : x)));
-
+  /* ---- suggestions (free models) ---- */
+  const loadSuggestions = useCallback(async (user: string, assistant: string) => {
+    const token = ++sugToken.current;
+    setSugLoading(true);
     try {
-      const res = await fetch('/api/chat', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ac.signal,
-        body: JSON.stringify({ conversationId: convRef.current ?? undefined, model: modelId, message: t }),
-      });
+      const r = await api<{ suggestions: string[] }>('/api/suggest', 'POST', { user, assistant: assistant.slice(0, 6000), mode: modeSlug });
+      if (token === sugToken.current) setSuggestions(r.suggestions ?? []);
+    } catch { /* suggestions are optional */ } finally { if (token === sugToken.current) setSugLoading(false); }
+  }, [modeSlug]);
+
+  /* ---- one model's streamed answer ---- */
+  async function streamOne(cid: string, umid: string, model: string, multi: boolean, aid: string): Promise<string> {
+    const ac = new AbortController();
+    aborts.current.push(ac);
+    const patch = (p: Partial<Msg>) => setMessages((ms) => ms.map((x) => (x.id === aid ? { ...x, ...p } : x)));
+    let acc = '';
+    try {
+      const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ac.signal, body: JSON.stringify({ conversationId: cid, userMessageId: umid, model, multi }) });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? 'Request failed');
-      const cid = res.headers.get('x-conversation-id');
-      if (cid && !convRef.current) {
-        convRef.current = cid;
-        window.history.replaceState(null, '', `/chat/${cid}`);
-      }
       const reader = res.body!.getReader();
       const dec = new TextDecoder();
-      let acc = '';
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -97,53 +102,97 @@ export function ChatView() {
       if (ac.signal.aborted) patch({ streaming: false });
       else {
         const msg = e instanceof Error ? e.message : 'Something went wrong';
-        setMessages((m) => m.map((x) => (x.id === aid ? { ...x, streaming: false, error: true, content: x.content || msg } : x)));
-        toast(msg, 'err');
+        patch({ streaming: false, error: true, content: acc || msg });
+        if (!multi) toast(msg, 'err');
+        acc = '';
       }
-    } finally {
-      setBusy(false);
-      refreshConversations();
-      refreshMe();
     }
-  }, [input, busy, modelId, refreshConversations, refreshMe, toast]);
+    return acc;
+  }
 
-  const stop = () => abortRef.current?.abort();
+  const send = useCallback(async (text?: string) => {
+    const t = (text ?? input).trim();
+    if (!t || busy) return;
+    if (!selected.length) { toast('Please choose a model first', 'err'); return; }
+    const chosen = [...selected];
+    const multi = chosen.length > 1;
+    setInput(''); setBusy(true); setSuggestions([]); sugToken.current++; setSugLoading(false); stick.current = true;
+    aborts.current = [];
+
+    let cid = convRef.current;
+    let umid: string;
+    try {
+      if (!cid) {
+        const r = await api<{ id: string; userMessageId: string }>('/api/conversations', 'POST', { firstMessage: t, model: chosen[0], mode: modeSlug });
+        cid = r.id; umid = r.userMessageId; convRef.current = cid;
+        window.history.replaceState(null, '', `/chat/${cid}`);
+      } else {
+        umid = (await api<{ id: string }>(`/api/conversations/${cid}/messages`, 'POST', { content: t })).id;
+      }
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Could not send', 'err');
+      setBusy(false); setInput(t);
+      return;
+    }
+
+    const aid = (m: string) => `${umid}:${m}`;
+    setMessages((ms) => [
+      ...ms,
+      { id: umid, role: 'user', content: t },
+      ...chosen.map((m): Msg => ({ id: aid(m), role: 'assistant', content: '', model: m, streaming: true, meta: { turn: umid } })),
+    ]);
+
+    const results = await Promise.all(chosen.map((m) => streamOne(cid!, umid, m, multi, aid(m))));
+    setBusy(false);
+    refreshConversations();
+    refreshMe();
+    const firstOk = results.find((r) => r.length > 0);
+    if (firstOk && featureOn('suggestions')) loadSuggestions(t, firstOk);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [input, busy, selected, modeSlug, featureOn, loadSuggestions, refreshConversations, refreshMe, toast]);
+
+  const stop = () => aborts.current.forEach((a) => a.abort());
+
+  /* ---- quizzes ---- */
+  const onQuizCreated = (r: QuizCreated) => {
+    if (!convRef.current) { convRef.current = r.conversationId; window.history.replaceState(null, '', `/chat/${r.conversationId}`); }
+    setMessages((ms) => [...ms, { id: r.messageId ?? crypto.randomUUID(), role: 'assistant', content: r.content, meta: { kind: 'quiz', quiz_id: r.quizId } }]);
+    setQuizDlg(null); setSuggestions([]); stick.current = true;
+    refreshConversations();
+  };
+
+  const lastGroup = groups[groups.length - 1];
+  const quizOn = featureOn('quiz');
+  const askQuizOnThis = () => {
+    const lastUser = [...groups].reverse().find((g) => g.user)?.user?.content ?? '';
+    const lastAnswer = [...messages].reverse().find((m) => m.role === 'assistant' && !m.meta?.kind && m.content && !m.error)?.content ?? '';
+    setQuizDlg({ topic: lastUser.slice(0, 80), context: lastAnswer.slice(0, 7000) });
+  };
+
   const empty = messages.length === 0 && !loadingChat;
+  const ModeIcon = mode ? iconFor(mode.icon) : null;
 
   return (
     <>
-      <MobileTopBar title="Ilm AI">
-        <ModelPicker models={models} value={modelId} onChange={setModelId} disabled={modelsLoading || busy} />
-      </MobileTopBar>
+      <MobileTopBar title={mode?.name ?? 'Ilm AI'} icon={ModeIcon ? <ModeIcon className="h-4 w-4 text-primary" /> : undefined} />
+      <div className="glass relative z-20 shrink-0 border-x-0 border-t-0 px-3 py-1.5">
+        {modelsLoading ? <div className="h-7 w-48 animate-pulse rounded-full bg-muted" /> : <ModelBar models={models} selected={selected} onToggle={toggle} max={maxParallel} disabled={busy} />}
+      </div>
 
       <div ref={scroller} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col px-4 pb-6 pt-6">
-          {loadingChat && <div className="space-y-4 pt-4">{[0, 1, 2].map((i) => <div key={i} className="h-16 animate-pulse rounded-2xl bg-muted" />)}</div>}
+        <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col px-4 pb-6 pt-6">
+          {loadingChat && <div className="mx-auto w-full max-w-3xl space-y-4 pt-4">{[0, 1, 2].map((i) => <div key={i} className="h-16 animate-pulse rounded-2xl bg-muted" />)}</div>}
 
           {empty && (
-            <div className="m-auto w-full py-10 text-center">
-              <motion.div initial={{ scale: 0.6, opacity: 0, rotate: -12 }} animate={{ scale: 1, opacity: 1, rotate: 0 }} transition={{ type: 'spring', damping: 14 }} className="mx-auto mb-5 w-fit">
-                <LogoMark className="h-16 w-16 drop-shadow-lg" />
-              </motion.div>
-              <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">What will you <span className="text-gradient">learn</span> today?</h2>
-              <p className="font-urdu mt-2 text-muted-foreground" dir="rtl">آج آپ کیا سیکھنا چاہیں گے؟</p>
-              <div className="mx-auto mt-9 grid max-w-2xl gap-3 sm:grid-cols-2">
-                {SUGGESTIONS.map(({ Icon, t, s }, i) => (
-                  <motion.button key={t} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 + i * 0.07 }} whileHover={{ y: -3 }}
-                    onClick={() => send(t)} className="card group p-4 text-left transition hover:border-primary/50 hover:shadow-glow">
-                    <Icon className="mb-2 h-5 w-5 text-primary" />
-                    <p className="text-sm font-semibold leading-snug">{t}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">{s}</p>
-                  </motion.button>
-                ))}
-              </div>
-            </div>
+            <EmptyState mode={mode} modes={modes} audience={audience} onSend={send}
+              quizSlot={mode?.tool === 'quiz' && quizOn ? <QuizBuilder mode={modeSlug} conversationId={convRef.current} onCreated={onQuizCreated} /> : undefined} />
           )}
 
-          <div className="space-y-6">
-            <AnimatePresence initial={false}>
-              {messages.map((m) => <Bubble key={m.id} m={m} />)}
-            </AnimatePresence>
+          <div className="space-y-7">
+            {groups.map((g) => <TurnView key={g.key} group={g} names={names} onAsk={send} onNewQuiz={(topic) => setQuizDlg({ topic })} />)}
+            {!busy && lastGroup && (suggestions.length > 0 || sugLoading || (quizOn && !lastGroup.quiz)) && (
+              <Suggestions items={suggestions} loading={sugLoading} onPick={send} onQuiz={quizOn && !lastGroup.quiz && lastGroup.answers.some((a) => !a.error) ? askQuizOnThis : undefined} />
+            )}
           </div>
           <div ref={endRef} />
         </div>
@@ -151,41 +200,13 @@ export function ChatView() {
 
       <div className="shrink-0 px-3 pb-3 pt-1 sm:px-4 sm:pb-4">
         <Composer value={input} onChange={setInput} onSend={() => send()} onStop={stop} busy={busy} features={features}
+          onQuiz={quizOn ? () => setQuizDlg({}) : undefined}
           onUnavailable={(f) => toast(f.state === 'active' ? `${f.label}: the backend is ready, the chat UI for it is still to be built.` : `${f.label} is coming soon`, 'info')} />
         <p className="mt-2 text-center text-[11px] text-muted-foreground">AI can make mistakes. Please double-check important information.</p>
       </div>
-    </>
-  );
-}
 
-function Bubble({ m }: { m: Msg }) {
-  const [copied, setCopied] = useState(false);
-  if (m.role === 'user') {
-    return (
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="flex justify-end">
-        <div dir="auto" className="max-w-[88%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-[0.93rem] leading-relaxed text-primary-foreground shadow-soft">{m.content}</div>
-      </motion.div>
-    );
-  }
-  return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="group flex gap-3">
-      <div className="mt-0.5 shrink-0"><LogoMark className="h-8 w-8" /></div>
-      <div className="min-w-0 flex-1">
-        {m.model && <p className="mb-1 text-[11px] font-semibold text-muted-foreground">{m.model}</p>}
-        {m.error ? (
-          <div className="flex items-start gap-2 rounded-xl bg-danger/10 px-3.5 py-2.5 text-sm text-danger"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{m.content}</div>
-        ) : m.content ? (
-          <div className={cn(m.streaming && '[&>.md>*:last-child]:cursor')}><Markdown>{m.content}</Markdown></div>
-        ) : (
-          <div className="flex items-center gap-1.5 py-2">{[0, 1, 2].map((i) => <motion.span key={i} className="h-2 w-2 rounded-full bg-primary" animate={{ y: [0, -6, 0], opacity: [0.4, 1, 0.4] }} transition={{ repeat: Infinity, duration: 0.9, delay: i * 0.15 }} />)}</div>
-        )}
-        {!m.streaming && !m.error && m.content && (
-          <button className="mt-1 flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-muted-foreground opacity-0 transition hover:bg-muted group-hover:opacity-100"
-            onClick={() => { navigator.clipboard.writeText(m.content); setCopied(true); setTimeout(() => setCopied(false), 1500); }}>
-            {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}{copied ? 'Copied' : 'Copy'}
-          </button>
-        )}
-      </div>
-    </motion.div>
+      <QuizDialog open={!!quizDlg} onClose={() => setQuizDlg(null)} conversationId={convRef.current} mode={modeSlug}
+        defaultTopic={quizDlg?.topic} context={quizDlg?.context} onCreated={onQuizCreated} key={quizDlg?.topic ?? 'new'} />
+    </>
   );
 }
