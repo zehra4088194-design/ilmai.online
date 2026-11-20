@@ -76,7 +76,7 @@ describe('Test Studio generation validation', () => {
     expect(() => parseGeneratedTest(JSON.stringify(value), c, () => id(40))).toThrow(/Duplicate/);
     const incomplete = JSON.parse(generated(c));
     incomplete.questions.pop();
-    expect(() => parseGeneratedTest(JSON.stringify(incomplete), c, () => id(41))).toThrow(/counts/);
+    expect(() => parseGeneratedTest(JSON.stringify(incomplete), c, (() => { let n = 41; return () => id(n++); })())).toThrow(/counts/);
     const mismarked = JSON.parse(generated(c));
     mismarked.questions[0].marks = 5;
     expect(() => parseGeneratedTest(JSON.stringify(mismarked), c, () => id(42))).toThrow(/marks/);
