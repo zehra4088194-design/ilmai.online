@@ -133,8 +133,9 @@ export function validateAnswers(questions: TestQuestion[], answers: TestAnswer[]
   if (byId.size !== answers.length) fail('Duplicate answer mapping');
   for (const q of questions) {
     const a = byId.get(q.id);
-    if (!a || a.revision !== q.revision) fail('An answer is outdated; update the answer key before export');
-    validateAnswer(q, { correctOption: a.correctOption, modelAnswer: a.modelAnswer, explanation: a.explanation, markingScheme: a.markingScheme, sourceConfidence: a.sourceConfidence }, config.includeMarking, config.includeExplanations);
+    if (!a) fail('An answer is outdated; update the answer key before export');
+    if (a.revision !== q.revision) fail('An answer is outdated; update the answer key before export');
+    validateAnswer(q, AnswerValueSchema.parse(a), config.includeMarking, config.includeExplanations);
   }
 }
 export function questionChanged(a: TestQuestion, b: TestQuestion) {
@@ -151,7 +152,7 @@ export function reviseQuestions(previous: TestQuestion[], next: TestQuestion[], 
     replacementIds.add(a.questionId);
     const q = next.find((item) => item.id === a.questionId);
     if (!q) fail('Invalid replacement question');
-    validateAnswer(q, { correctOption: a.correctOption, modelAnswer: a.modelAnswer, explanation: a.explanation, markingScheme: a.markingScheme, sourceConfidence: a.sourceConfidence });
+    validateAnswer(q, AnswerValueSchema.parse(a));
   }
   return next.map((q) => {
     const before = old.get(q.id);
@@ -192,7 +193,7 @@ const GenerationResult = z.object({
 export function parseGeneratedTest(raw: string, config: TestConfig, newId: () => string) {
   const parsed = GenerationResult.safeParse(extractJson(raw));
   if (!parsed.success) fail('The model returned malformed or incomplete test data');
-  const result: z.infer<typeof GenerationResult> = parsed.data;
+  const result = parsed.data;
   const audits = new Map(result.sourceAudit.map((a) => [a.sourceId, a]));
   if (audits.size !== result.sourceAudit.length || audits.size !== config.sourceIds.length || config.sourceIds.some((id) => !audits.has(id))) fail('The model did not verify all supplied sources');
   if (result.sourceAudit.some((a) => !a.readable)) fail('A supplied source is unreadable. Upload clearer pages or readable text; no test was generated.');
@@ -206,7 +207,8 @@ export function parseGeneratedTest(raw: string, config: TestConfig, newId: () =>
     questions.push(question);
     if (config.includeAnswerKey) {
       if (!q.answer) fail('The model omitted an answer from the answer key');
-      answers.push({ questionId: question.id, revision: 1, ...q.answer });
+      const answer = AnswerValueSchema.parse(q.answer);
+      answers.push({ questionId: question.id, revision: 1, ...answer });
     }
   }
   if (config.questionOrder === 'mixed') {
@@ -214,7 +216,10 @@ export function parseGeneratedTest(raw: string, config: TestConfig, newId: () =>
     const ordered: TestQuestion[] = [];
     let index = 0;
     while (queues.some((queue) => index < queue.length)) {
-      for (const queue of queues) if (queue[index]) ordered.push(queue[index]);
+      for (const queue of queues) {
+        const item = queue[index];
+        if (item) ordered.push(item);
+      }
       index++;
     }
     questions.splice(0, questions.length, ...ordered);
