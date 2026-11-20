@@ -6,6 +6,7 @@ import { iconFor } from '@/components/icons';
 import { MobileTopBar } from '@/components/chat/AppShell';
 import { ImageTool } from '@/components/tools/ImageTool';
 import { PresentationTool } from '@/components/tools/PresentationTool';
+import { TestStudioTool } from '@/components/tools/TestStudioTool';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,6 +37,7 @@ export default async function ToolPage({ params }: { params: Promise<{ key: stri
             </div>
           ) : key === 'image_generation' ? <ImageTool />
             : key === 'presentations' ? <PresentationTool />
+            : key === 'teacher_tests' ? <TestStudioTool />
             : (
               <div className="glass rounded-3xl p-10 text-center">
                 <Hourglass className="mx-auto mb-3 h-9 w-9 text-primary" />
