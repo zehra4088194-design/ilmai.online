@@ -261,6 +261,7 @@ export function TestStudioTool() {
 
   async function exportDocument(documentType: 'question_paper' | 'answer_key' | 'teacher_copy') {
     if (!paper || busy) return;
+    if (policy?.pdf_export === false) { setError('PDF export is disabled until the private PDF renderer is deployed and enabled by the administrator.'); return; }
     setBusy(true); setAction('Preparing ' + documentType.replaceAll('_', ' ')); setError('');
     try {
       const data = await api<{ downloadUrl: string }>('/api/test-studio/' + paper.id + '/export', 'POST', { documentType });
@@ -442,10 +443,11 @@ export function TestStudioTool() {
           <div className="glass rounded-3xl p-4 space-y-3">
             <h3 className="font-bold">Export documents</h3>
             <p className="text-xs text-muted-foreground">Each option creates a separate A4 PDF. The question paper never contains answers. Answer-key and teacher-copy exports require a complete, current answer key.</p>
+            {policy?.pdf_export === false && <p className="rounded-xl border border-border p-3 text-xs text-muted-foreground">PDF export is temporarily disabled. Deploy the private Playwright renderer in Coolify, configure PDF_RENDERER_URL and PDF_RENDERER_SECRET, then enable PDF export in the Test Studio feature settings.</p>}
             <div className="flex flex-wrap gap-2">
-              <button className="btn-outline text-xs" disabled={busy} onClick={() => exportDocument('question_paper')}>Question Paper PDF</button>
-              <button className="btn-outline text-xs" disabled={busy} onClick={() => exportDocument('answer_key')}>Answer Key PDF</button>
-              <button className="btn-primary text-xs" disabled={busy} onClick={() => exportDocument('teacher_copy')}>Teacher Copy PDF</button>
+              <button className="btn-outline text-xs" disabled={busy || policy?.pdf_export === false} onClick={() => exportDocument('question_paper')}>Question Paper PDF</button>
+              <button className="btn-outline text-xs" disabled={busy || policy?.pdf_export === false} onClick={() => exportDocument('answer_key')}>Answer Key PDF</button>
+              <button className="btn-primary text-xs" disabled={busy || policy?.pdf_export === false} onClick={() => exportDocument('teacher_copy')}>Teacher Copy PDF</button>
             </div>
             {exports.length > 0 && <div className="space-y-2 border-t border-border pt-3">
               <p className="text-sm font-semibold">Previous exports</p>
