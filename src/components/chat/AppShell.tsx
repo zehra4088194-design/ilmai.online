@@ -3,7 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, Search, Pin, Pencil, Trash2, Settings, ShieldCheck, Menu, X, Coins, Lock, Megaphone, ChevronDown, GraduationCap, School } from 'lucide-react';
+import { Plus, Search, Pin, Pencil, Trash2, Settings, ShieldCheck, Menu, X, Coins, Lock, Megaphone, ChevronDown, GraduationCap, School, FolderKanban, Library as LibraryIcon } from 'lucide-react';
 import { Logo } from '@/components/ui/Logo';
 import { ThemeToggle } from '@/components/ui/ThemeControls';
 import { iconFor, FEATURE_HREF } from '@/components/icons';
@@ -191,6 +191,17 @@ function Sidebar({ onAudience }: { onAudience: (a: Audience) => void }) {
             </nav>
           </Section>
         )}
+
+        <Section title="Workspace">
+          <nav className="space-y-0.5">
+            <Link href="/projects" className={cn('flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm font-medium transition', pathname.startsWith('/projects') ? 'bg-accent' : 'hover:bg-muted')}>
+              <FolderKanban className="h-4 w-4 text-primary" /><span>Projects</span>
+            </Link>
+            <Link href="/library" className={cn('flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm font-medium transition', pathname === '/library' ? 'bg-accent' : 'hover:bg-muted')}>
+              <LibraryIcon className="h-4 w-4 text-primary" /><span>Library</span>
+            </Link>
+          </nav>
+        </Section>
 
         <Section title="Chats">
           <div className="relative mb-1.5"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><input className="input !rounded-xl !py-2 !pl-9" placeholder="Search chats" value={q} onChange={(e) => setQ(e.target.value)} /></div>
