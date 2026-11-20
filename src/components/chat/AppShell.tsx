@@ -3,7 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, Search, Pin, Pencil, Trash2, Settings, ShieldCheck, Menu, X, Coins, Lock, Megaphone, ChevronDown, GraduationCap, School, FolderKanban, Library as LibraryIcon } from 'lucide-react';
+import { Plus, Search, Pin, Pencil, Trash2, Settings, ShieldCheck, Menu, X, Coins, Lock, Megaphone, ChevronDown, GraduationCap, School, FolderKanban, Library as LibraryIcon, CreditCard, Activity } from 'lucide-react';
 import { Logo } from '@/components/ui/Logo';
 import { ThemeToggle } from '@/components/ui/ThemeControls';
 import { iconFor, FEATURE_HREF } from '@/components/icons';
@@ -205,6 +205,12 @@ function Sidebar({ onAudience }: { onAudience: (a: Audience) => void }) {
             </Link>
             <Link href="/library" className={cn('flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm font-medium transition', pathname === '/library' ? 'bg-accent' : 'hover:bg-muted')}>
               <LibraryIcon className="h-4 w-4 text-primary" /><span>Library</span>
+            </Link>
+            <Link href="/plans" className={cn('flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm font-medium transition', pathname.startsWith('/plans') ? 'bg-accent' : 'hover:bg-muted')}>
+              <CreditCard className="h-4 w-4 text-primary" /><span>Plans & billing</span>
+            </Link>
+            <Link href="/usage" className={cn('flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm font-medium transition', pathname.startsWith('/usage') ? 'bg-accent' : 'hover:bg-muted')}>
+              <Activity className="h-4 w-4 text-primary" /><span>Usage</span>
             </Link>
           </nav>
         </Section>
