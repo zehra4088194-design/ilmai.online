@@ -8,7 +8,7 @@ import { signedDownloadUrl } from '@/lib/storage/b2';
 import { saveMedia } from '@/lib/media';
 import {
   TestId, DocumentType, TestConfigSchema, QuestionSchema, AnswerSchema,
-  sanitizeStudentPaper, validateQuestions, validateAnswers, type TestAnswer,
+  sanitizeStudentPaper, validateQuestions, validateAnswers, StudioPolicySchema, type TestAnswer,
 } from '@/lib/test-studio';
 import { buildTestDocumentHtml } from '@/lib/test-pdf';
 
@@ -60,7 +60,9 @@ export const GET = handle(async (_req: NextRequest, { params }: Ctx) => {
 
 export const POST = handle(async (req: NextRequest, { params }: Ctx) => {
   const { profile, isAdmin } = await requireUserApi();
-  await requireFeature('teacher_tests', profile.plan, isAdmin);
+  const feature = await requireFeature('teacher_tests', profile.plan, isAdmin);
+  const policy = StudioPolicySchema.parse(feature.config ?? {});
+  if (!policy.pdf_export) throw new HttpError(403, 'PDF export is disabled by the administrator', 'pdf_export_disabled');
   const { id } = Params.parse(await params);
   const { documentType } = Body.parse(await req.json());
   const { db, paper, student, questions, config } = await ownedTest(id, profile.id);
