@@ -4,11 +4,12 @@ import { handle, HttpError } from '@/lib/http';
 import { requireUserApi } from '@/lib/auth';
 import { requireFeature } from '@/lib/features';
 import { getSettings } from '@/lib/settings';
-import { getModel, canUseTier } from '@/lib/models';
+import { getModel, getAllTextModels, canUseTier, type ModelInfo } from '@/lib/models';
 import { getMode } from '@/lib/modes';
 import { buildSystemPrompt } from '@/lib/prompt';
 import { buildHistory } from '@/lib/history';
-import { orStream, type ChatMessage } from '@/lib/openrouter';
+import type { ChatMessage } from '@/lib/openrouter';
+import { aiRouterFetch, type RouterCandidate } from '@/lib/ai-router';
 import { adminClient } from '@/lib/supabase/admin';
 import { AttachmentIds, attachmentContent } from '@/lib/attachments';
 import { creditsFor, addCredits } from '@/lib/credits';
@@ -38,7 +39,17 @@ export const POST = handle(async (req: NextRequest) => {
   await requireFeature('text_chat', profile.plan, isAdmin);
   if (body.multi) await requireFeature('compare_models', profile.plan, isAdmin);
 
-  const model = await getModel(body.model);
+  const autoMode = body.model === 'auto';
+  const allTextModels = autoMode ? await getAllTextModels() : [];
+  let autoCandidates: ModelInfo[] = autoMode
+    ? allTextModels.filter((candidate) =>
+        (isAdmin || candidate.enabled) &&
+        (isAdmin || canUseTier(profile.plan, candidate.tier))
+      )
+    : [];
+  if (autoMode && !autoCandidates.length)
+    throw new HttpError(503, 'No enabled models are available for Auto routing', 'auto_models_unavailable');
+  let model = autoMode ? autoCandidates[0] : await getModel(body.model);
   if (!model || (!model.enabled && !isAdmin)) throw new HttpError(400, 'This model is not available', 'model_unavailable');
   if (!isAdmin && !canUseTier(profile.plan, model.tier)) throw new HttpError(403, 'This model needs the ' + model.tier + ' plan', 'plan_required');
   if (!isAdmin && profile.credits_balance <= 0) throw new HttpError(402, 'You are out of credits', 'out_of_credits');
@@ -54,6 +65,16 @@ export const POST = handle(async (req: NextRequest) => {
   const attachmentIds = AttachmentIds.parse(rawAttachments.map((item: { asset_id?: unknown }) =>
     item && typeof item === 'object' ? item.asset_id : null));
   if (attachmentIds.length) await requireFeature('file_upload', profile.plan, isAdmin);
+  if (autoMode && attachmentIds.length) {
+    const owned = await import('@/lib/attachments').then(({ validateAttachments }) => validateAttachments(attachmentIds, profile.id));
+    const needsVision = owned.some((file) => file.kind === 'image');
+    const needsDocuments = owned.some((file) => file.mime === 'application/pdf');
+    autoCandidates = autoCandidates.filter((candidate) =>
+      (!needsVision || candidate.vision) && (!needsDocuments || candidate.documents)
+    );
+    if (!autoCandidates.length) throw new HttpError(400, 'No model on your plan supports the attached image or document', 'no_capable_model');
+    model = autoCandidates[0];
+  }
 
   const turnsToKeep = Math.max(2, Math.floor(settings.max_history_messages / 2));
   const { data: rows } = await db.from('messages').select('id,role,content,model,meta')
@@ -74,14 +95,33 @@ export const POST = handle(async (req: NextRequest) => {
   req.signal.addEventListener('abort', () => ac.abort());
   const started = Date.now();
   const kind = body.multi ? 'compare' : 'chat';
-  const upstream = await orStream({ model: model.id, messages }, ac.signal);
+  const candidates: RouterCandidate[] = (autoMode ? autoCandidates : [model]).slice(0, 25).map((candidate, index) => ({
+    id: candidate.id, provider: 'openrouter', priority: candidate.sort + Math.round(candidate.pricePromptPerM * 10),
+    modalities: [...(candidate.vision ? ['vision'] : []), ...(candidate.documents ? ['document'] : [])],
+  }));
+  const hints = [
+    attachmentIds.length ? 'Attached files must be read; choose vision/document capable models.' : '',
+    /\\b(math|mathematics|equation|integral|matrix|prove|calculate)\\b/i.test(String(userMsg.content)) ? 'Mathematics or reasoning task.' : '',
+    String(userMsg.content).slice(0, 500),
+  ].filter(Boolean).join(' ');
+  const upstream = await aiRouterFetch({
+    userId: profile.id,
+    path: '/v1/chat/completions',
+    body: {
+      model: model.id, messages, stream: true, usage: { include: true },
+      routing: { provider: autoMode ? 'auto' : 'openrouter', candidates, hints },
+    },
+    signal: ac.signal,
+  });
   if (!upstream.ok || !upstream.body) {
     const t = await upstream.text().catch(() => '');
     let msg = 'Model error (' + upstream.status + ')';
-    try { msg = JSON.parse(t)?.error?.message ?? msg; } catch { /* ignore */ }
-    await logUsage({ userId: profile.id, kind, model: model.id, status: 'error', error: msg, latencyMs: Date.now() - started });
-    throw new HttpError(502, msg, 'upstream_error');
+    try { const parsed = JSON.parse(t); msg = parsed?.error?.message ?? parsed?.error ?? msg; } catch { /* ignore */ }
+    await logUsage({ userId: profile.id, kind, model: model.id, status: 'error', error: String(msg), latencyMs: Date.now() - started });
+    throw new HttpError(upstream.status >= 400 && upstream.status < 500 ? upstream.status : 502, String(msg), 'upstream_error');
   }
+  let actualModel = upstream.headers.get('x-ilm-model') ?? model.id;
+  const actualProvider = upstream.headers.get('x-ilm-provider') ?? 'openrouter';
 
   let full = '';
   let usage: { prompt_tokens?: number; completion_tokens?: number; cost?: number } | null = null;
@@ -95,13 +135,13 @@ export const POST = handle(async (req: NextRequest) => {
     if (full) {
       await db.from('messages').insert({
         conversation_id: conv.id, user_id: profile.id, role: 'assistant', content: full,
-        model: model.id, prompt_tokens: pt, completion_tokens: ct, cost_usd: cost, meta: { turn: userMsg.id },
+        model: actualModel, prompt_tokens: pt, completion_tokens: ct, cost_usd: cost, meta: { turn: userMsg.id, requested_model: body.model, provider: actualProvider },
       });
       await db.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', conv.id);
     }
-    if (charge) await addCredits(profile.id, -charge, kind + ':' + model.id).catch((e) => console.error(e));
+    if (charge) await addCredits(profile.id, -charge, kind + ':' + actualModel).catch((e) => console.error(e));
     await logUsage({
-      userId: profile.id, kind, model: model.id, promptTokens: pt, completionTokens: ct, costUsd: cost, creditsUsed: charge,
+      userId: profile.id, kind, model: actualModel, promptTokens: pt, completionTokens: ct, costUsd: cost, creditsUsed: charge,
       latencyMs: Date.now() - started, status: errMsg && !full ? 'error' : 'ok', error: errMsg,
     });
   };
@@ -144,6 +184,6 @@ export const POST = handle(async (req: NextRequest) => {
   });
 
   return new Response(stream, {
-    headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', 'X-Accel-Buffering': 'no' },
+    headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', 'X-Accel-Buffering': 'no', 'x-ilm-model': actualModel, 'x-ilm-provider': actualProvider },
   });
 });
