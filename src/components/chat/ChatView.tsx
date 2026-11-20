@@ -91,6 +91,8 @@ export function ChatView() {
     try {
       const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ac.signal, body: JSON.stringify({ conversationId: cid, userMessageId: umid, model, multi }) });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? 'Request failed');
+      const actualModel = res.headers.get('x-ilm-model');
+      if (actualModel) patch({ model: actualModel });
       const reader = res.body!.getReader();
       const dec = new TextDecoder();
       for (;;) {
