@@ -58,7 +58,7 @@ async function getBrowser() {
 
 async function renderPdf(input) {
   if (!isSafeHtml(input.html)) throw Object.assign(new Error('The document HTML is invalid or contains active content'), { status: 400 });
-  if (input.pageSize !== 'A4') throw Object.assign(new Error('Only A4 page size is supported'), { status: 400 });
+  if (!['A4', 'wide'].includes(input.pageSize)) throw Object.assign(new Error('Unsupported page size'), { status: 400 });
   if (!['English', 'Urdu', 'Roman Urdu'].includes(input.language)) throw Object.assign(new Error('Unsupported document language'), { status: 400 });
 
   const browser = await getBrowser();
@@ -78,10 +78,12 @@ async function renderPdf(input) {
       format: 'A4',
       printBackground: true,
       preferCSSPageSize: true,
-      displayHeaderFooter: true,
+      displayHeaderFooter: input.pageSize === 'A4',
       headerTemplate: '<div></div>',
       footerTemplate: '<div style="width:100%;padding:0 16mm;color:#68786f;font-size:8px;text-align:center"><span class="pageNumber"></span> / <span class="totalPages"></span> · Ilm AI</div>',
-      margin: { top: '18mm', right: '16mm', bottom: '20mm', left: '16mm' },
+      margin: input.pageSize === 'wide'
+        ? { top: '0', right: '0', bottom: '0', left: '0' }
+        : { top: '18mm', right: '16mm', bottom: '20mm', left: '16mm' },
       tagged: true,
     });
     if (pdf.byteLength < 500 || pdf.byteLength > MAX_PDF) throw new Error('Rendered document is outside the PDF size limit');
