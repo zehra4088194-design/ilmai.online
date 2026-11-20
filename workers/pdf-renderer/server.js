@@ -19,7 +19,7 @@ export function authorized(header, secret = SECRET) {
 }
 
 export function isSafeHtml(html) {
-  if (typeof html !== 'string' || html.length < 100 || Buffer.byteLength(html, 'utf8') > MAX_BODY) return false;
+  if (typeof html !== 'string' || html.length < 20 || Buffer.byteLength(html, 'utf8') > MAX_BODY) return false;
   if (!/<html[\s>]/i.test(html) || !/<\/html\s*>/i.test(html)) return false;
   if (/<script\b|\son[a-z]+\s*=|javascript\s*:|url\(\s*['"]?https?:|@import/i.test(html)) return false;
   return true;
