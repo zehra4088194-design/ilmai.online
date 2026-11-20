@@ -18,6 +18,6 @@ export const iconFor = (name: string): LucideIcon => MAP[name] ?? Sparkles;
 /** Where each feature lives in the user's app. Composer-level / in-chat features have no page. */
 export const FEATURE_HREF: Record<string, string | null> = {
   text_chat: '/chat', compare_models: null, image_generation: '/tools/image_generation',
-  video_generation: '/tools/video_generation', presentations: '/tools/presentations', teacher_tests: '/tools/teacher_tests',
+  video_generation: '/tools/video_generation', presentations: '/tools/presentations', teacher_tests: '/test-studio',
   file_upload: null, web_search: null, voice_input: null, quiz: null, suggestions: null,
 };
