@@ -45,7 +45,16 @@ npm install && npm run dev
    `wget -qO- --header="Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/daily-credits`
    (ya koi bhi external cron jo `https://ilmai.online/api/cron/daily-credits` ko Bearer header ke saath call kare).
 
-## 6. Purana app dobara chalana
+## 6. Test Studio PDF renderer (required for PDF downloads)
+1. Coolify mein isi repository ka doosra resource banao.
+2. Build context repository root rakho; Dockerfile path `workers/pdf-renderer/Dockerfile`; internal port `3400`.
+3. PDF service par `PDF_RENDERER_SECRET` ko 32+ random bytes ka secret set karo. `/render` ko public domain par expose mat karna.
+4. Next.js app par `PDF_RENDERER_URL=http://<internal-service-name>:3400` aur bilkul wahi `PDF_RENDERER_SECRET` set karo.
+5. Dono services ko private Coolify Docker network mein rakho. Pehle PDF service healthy karo, phir Next.js app redeploy karo.
+6. Test Studio `/test-studio` par khulta hai. Pehle test ko topic ya verified textbook source se generate karo. Question Paper PDF sirf questions rakhta hai; Answer Key aur Teacher Copy ko current answer key chahiye.
+7. English, Urdu aur mixed-language exports ko visually check karo. Urdu rendering Noto Nastaliq fonts par depend karti hai.
+
+## 7. Purana app dobara chalana
 Naye app ko stop/limit karo (ya domain alag rakho), phir purane resource par **Start**. Pehli baar rebuild hoga to naya app band rakho (RAM).
 
 ## Checklist
