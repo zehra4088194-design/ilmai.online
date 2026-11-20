@@ -206,6 +206,27 @@ export function TestStudioTool() {
     finally { setAction(''); }
   }
 
+  async function regenerate(scope: 'question' | 'category' | 'full', questionId?: string, category?: QuestionKind) {
+    if (!paper || busy) return;
+    setBusy(true); setAction('Regenerating questions'); setError('');
+    try {
+      const data = await api<{ paper: StudentPaper; warnings: string[] }>('/api/test-studio/' + paper.id + '/regenerate', 'POST', {
+        requestId: crypto.randomUUID(), expectedVersion: paper.version, scope, questionId, category,
+      });
+      const latest = await api<{ paper: SavedPaper }>('/api/test-studio/' + paper.id, 'GET');
+      setPaper(latest.paper);
+      setConfig(latest.paper.config);
+      setWarnings(data.warnings ?? []);
+      if (keyOpen) await loadAnswers(paper.id, latest.paper);
+      await loadExports(paper.id);
+      await refreshHistory();
+      await refreshMe();
+      toast('Selected questions regenerated', 'ok');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not regenerate this test');
+    } finally { setBusy(false); setAction(''); }
+  }
+
   async function savePaper() {
     if (!paper || busy) return;
     setBusy(true); setAction('Saving changes'); setError('');
@@ -366,7 +387,7 @@ export function TestStudioTool() {
               <label className="space-y-1 text-sm font-medium">Paper title<input className="input" value={paper.config.title} maxLength={200} onChange={(e) => changePaperConfig({ title: e.target.value })} /></label>
               <label className="space-y-1 text-sm font-medium">Instructions<input className="input" value={paper.config.instructions} maxLength={4000} onChange={(e) => changePaperConfig({ instructions: e.target.value })} /></label>
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-bold">Questions</h3><button className="btn-outline text-xs" disabled={paper.questions.length >= 100 || busy} onClick={addQuestion}>Add short question</button></div>
+            <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-bold">Questions</h3><div className="flex flex-wrap gap-2"><button className="btn-ghost text-xs" disabled={busy || !paper.counts.mcq} onClick={() => regenerate('category', undefined, 'mcq')}>Regenerate MCQs</button><button className="btn-ghost text-xs" disabled={busy || !paper.counts.short} onClick={() => regenerate('category', undefined, 'short')}>Regenerate short</button><button className="btn-ghost text-xs" disabled={busy || !paper.counts.long} onClick={() => regenerate('category', undefined, 'long')}>Regenerate long</button><button className="btn-outline text-xs" disabled={busy} onClick={() => regenerate('full')}>Regenerate all</button><button className="btn-outline text-xs" disabled={paper.questions.length >= 100 || busy} onClick={addQuestion}>Add short question</button></div></div>
             {paper.questions.map((question, index) => (
               <article key={question.id} className="rounded-2xl border border-border bg-background p-3">
                 <div className="mb-2 flex items-center gap-2">
@@ -374,7 +395,8 @@ export function TestStudioTool() {
                   <span className="ml-auto text-xs text-muted-foreground">Revision {question.revision}</span>
                   <button className="btn-ghost text-xs" disabled={index === 0} onClick={() => moveQuestion(index, -1)}>↑</button>
                   <button className="btn-ghost text-xs" disabled={index === paper.questions.length - 1} onClick={() => moveQuestion(index, 1)}>↓</button>
-                  <button className="btn-ghost text-xs text-danger" disabled={paper.questions.length <= 1} onClick={() => removeQuestion(question.id)}>Remove</button>
+                  <button className="btn-ghost text-xs" disabled={busy} onClick={() => regenerate('question', question.id)}>Regenerate</button>
+                  <button className="btn-ghost text-xs text-danger" disabled={paper.questions.length <= 1 || busy} onClick={() => removeQuestion(question.id)}>Remove</button>
                 </div>
                 <textarea className="input min-h-20" dir="auto" value={question.question} onChange={(e) => changeQuestion(question.id, { question: e.target.value })} />
                 {question.type === 'mcq' && <div className="mt-2 grid gap-2 sm:grid-cols-2">
