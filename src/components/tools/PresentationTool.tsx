@@ -44,7 +44,7 @@ export function PresentationTool() {
     try {
       const response = await fetch('/api/generate/presentation', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic, slides: count, language }),
+        body: JSON.stringify({ requestId: crypto.randomUUID(), topic, slides: count, language }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? 'Could not create the presentation');
