@@ -2,11 +2,7 @@ import { defineConfig } from 'vitest/config';
 import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
-  esbuild: {
-    jsxFactory: 'React.createElement',
-    jsxFragment: 'React.Fragment',
-    jsxInject: 'import React from "react"',
-  },
+  esbuild: { jsx: 'automatic' } as never,
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
