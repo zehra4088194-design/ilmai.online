@@ -10,7 +10,7 @@ import { adminClient } from '@/lib/supabase/admin';
 import { AttachmentIds, attachmentContent, validateAttachments, type Attachment } from '@/lib/attachments';
 import {
   RegenerateInput, StudioPolicySchema, TestConfigSchema, QuestionSchema, AnswerSchema,
-  parseGeneratedTest, reviseQuestions, questionChanged, validateAnswers, sanitizeStudentPaper,
+  parseGeneratedTest, testGenerationPrompt, reviseQuestions, questionChanged, validateAnswers, sanitizeStudentPaper,
   type TestQuestion, type TestAnswer,
 } from '@/lib/test-studio';
 
