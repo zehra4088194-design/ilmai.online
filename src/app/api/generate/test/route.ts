@@ -4,7 +4,7 @@ import { handle, HttpError, json } from '@/lib/http';
 import { requireUserApi } from '@/lib/auth';
 import { requireFeature } from '@/lib/features';
 import { getAllTextModels, canUseTier } from '@/lib/models';
-import { orChat } from '@/lib/openrouter';
+import { aiRouterChat } from '@/lib/ai-router';
 import { adminClient } from '@/lib/supabase/admin';
 import { AttachmentIds, attachmentContent, validateAttachments } from '@/lib/attachments';
 import { GenerateTestInput, StudioPolicySchema, TestConfigSchema, parseGeneratedTest, sanitizeStudentPaper, testGenerationPrompt } from '@/lib/test-studio';
@@ -96,7 +96,8 @@ export const POST = handle(async (req: NextRequest) => {
     const content = ids.length
       ? await attachmentContent(userPrompt, ids, profile.id, { vision: model.vision, documents: model.documents })
       : userPrompt;
-    const result = await orChat({
+    const result = await aiRouterChat({
+      userId: profile.id,
       model: model.id,
       response_format: { type: 'json_object' },
       messages: [
@@ -105,6 +106,8 @@ export const POST = handle(async (req: NextRequest) => {
       ],
     });
     const raw = result.choices?.[0]?.message?.content ?? '';
+    const actualModel = result.routedModel;
+    const actualProvider = result.provider;
     const generated = parseGeneratedTest(raw, config, randomUUID);
     const title = config.title || generated.title;
 
@@ -127,8 +130,8 @@ export const POST = handle(async (req: NextRequest) => {
       p_user: profile.id,
       p_charge: amount,
       p_usage: {
-        model: model.id,
-        provider: model.provider,
+        model: actualModel,
+        provider: actualProvider,
         prompt_tokens: usage.prompt_tokens ?? 0,
         completion_tokens: usage.completion_tokens ?? 0,
         cost_usd: usage.cost ?? 0,
@@ -143,7 +146,7 @@ export const POST = handle(async (req: NextRequest) => {
       id: reservationId, version: 1, config: { ...config, title },
       questions: generated.questions,
     });
-    return json({ paper, warnings: generated.warnings, creditsCharged: amount, model: model.id });
+    return json({ paper, warnings: generated.warnings, creditsCharged: amount, model: actualModel });
   } catch (error) {
     if (!settledSuccessfully) {
       try { await db.rpc('release_generation', { p_id: reservationId, p_user: profile.id, p_cancelled: false }); } catch { /* best-effort release */ }

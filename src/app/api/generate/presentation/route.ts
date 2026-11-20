@@ -5,7 +5,7 @@ import { requireUserApi } from '@/lib/auth';
 import { requireFeature } from '@/lib/features';
 import { getSettings } from '@/lib/settings';
 import { getAllTextModels, canUseTier } from '@/lib/models';
-import { orChat } from '@/lib/openrouter';
+import { aiRouterChat } from '@/lib/ai-router';
 import { extractJson } from '@/lib/json-extract';
 import { adminClient } from '@/lib/supabase/admin';
 import { PresentationGenerateInput, PresentationDeckSchema } from '@/lib/presentation-schema';
@@ -51,7 +51,8 @@ export const POST = handle(async (req: NextRequest) => {
   const started = Date.now();
   let settled = false;
   try {
-    const response = await orChat({
+    const response = await aiRouterChat({
+      userId: profile.id,
       model: model.id,
       response_format: { type: 'json_object' },
       messages: [
@@ -69,12 +70,14 @@ export const POST = handle(async (req: NextRequest) => {
       ],
     });
     const deck = PresentationDeckSchema.parse(extractJson(response.choices?.[0]?.message?.content ?? ''));
+    const actualModel = response.routedModel;
+    const actualProvider = response.provider;
     if (deck.slides.length !== body.slides)
       throw new HttpError(502, 'The model returned a different number of slides than requested', 'invalid_slide_count');
 
     const usage = response.usage ?? {};
     const result = {
-      deck, model: model.id, creditsCharged: charge,
+      deck, model: actualModel, provider: actualProvider, creditsCharged: charge,
       language: body.language,
       generatedAt: new Date().toISOString(),
     };
@@ -83,8 +86,8 @@ export const POST = handle(async (req: NextRequest) => {
       p_user: profile.id,
       p_charge: charge,
       p_usage: {
-        model: model.id,
-        provider: model.provider,
+        model: actualModel,
+        provider: actualProvider,
         prompt_tokens: usage.prompt_tokens ?? 0,
         completion_tokens: usage.completion_tokens ?? 0,
         cost_usd: usage.cost ?? 0,

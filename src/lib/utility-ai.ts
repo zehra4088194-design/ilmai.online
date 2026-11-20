@@ -1,7 +1,7 @@
 import 'server-only';
 import { getSettings } from '@/lib/settings';
 import { getAllTextModels } from '@/lib/models';
-import { orChat } from '@/lib/openrouter';
+import { aiRouterChat } from '@/lib/ai-router';
 import { HttpError } from '@/lib/http';
 
 /** Preferred families for background tasks (suggestions, quizzes). Lower index = better. */
@@ -28,20 +28,20 @@ export type UtilityResult = { text: string; model: string; cost: number; promptT
 /** Tries each utility model in order until one answers. Free models are rate-limited, so fall-through matters. */
 export async function utilityChat(
   messages: { role: 'system' | 'user' | 'assistant'; content: string }[],
-  opts: { maxTokens?: number; temperature?: number; timeoutMs?: number; tries?: number; startAt?: number } = {},
+  opts: { userId: string; maxTokens?: number; temperature?: number; timeoutMs?: number; tries?: number; startAt?: number },
 ): Promise<UtilityResult> {
   const all = await getUtilityModels(opts.tries ?? 3);
   const rot = (opts.startAt ?? 0) % all.length;
   const models = [...all.slice(rot), ...all.slice(0, rot)]; // rotate so a retry starts with a different model
   for (const model of models) {
     try {
-      const r = await orChat(
-        { model, messages, max_tokens: opts.maxTokens ?? 500, temperature: opts.temperature ?? 0.6 },
-        AbortSignal.timeout(opts.timeoutMs ?? 30_000),
-      );
+      const r = await aiRouterChat({
+        userId: opts.userId, model, messages, max_tokens: opts.maxTokens ?? 500,
+        temperature: opts.temperature ?? 0.6, timeoutMs: opts.timeoutMs ?? 30_000,
+      });
       const text = r.choices?.[0]?.message?.content?.trim();
       if (text) {
-        return { text, model, cost: r.usage?.cost ?? 0, promptTokens: r.usage?.prompt_tokens ?? 0, completionTokens: r.usage?.completion_tokens ?? 0 };
+        return { text, model: r.routedModel, cost: r.usage?.cost ?? 0, promptTokens: r.usage?.prompt_tokens ?? 0, completionTokens: r.usage?.completion_tokens ?? 0 };
       }
     } catch (e) {
       console.warn(`[utility] ${model} failed:`, e instanceof Error ? e.message : e);

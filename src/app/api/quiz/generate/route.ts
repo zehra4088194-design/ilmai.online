@@ -53,7 +53,7 @@ export const POST = handle(async (req: NextRequest) => {
   for (let attempt = 0; attempt < 2 && questions.length < Math.max(3, Math.ceil(count * 0.6)); attempt++) {
     try {
       const r = await utilityChat(quizPrompt({ topic: b.topic, config, audience: profile.audience ?? 'student', grade: profile.grade, context: b.context }),
-        { maxTokens: Math.min(6000, 450 * count + 400), temperature: 0.5, timeoutMs: 75_000, tries: 3, startAt: attempt });
+        { userId: profile.id, maxTokens: Math.min(6000, 450 * count + 400), temperature: 0.5, timeoutMs: 75_000, tries: 3, startAt: attempt });
       const parsed = parseQuiz(r.text, count);
       if (parsed.length > questions.length) { questions = parsed; used = r.model; cost = r.cost; }
     } catch (e) {

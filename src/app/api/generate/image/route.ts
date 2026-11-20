@@ -9,6 +9,7 @@ import { putObject, readObject, signedDownloadUrl } from '@/lib/storage/b2';
 import { creditsFor } from '@/lib/credits';
 import { getImageModel, supports, enumValues, type ImageOutput } from '@/lib/image-models';
 import { AttachmentIds, validateAttachments } from '@/lib/attachments';
+import { aiRouterFetch } from '@/lib/ai-router';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -130,17 +131,11 @@ export const POST = handle(async (req: NextRequest) => {
     if (referenceImages.length) payload.input_references = referenceImages;
     if (model.endpoint?.provider_slug) payload.provider = { only: [model.endpoint.provider_slug], allow_fallbacks: false };
 
-    const upstream = await fetch('https://openrouter.ai/api/v1/images', {
-      method: 'POST',
-      headers: {
-        Authorization: 'Bearer ' + process.env.OPENROUTER_API_KEY,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ilmai.online',
-        'X-Title': 'Ilm AI',
-      },
-      body: JSON.stringify(payload),
+    const upstream = await aiRouterFetch({
+      userId: profile.id,
+      path: '/v1/images',
+      body: payload,
       signal: AbortSignal.timeout(240000),
-      cache: 'no-store',
     });
     const raw = await upstream.text();
     if (!upstream.ok) {

@@ -48,7 +48,7 @@ Suggest 3 different follow-up messages the learner might send next: (1) go deepe
 Each at most 12 words, written from the learner's point of view, in the same language and script as the last question.`,
         },
       ],
-      { maxTokens: 220, temperature: 0.8, timeoutMs: 20_000, tries: 3 },
+      { userId: profile.id, maxTokens: 220, temperature: 0.8, timeoutMs: 20_000, tries: 3 },
     );
     const parsed = extractJson(r.text);
     const raw: unknown[] = Array.isArray(parsed) ? parsed : r.text.split('\n').map((l) => l.replace(/^[\s\-*\d.)"]+|["\s,]+$/g, ''));
