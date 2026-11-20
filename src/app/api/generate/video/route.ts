@@ -192,12 +192,14 @@ export const POST = handle(async (req: NextRequest) => {
     }).eq('id', reservationId).eq('user_id', profile.id).eq('status', 'reserved');
     return json({ job: submitted, duplicate: false }, { status: 202, headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) {
-    await db.rpc('fail_video_job', {
-      p_job: reservationId,
-      p_user: profile.id,
-      p_status: 'failed',
-      p_error: error instanceof Error ? error.message : 'Video generation submission failed',
-    }).catch(() => undefined);
+    try {
+      await db.rpc('fail_video_job', {
+        p_job: reservationId,
+        p_user: profile.id,
+        p_status: 'failed',
+        p_error: error instanceof Error ? error.message : 'Video generation submission failed',
+      });
+    } catch { /* best-effort reservation cleanup */ }
     if (error instanceof HttpError) throw error;
     throw new HttpError(502, error instanceof Error ? error.message : 'Could not submit video generation', 'video_submit_failed');
   }
