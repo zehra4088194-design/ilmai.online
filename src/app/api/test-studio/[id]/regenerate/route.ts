@@ -219,7 +219,7 @@ export const POST = handle(async (req: NextRequest, { params }: Ctx) => {
     }, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) {
     if (!committed)
-      await db.rpc('release_generation', { p_id: reservationId, p_user: profile.id, p_cancelled: false }).catch(() => undefined);
+      try { await db.rpc('release_generation', { p_id: reservationId, p_user: profile.id, p_cancelled: false }); } catch { /* best-effort release */ }
     if (error instanceof HttpError) throw error;
     if (error instanceof Error && /unreadable|source/i.test(error.message))
       throw new HttpError(422, error.message, 'source_unreadable');
