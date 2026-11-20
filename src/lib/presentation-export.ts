@@ -21,7 +21,7 @@ function addBulletList(slide: pptxgen.Slide, bullets: string[], colors: typeof P
     slide.addText(text, {
       x: x + 0.28, y: top, w: w - 0.28, h: 0.5,
       fontFace: 'Aptos', fontSize: 19, color: colors.text, margin: 0,
-      valign: 'mid', breakLine: false, fit: 'shrink',
+      valign: 'middle', breakLine: false, fit: 'shrink',
     });
   });
 }
@@ -34,11 +34,9 @@ export async function buildPresentationPptx(deck: PresentationDeck, theme: Prese
   pptx.subject = deck.title;
   pptx.title = deck.title;
   pptx.company = 'Ilm AI';
-  pptx.lang = 'en-US';
   pptx.theme = {
     headFontFace: 'Aptos Display',
     bodyFontFace: 'Aptos',
-    lang: 'en-US',
   };
 
   const W = 13.333;
