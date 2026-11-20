@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  app:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_PUBLIC_SITE_URL: https://ilmai.online
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: test-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: test-service-role-key
+      OPENROUTER_API_KEY: test-openrouter-key
+      B2_ENDPOINT: https://s3.example.invalid
+      B2_REGION: us-east-1
+      B2_KEY_ID: test-key
+      B2_APPLICATION_KEY: test-secret
+      B2_BUCKET: test-bucket
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  pdf-renderer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install renderer dependency
+        working-directory: workers/pdf-renderer
+        run: npm install --no-audit --no-fund
+      - name: Test renderer security checks
+        working-directory: workers/pdf-renderer
+        env:
+          PDF_RENDERER_SECRET: ci-only-secret
+        run: npm test
