@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server';
+import { randomUUID } from 'crypto';
 import { handle, HttpError, json } from '@/lib/http';
 import { requireUserApi } from '@/lib/auth';
 import { requireFeature } from '@/lib/features';
@@ -6,8 +7,7 @@ import { getSettings } from '@/lib/settings';
 import { getAllTextModels, canUseTier } from '@/lib/models';
 import { orChat } from '@/lib/openrouter';
 import { extractJson } from '@/lib/json-extract';
-import { creditsFor, addCredits } from '@/lib/credits';
-import { logUsage } from '@/lib/usage';
+import { adminClient } from '@/lib/supabase/admin';
 import { PresentationGenerateInput, PresentationDeckSchema } from '@/lib/presentation-schema';
 
 export const runtime = 'nodejs';
@@ -18,12 +18,9 @@ export const POST = handle(async (req: NextRequest) => {
   const { profile, isAdmin } = await requireUserApi();
   const feature = await requireFeature('presentations', profile.plan, isAdmin);
   const body = PresentationGenerateInput.parse(await req.json());
-  if (!isAdmin && profile.credits_balance <= 0)
-    throw new HttpError(402, 'You are out of credits', 'out_of_credits');
-
   const settings = await getSettings();
-  const models = await getAllTextModels();
-  const permitted = models.filter((item) =>
+  const modelSettings = await getAllTextModels();
+  const permitted = modelSettings.filter((item) =>
     (isAdmin || item.enabled) && (isAdmin || canUseTier(profile.plan, item.tier))
   );
   const configuredDefault = typeof feature.config?.default_model === 'string' ? feature.config.default_model : undefined;
@@ -32,8 +29,27 @@ export const POST = handle(async (req: NextRequest) => {
     (body.model ? undefined : permitted.find((item) => item.isDefault) ?? permitted.find((item) => item.isFree) ?? permitted[0]);
   if (!model) throw new HttpError(400, 'The selected presentation model is not available on your plan', 'model_unavailable');
 
+  const db = adminClient();
+  const reservationId = randomUUID();
+  const generationCost = Number(feature.config?.generation_cost ?? 10);
+  const charge = isAdmin ? 0 : (Number.isSafeInteger(generationCost) && generationCost >= 0 ? generationCost : 10);
+  const reservation = await db.rpc('reserve_generation', {
+    p_id: reservationId, p_user: profile.id, p_key: body.requestId, p_kind: 'presentation', p_amount: charge,
+  });
+  if (reservation.error) {
+    if (reservation.error.message.includes('insufficient_credits'))
+      throw new HttpError(402, 'Not enough credits to generate this presentation', 'out_of_credits');
+    throw reservation.error;
+  }
+  const reserved = reservation.data as { status: string; duplicate?: boolean; result?: Record<string, unknown> | null };
+  if (reserved?.duplicate) {
+    if (reserved.status === 'completed' && reserved.result?.deck)
+      return json(reserved.result, { headers: { 'Cache-Control': 'private, no-store' } });
+    throw new HttpError(409, 'This presentation request is already being processed. Please retry shortly.');
+  }
+
   const started = Date.now();
-  let usage: { prompt_tokens?: number; completion_tokens?: number; cost?: number } | undefined;
+  let settled = false;
   try {
     const response = await orChat({
       model: model.id,
@@ -52,28 +68,38 @@ export const POST = handle(async (req: NextRequest) => {
         { role: 'user', content: 'Topic: ' + body.topic + '\nSlides: ' + body.slides + '\nLanguage: ' + body.language },
       ],
     });
-    usage = response.usage ?? undefined;
     const deck = PresentationDeckSchema.parse(extractJson(response.choices?.[0]?.message?.content ?? ''));
     if (deck.slides.length !== body.slides)
       throw new HttpError(502, 'The model returned a different number of slides than requested', 'invalid_slide_count');
 
-    const cost = usage?.cost ?? 0;
-    const tokens = (usage?.prompt_tokens ?? 0) + (usage?.completion_tokens ?? 0);
-    const charge = isAdmin ? 0 : creditsFor(cost, tokens, settings);
-    if (charge) await addCredits(profile.id, -charge, 'presentation:' + model.id);
-    await logUsage({
-      userId: profile.id, kind: 'presentation', model: model.id, costUsd: cost,
-      promptTokens: usage?.prompt_tokens ?? 0, completionTokens: usage?.completion_tokens ?? 0,
-      creditsUsed: charge, latencyMs: Date.now() - started,
+    const usage = response.usage ?? {};
+    const result = {
+      deck, model: model.id, creditsCharged: charge,
+      language: body.language,
+      generatedAt: new Date().toISOString(),
+    };
+    const settlement = await db.rpc('settle_generation', {
+      p_id: reservationId,
+      p_user: profile.id,
+      p_charge: charge,
+      p_usage: {
+        model: model.id,
+        provider: model.provider,
+        prompt_tokens: usage.prompt_tokens ?? 0,
+        completion_tokens: usage.completion_tokens ?? 0,
+        cost_usd: usage.cost ?? 0,
+        latency_ms: Date.now() - started,
+      },
+      p_result: result,
     });
-    return json({ deck, model: model.id, creditsCharged: charge });
+    if (settlement.error) throw settlement.error;
+    settled = true;
+    return json(result, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) {
-    await logUsage({
-      userId: profile.id, kind: 'presentation', model: model.id, status: 'error',
-      error: error instanceof Error ? error.message : 'Presentation generation failed',
-      promptTokens: usage?.prompt_tokens ?? 0, completionTokens: usage?.completion_tokens ?? 0,
-      costUsd: usage?.cost ?? 0, latencyMs: Date.now() - started,
-    }).catch(() => undefined);
+    if (!settled) {
+      try { await db.rpc('release_generation', { p_id: reservationId, p_user: profile.id, p_cancelled: false }); }
+      catch { /* best-effort release if the provider request fails */ }
+    }
     if (error instanceof HttpError) throw error;
     throw new HttpError(502, error instanceof Error ? error.message : 'Presentation generation failed', 'presentation_failed');
   }
