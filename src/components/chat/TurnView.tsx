@@ -5,6 +5,7 @@ import { Copy, Check, AlertTriangle } from 'lucide-react';
 import { LogoMark } from '@/components/ui/Logo';
 import { Markdown } from '@/components/chat/Markdown';
 import { QuizCard } from '@/components/quiz/QuizCard';
+import { AttachmentLinks } from '@/components/AttachmentPicker';
 import { cn } from '@/lib/utils';
 import type { Group, Msg } from '@/components/chat/types';
 
@@ -44,7 +45,10 @@ export function TurnView({ group, names, onAsk, onNewQuiz }: { group: Group; nam
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
       {group.user && (
         <div className="mx-auto flex w-full max-w-3xl justify-end">
-          <div dir="auto" className="max-w-[88%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-[0.93rem] leading-relaxed text-primary-foreground shadow-soft">{group.user.content}</div>
+          <div className="max-w-[88%] rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-[0.93rem] leading-relaxed text-primary-foreground shadow-soft">
+            {group.user.content && <div dir="auto" className="whitespace-pre-wrap">{group.user.content}</div>}
+            {group.user.attachments?.length ? <div className="mt-2"><AttachmentLinks value={group.user.attachments} /></div> : null}
+          </div>
         </div>
       )}
       {n === 1 && <div className="mx-auto w-full max-w-3xl"><Answer m={group.answers[0]} label={shortName(group.answers[0].model, names)} boxed={false} /></div>}
