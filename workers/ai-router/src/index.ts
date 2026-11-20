@@ -17,7 +17,7 @@ async function authenticate(request: Request, env: Env, rawBody: string) {
     return { ok: false as const, response: errorResponse(401, 'Missing signed request identity', 'unauthorized') };
   const valid = await verifyRequest({
     secret: env.AI_ROUTER_SECRET, timestamp, nonce, method: request.method,
-    pathname: new URL(request.url).pathname, body: rawBody, signature,
+    pathname: new URL(request.url).pathname + new URL(request.url).search, body: rawBody, signature,
   });
   if (!valid) return { ok: false as const, response: errorResponse(401, 'Invalid or expired signature', 'invalid_signature') };
   const gate = env.REQUEST_GATES.get(env.REQUEST_GATES.idFromName(userId));
