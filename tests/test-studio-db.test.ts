@@ -56,25 +56,25 @@ describe('Test Studio PostgreSQL data and wallet invariants', () => {
     await db.query('select save_test_studio_paper($1,$2,$3,$4,$5::jsonb,$6::jsonb,$7::jsonb,$8::jsonb)',
       [user,paperId,0,'Database test',config,questions,answers,'[]']);
     const paper = await db.query('select version,total_marks,counts from test_papers where id=$1',[paperId]);
-    expect(paper.rows[0]).toMatchObject({ version: 1, total_marks: 1, counts: { mcq: 1, short: 0, long: 0 } });
+    expect(paper.rows[0] as Record<string, unknown>).toMatchObject({ version: 1, total_marks: 1, counts: { mcq: 1, short: 0, long: 0 } });
     const keys = await db.query('select count(*)::int as count from test_answer_keys where test_id=$1',[paperId]);
-    expect(keys.rows[0].count).toBe(1);
+    expect((keys.rows[0] as { count: number }).count).toBe(1);
   });
 
   it('rejects stale paper versions and cross-owner reads', async () => {
     await expect(db.query('select save_test_studio_paper($1,$2,$3,$4,$5::jsonb,$6::jsonb,$7::jsonb,$8::jsonb)',
       [user,paperId,0,'Stale save',config,questions,answers,'[]'])).rejects.toThrow('test_version_conflict');
     const crossOwner = await db.query('select count(*)::int as count from test_papers where id=$1 and user_id=$2',[paperId,other]);
-    expect(crossOwner.rows[0].count).toBe(0);
+    expect((crossOwner.rows[0] as { count: number }).count).toBe(0);
   });
 
   it('enforces idempotent, atomic daily quota reservations', async () => {
     const first = await db.query('select reserve_test_generation($1,$2,$3,$4,$5,$6) as value',
       [reservationId,user,'studio:retry',10,1,1]);
-    expect(first.rows[0].value.duplicate).toBe(false);
+    expect((first.rows[0] as { value: { duplicate: boolean } }).value.duplicate).toBe(false);
     const retry = await db.query('select reserve_test_generation($1,$2,$3,$4,$5,$6) as value',
       ['30000000-0000-4000-8000-000000000102',user,'studio:retry',10,1,1]);
-    expect(retry.rows[0].value.duplicate).toBe(true);
+    expect((retry.rows[0] as { value: { duplicate: boolean } }).value.duplicate).toBe(true);
     await expect(db.query('select reserve_test_generation($1,$2,$3,$4,$5,$6)',
       ['30000000-0000-4000-8000-000000000103',user,'studio:over-limit',10,1,1])).rejects.toThrow('test_daily_limit');
   });
@@ -83,10 +83,10 @@ describe('Test Studio PostgreSQL data and wallet invariants', () => {
     const result = await db.query('select commit_test_regeneration($1,$2,$3,$4,$5::jsonb,$6::jsonb,$7::jsonb,$8::jsonb,$9,$10,$11::jsonb) as value', [
       user,paperId,1,'Database test',config,questions,answers,'[]',reservationId,10,usage,
     ]);
-    expect(result.rows[0].value.version).toBe(2);
+    expect((result.rows[0] as { value: { version: number } }).value.version).toBe(2);
     const state = await db.query('select version from test_papers where id=$1',[paperId]);
-    expect(state.rows[0].version).toBe(2);
+    expect((state.rows[0] as { version: number }).version).toBe(2);
     const generation = await db.query('select status,charged from generation_requests where id=$1',[reservationId]);
-    expect(generation.rows[0]).toMatchObject({ status: 'completed', charged: 10 });
+    expect(generation.rows[0] as Record<string, unknown>).toMatchObject({ status: 'completed', charged: 10 });
   });
 });
