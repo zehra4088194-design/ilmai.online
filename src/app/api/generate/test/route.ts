@@ -146,7 +146,7 @@ export const POST = handle(async (req: NextRequest) => {
     return json({ paper, warnings: generated.warnings, creditsCharged: amount, model: model.id });
   } catch (error) {
     if (!settledSuccessfully) {
-      await db.rpc('release_generation', { p_id: reservationId, p_user: profile.id, p_cancelled: false }).catch(() => undefined);
+      try { await db.rpc('release_generation', { p_id: reservationId, p_user: profile.id, p_cancelled: false }); } catch { /* best-effort release */ }
       if (savedTestId) await db.from('test_papers').delete().eq('id', savedTestId).eq('user_id', profile.id);
     }
     if (error instanceof HttpError) throw error;
