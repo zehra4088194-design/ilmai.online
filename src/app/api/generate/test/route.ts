@@ -51,28 +51,28 @@ export const POST = handle(async (req: NextRequest) => {
   }
 
   const db = adminClient();
-  if (!isAdmin && policy.daily_limit > 0) {
-    const since = new Date(Date.now() - 86400000).toISOString();
-    const { count } = await db.from('usage_events').select('id', { count: 'exact', head: true })
-      .eq('user_id', profile.id).eq('kind', 'test').gte('created_at', since);
-    if ((count ?? 0) >= policy.daily_limit) throw new HttpError(429, 'You have reached your daily Test Studio limit');
+  if (ids.length) {
+    const { data: sourceRows, error: sourceError } = await db.from('media_assets')
+      .select('id,size_bytes').in('id', ids).eq('user_id', profile.id).eq('status', 'ready');
+    if (sourceError) throw sourceError;
+    const maxBytes = policy.max_source_mb * 1024 * 1024;
+    if ((sourceRows ?? []).length !== ids.length || sourceRows!.some((row) => Number(row.size_bytes) > maxBytes))
+      throw new HttpError(413, 'A source file exceeds the current Test Studio size limit');
   }
-  if (!isAdmin && policy.monthly_limit > 0) {
-    const since = new Date();
-    since.setDate(1); since.setHours(0, 0, 0, 0);
-    const { count } = await db.from('usage_events').select('id', { count: 'exact', head: true })
-      .eq('user_id', profile.id).eq('kind', 'test').gte('created_at', since.toISOString());
-    if ((count ?? 0) >= policy.monthly_limit) throw new HttpError(429, 'You have reached your monthly Test Studio limit');
-  }
-
   const reservationId = randomUUID();
   const amount = isAdmin ? 0 : policy.generation_cost;
-  const reservation = await db.rpc('reserve_generation', {
-    p_id: reservationId, p_user: profile.id, p_key: requestId, p_kind: 'test', p_amount: amount,
+  const reservation = await db.rpc('reserve_test_generation', {
+    p_id: reservationId, p_user: profile.id, p_key: requestId, p_amount: amount,
+    p_daily_limit: isAdmin ? 0 : policy.daily_limit,
+    p_monthly_limit: isAdmin ? 0 : policy.monthly_limit,
   });
   if (reservation.error) {
     if (reservation.error.message.includes('insufficient_credits'))
       throw new HttpError(402, 'Not enough credits to generate this test', 'out_of_credits');
+    if (reservation.error.message.includes('test_daily_limit'))
+      throw new HttpError(429, 'You have reached your daily Test Studio limit', 'daily_test_limit');
+    if (reservation.error.message.includes('test_monthly_limit'))
+      throw new HttpError(429, 'You have reached your monthly Test Studio limit', 'monthly_test_limit');
     throw reservation.error;
   }
   const reservationData = reservation.data as { status: string; duplicate?: boolean };
