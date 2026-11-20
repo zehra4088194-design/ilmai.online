@@ -46,8 +46,6 @@ export const POST=handle(async(req:NextRequest)=>{
   const sortOrder=Math.max(0,Math.min(10000,Number(form.get('sortOrder')??0)||0));
   if((location==='image_template'||location==='video_template')&&!templatePrompt)
     throw new HttpError(400,'A reusable generation prompt is required for this template');
-  const {data:{user:adminUser}}=await adminClient().auth.getUser(user.id);
-  if(!adminUser) throw new HttpError(401,'Admin session could not be verified');
   const path='creatives/'+user.id+'/'+randomUUID()+'.'+extension(mime);
   const storage=adminClient().storage.from('site-banners');
   const uploaded=await storage.upload(path,bytes,{contentType:mime,upsert:false,cacheControl:'3600'});
@@ -57,7 +55,7 @@ export const POST=handle(async(req:NextRequest)=>{
     location,template_prompt:templatePrompt,is_active:isActive,sort_order:sortOrder,created_by:user.id,
   }).select('*').single();
   if(error) {
-    await storage.remove([path]).catch(()=>undefined);
+    try { await storage.remove([path]); } catch { /* storage cleanup is best-effort */ }
     throw error;
   }
   return json({creative:{...data,url:storage.getPublicUrl(path).data.publicUrl}},{status:201});
