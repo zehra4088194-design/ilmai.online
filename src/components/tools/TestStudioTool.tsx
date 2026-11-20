@@ -299,6 +299,7 @@ export function TestStudioTool() {
               <label className="space-y-1 text-sm font-medium">Difficulty<select className="input" value={config.difficulty} onChange={(e) => setConfig({ ...config, difficulty: e.target.value as TestConfig['difficulty'] })}><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option><option value="mixed">Mixed</option></select></label>
               <label className="space-y-1 text-sm font-medium">Duration (minutes)<input className="input" type="number" min={1} max={600} value={config.duration} onChange={(e) => setConfig({ ...config, duration: Number(e.target.value) })} /></label>
               <label className="space-y-1 text-sm font-medium">Negative marking<input className="input" type="number" min={0} max={100} step={0.25} value={config.negativeMarking} onChange={(e) => setConfig({ ...config, negativeMarking: Number(e.target.value) })} /></label>
+              <label className="space-y-1 text-sm font-medium">Question order<select className="input" value={config.questionOrder} onChange={(e) => setConfig({ ...config, questionOrder: e.target.value as TestConfig['questionOrder'] })}><option value="grouped">Group by type</option><option value="mixed">Mix question types</option></select></label>
             </div>
             <div className="rounded-2xl border border-border p-3">
               <p className="mb-3 text-sm font-bold">Question counts and marks</p>
