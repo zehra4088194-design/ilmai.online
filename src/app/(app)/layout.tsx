@@ -9,7 +9,16 @@ export const dynamic = 'force-dynamic';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { profile, isAdmin } = await requireUserPage();
-  const [features, settings, modes] = await Promise.all([featuresForUser(profile.plan, isAdmin), getSettings(), getModes()]);
+  const [features, settings, modes, bannerResult] = await Promise.all([
+    featuresForUser(profile.plan, isAdmin), getSettings(), getModes(),
+    adminClient().from('site_creatives').select('title,alt_text,storage_path')
+      .eq('location','banner').eq('is_active',true).order('sort_order').limit(1).maybeSingle(),
+  ]);
+  const banner = bannerResult.data ? {
+    title: bannerResult.data.title,
+    altText: bannerResult.data.alt_text,
+    url: adminClient().storage.from('site-banners').getPublicUrl(bannerResult.data.storage_path).data.publicUrl,
+  } : null;
 
   if (settings.maintenance_mode && !isAdmin) {
     return (
@@ -29,6 +38,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       features={features}
       modes={modes}
       announcement={settings.announcement}
+      banner={banner}
     >
       {children}
     </AppShell>
