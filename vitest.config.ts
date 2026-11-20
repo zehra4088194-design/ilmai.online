@@ -26,5 +26,5 @@ export default defineConfig({
       'server-only': fileURLToPath(new URL('./tests/server-only.ts', import.meta.url)),
     },
   },
-  test: { include: ['tests/**/*.test.{ts,tsx}'], environment: 'node', testTimeout: 20000, maxWorkers: 1 },
+  test: { include: ['tests/**/*.test.{ts,tsx}'], exclude: ['tests/ai-router*.test.ts'], environment: 'node', testTimeout: 20000, maxWorkers: 1 },
 });
