@@ -88,7 +88,7 @@ export type StudentPaper = {
 };
 export type TestPreview = StudentPaper & { createdAt: string; updatedAt: string; status: string; warnings: string[] };
 export class TestValidationError extends Error {}
-const fail = (message: string): never => { throw new TestValidationError(message); };
+function fail(message: string): never { throw new TestValidationError(message); }
 const normalize = (s: string) => s.normalize('NFKC').toLocaleLowerCase().replace(/[\p{P}\p{S}\s]+/gu, '');
 
 export function summarizeQuestions(questions: TestQuestion[]) {
@@ -133,8 +133,8 @@ export function validateAnswers(questions: TestQuestion[], answers: TestAnswer[]
   if (byId.size !== answers.length) fail('Duplicate answer mapping');
   for (const q of questions) {
     const a = byId.get(q.id);
-    if (!a) fail('An answer is outdated; update the answer key before export');
-    if (a.revision !== q.revision) fail('An answer is outdated; update the answer key before export');
+    if (a === undefined) return fail('An answer is outdated; update the answer key before export');
+    if (a.revision !== q.revision) return fail('An answer is outdated; update the answer key before export');
     validateAnswer(q, AnswerValueSchema.parse(a), config.includeMarking, config.includeExplanations);
   }
 }
@@ -151,7 +151,7 @@ export function reviseQuestions(previous: TestQuestion[], next: TestQuestion[], 
     if (!ids.has(a.questionId) || replacementIds.has(a.questionId)) fail('Invalid replacement answer mapping');
     replacementIds.add(a.questionId);
     const q = next.find((item) => item.id === a.questionId);
-    if (!q) fail('Invalid replacement question');
+    if (q === undefined) return fail('Invalid replacement question');
     validateAnswer(q, AnswerValueSchema.parse(a));
   }
   return next.map((q) => {
@@ -192,7 +192,7 @@ const GenerationResult = z.object({
 }).strict();
 export function parseGeneratedTest(raw: string, config: TestConfig, newId: () => string) {
   const parsed = GenerationResult.safeParse(extractJson(raw));
-  if (!parsed.success) fail('The model returned malformed or incomplete test data');
+  if (parsed.success === false) return fail('The model returned malformed or incomplete test data');
   const result = parsed.data;
   const audits = new Map(result.sourceAudit.map((a) => [a.sourceId, a]));
   if (audits.size !== result.sourceAudit.length || audits.size !== config.sourceIds.length || config.sourceIds.some((id) => !audits.has(id))) fail('The model did not verify all supplied sources');
@@ -206,7 +206,7 @@ export function parseGeneratedTest(raw: string, config: TestConfig, newId: () =>
       sourceReference: q.sourceId ? q.sourceId + ': ' + q.sourceReference : '' };
     questions.push(question);
     if (config.includeAnswerKey) {
-      if (!q.answer) fail('The model omitted an answer from the answer key');
+      if (q.answer === undefined) return fail('The model omitted an answer from the answer key');
       const answer = AnswerValueSchema.parse(q.answer);
       answers.push({ questionId: question.id, revision: 1, ...answer });
     }
@@ -218,7 +218,7 @@ export function parseGeneratedTest(raw: string, config: TestConfig, newId: () =>
     while (queues.some((queue) => index < queue.length)) {
       for (const queue of queues) {
         const item = queue[index];
-        if (item) ordered.push(item);
+        if (item !== undefined) ordered.push(item);
       }
       index++;
     }
