@@ -38,6 +38,10 @@ export function ChatView() {
   const [sugLoading, setSugLoading] = useState(false);
   const [quizDlg, setQuizDlg] = useState<{ topic?: string; context?: string } | null>(null);
 
+  const mode = useMemo(() => modes.find((m) => m.slug === modeSlug) ?? null, [modes, modeSlug]);
+  const names = useMemo(() => new Map(models.map((m) => [m.id, m.name.replace(/^[^:]+:\\s*/, '')])), [models]);
+  const groups = useMemo(() => groupMessages(messages), [messages]);
+
   const convRef = useRef<string | null>(null);
   const aborts = useRef<AbortController[]>([]);
   const sugToken = useRef(0);
