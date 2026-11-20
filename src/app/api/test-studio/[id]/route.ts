@@ -7,7 +7,7 @@ import { adminClient } from '@/lib/supabase/admin';
 import { AttachmentIds, validateAttachments } from '@/lib/attachments';
 import {
   SaveTestInput, TestId, TestQuestion, TestAnswer, QuestionSchema, AnswerSchema,
-  sanitizeStudentPaper, reviseQuestions, questionChanged, validateQuestions,
+  sanitizeStudentPaper, reviseQuestions, questionChanged, validateQuestions, StudioPolicySchema,
 } from '@/lib/test-studio';
 
 export const dynamic = 'force-dynamic';
@@ -53,14 +53,19 @@ export const GET = handle(async (_req: NextRequest, { params }: Ctx) => {
 
 export const PATCH = handle(async (req: NextRequest, { params }: Ctx) => {
   const { profile, isAdmin } = await requireUserApi();
-  await requireFeature('teacher_tests', profile.plan, isAdmin);
+  const feature = await requireFeature('teacher_tests', profile.plan, isAdmin);
+  const policy = StudioPolicySchema.parse(feature.config ?? {});
   const { id } = Params.parse(await params);
   const body = SaveTestInput.parse(await req.json());
   const sourceIds = AttachmentIds.parse(body.config.sourceIds);
-  if (sourceIds.length) await validateAttachments(sourceIds, profile.id);
+  if (sourceIds.length > policy.max_sources) throw new HttpError(400, 'Too many source files for the current Test Studio settings');
+  if (sourceIds.length) {
+    await requireFeature('file_upload', profile.plan, isAdmin);
+    await validateAttachments(sourceIds, profile.id);
+  }
 
   const db = adminClient();
-  const { data: paper, error } = await db.from('test_papers').select('id,version')
+  const { data: paper, error } = await db.from('test_papers').select('id,version,title')
     .eq('id', id).eq('user_id', profile.id).maybeSingle();
   if (error) throw error;
   if (!paper) throw new HttpError(404, 'Test not found');
@@ -75,6 +80,13 @@ export const PATCH = handle(async (req: NextRequest, { params }: Ctx) => {
 
   const previous = (oldRows ?? []).map((row) => mapQuestion(row));
   const revised = reviseQuestions(previous, body.questions, body.replacements);
+  if (revised.length > policy.max_questions) throw new HttpError(400, 'This test exceeds the administrator question limit');
+  const summary = validateQuestions(revised);
+  const config = {
+    ...body.config,
+    mcq: summary.counts.mcq, short: summary.counts.short, long: summary.counts.long,
+    title: body.config.title || paper.title,
+  };
   const oldQuestions = new Map(previous.map((q) => [q.id, q]));
   const oldAnswers = new Map((answerRows ?? []).map((row) => {
     const answer = mapAnswer(row);
@@ -99,8 +111,8 @@ export const PATCH = handle(async (req: NextRequest, { params }: Ctx) => {
     p_user: profile.id,
     p_test: id,
     p_expected_version: body.expectedVersion,
-    p_title: body.config.title || 'Untitled test',
-    p_config: body.config,
+    p_title: config.title,
+    p_config: config,
     p_questions: revised.map((question, position) => ({ ...question, position })),
     p_answers: nextAnswers,
     p_warnings: [],
