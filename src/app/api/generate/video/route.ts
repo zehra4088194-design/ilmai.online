@@ -27,6 +27,30 @@ const Body = z.object({
 
 type ProviderJob = { id?: string; polling_url?: string; status?: string; error?: string };
 
+
+export const GET = handle(async () => {
+  const { profile } = await requireUserApi();
+  const db = adminClient();
+  const { data: rows, error } = await db.from('video_jobs').select('*')
+    .eq('user_id',profile.id).order('created_at',{ascending:false}).limit(30);
+  if (error) throw error;
+  const assetIds = (rows ?? []).map((row)=>row.media_asset_id).filter((value):value is string=>typeof value==='string');
+  const { data: assets, error: assetError } = assetIds.length
+    ? await db.from('media_assets').select('id,storage_key').in('id',assetIds).eq('user_id',profile.id).eq('kind','video').eq('status','ready')
+    : { data:[],error:null };
+  if (assetError) throw assetError;
+  const urls = new Map<string,string>();
+  for (const asset of assets ?? []) urls.set(asset.id,await signedDownloadUrl(asset.storage_key,300));
+  return json({
+    jobs:(rows ?? []).map((row)=>({
+      id:row.id,status:row.status,model:row.model,prompt:row.prompt,config:row.config,
+      error:row.error,creditsCharged:row.credits_charged,createdAt:row.created_at,
+      completedAt:row.completed_at,
+      downloadUrl:typeof row.media_asset_id==='string'?urls.get(row.media_asset_id)??null:null,
+    })),
+  },{headers:{'Cache-Control':'private, no-store'}});
+});
+
 export const POST = handle(async (req: NextRequest) => {
   const { profile, isAdmin } = await requireUserApi();
   const feature = await requireFeature('video_generation', profile.plan, isAdmin);
