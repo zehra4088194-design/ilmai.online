@@ -39,7 +39,7 @@ describe('A4 Test Studio document templates', () => {
   it('creates a distinct answer key and teacher-only copy', () => {
     const key = answerKeyHtml(paper, answers);
     const teacher = teacherCopyHtml(paper, answers);
-    expect(key).toContain('Answer Key &amp; Marking Scheme');
+    expect(key).toContain('Answer Key & Marking Scheme');
     expect(key).toContain('Mass and the speed of light');
     expect(teacher).toContain('TEACHER COPY — CONTAINS ANSWERS');
     expect(teacher).toContain('Confidential teacher document');
