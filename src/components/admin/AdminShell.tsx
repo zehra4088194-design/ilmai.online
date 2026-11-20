@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, ToggleRight, Cpu, Users, Activity, HardDrive, Puzzle, Settings2, ArrowLeft, Menu, X, ShieldCheck, GraduationCap } from 'lucide-react';
+import { LayoutDashboard, ToggleRight, Cpu, Users, Activity, HardDrive, Puzzle, Settings2, ArrowLeft, Images, Menu, X, ShieldCheck, GraduationCap, Coins } from 'lucide-react';
 import { Logo } from '@/components/ui/Logo';
 import { ThemeToggle } from '@/components/ui/ThemeControls';
 import { cn } from '@/lib/utils';
@@ -15,6 +15,8 @@ const NAV = [
   { href: '/admin/users', label: 'Users & credits', Icon: Users },
   { href: '/admin/usage', label: 'Usage log', Icon: Activity },
   { href: '/admin/media', label: 'Media (B2)', Icon: HardDrive },
+  { href: '/admin/creatives', label: 'Banners & templates', Icon: Images },
+  { href: '/admin/billing', label: 'Plans & discounts', Icon: Coins },
   { href: '/admin/skills', label: 'Teacher skills', Icon: Puzzle },
   { href: '/admin/settings', label: 'Settings', Icon: Settings2 },
 ];
