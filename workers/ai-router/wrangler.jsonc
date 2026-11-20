@@ -1,0 +1,27 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "ilmai-ai-router",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-20",
+  "compatibility_flags": ["nodejs_compat"],
+  "upload_source_maps": true,
+  "observability": { "enabled": true, "head_sampling_rate": 0.1 },
+  "secrets": { "required": ["AI_ROUTER_SECRET"] },
+  "vars": {
+    "USER_REQUESTS_PER_MINUTE": 30,
+    "SERVICE_REQUESTS_PER_MINUTE": 120,
+    "SLOT_CONCURRENCY": 2,
+    "PROVIDER_TIMEOUT_MS": 120000,
+    "ROUTING_TIMEOUT_MS": 8000,
+    "ROUTING_MODEL": "llama-3.3-70b-versatile"
+  },
+  "durable_objects": {
+    "bindings": [
+      { "name": "REQUEST_GATES", "class_name": "RequestGate" },
+      { "name": "KEY_POOLS", "class_name": "KeyPool" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["RequestGate", "KeyPool"] }
+  ]
+}

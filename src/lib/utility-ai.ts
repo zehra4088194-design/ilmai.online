@@ -12,16 +12,15 @@ const AVOID = /r1|reason|think|vision|guard|embed|coder|:extended/i;
 export async function getUtilityModels(limit = 3): Promise<string[]> {
   const s = await getSettings();
   const manual = s.utility_models.split(',').map((x) => x.trim()).filter(Boolean);
-  if (manual.length) return manual.slice(0, limit + 2);
-
   let free: { id: string; context: number }[] = [];
   try {
     free = (await getAllTextModels()).filter((m) => m.enabled && m.isFree && m.context >= 8000 && !AVOID.test(m.id));
   } catch { /* catalogue unavailable */ }
   const rank = (id: string) => { const i = PREFER.findIndex((r) => r.test(id)); return i === -1 ? 99 : i; };
   free.sort((a, b) => rank(a.id) - rank(b.id) || b.context - a.context);
-  const ids = free.slice(0, limit).map((m) => m.id);
-  return ids.length ? ids : ['openai/gpt-4o-mini']; // last resort (paid by the platform)
+  const ids = manual.length ? manual.filter((id) => free.some((m) => m.id === id)).slice(0, limit + 2) : free.slice(0, limit).map((m) => m.id);
+  if (!ids.length) throw new HttpError(503, 'No enabled free utility models are available', 'utility_unavailable');
+  return ids;
 }
 
 export type UtilityResult = { text: string; model: string; cost: number; promptTokens: number; completionTokens: number };

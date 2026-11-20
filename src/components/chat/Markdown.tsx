@@ -2,6 +2,10 @@
 import { Children, isValidElement, useState, type ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import { normalizeMathDelimiters } from '@/lib/markdown-math';
+import 'katex/dist/katex.min.css';
 import { Check, Copy } from 'lucide-react';
 
 function CodeBlock({ children }: { children?: ReactNode }) {
@@ -27,8 +31,14 @@ function CodeBlock({ children }: { children?: ReactNode }) {
 export function Markdown({ children }: { children: string }) {
   return (
     <div className="md" dir="auto">
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ pre: ({ children }) => <CodeBlock>{children}</CodeBlock> }}>
-        {children}
+      <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[[rehypeKatex, { trust: false, strict: 'ignore', throwOnError: false, maxExpand: 1000 }]]} skipHtml
+        components={{
+          pre: ({ children }) => <CodeBlock>{children}</CodeBlock>,
+          table: ({ children }) => <div className="overflow-x-auto" role="region" aria-label="Table" tabIndex={0}><table>{children}</table></div>,
+          a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>,
+          img: ({ alt }) => <span className="text-muted-foreground">{alt || 'Image'}</span>,
+        }}>
+        {normalizeMathDelimiters(children)}
       </ReactMarkdown>
     </div>
   );

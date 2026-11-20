@@ -4,6 +4,8 @@ import { ArrowUp, Square } from 'lucide-react';
 import { iconFor } from '@/components/icons';
 import { cn } from '@/lib/utils';
 import type { UserFeature } from '@/lib/features';
+import { AttachmentPicker } from '@/components/AttachmentPicker';
+import type { Attachment } from '@/lib/attachment-validation';
 
 const COMPOSER_FEATURES = ['quiz', 'file_upload', 'web_search', 'voice_input'];
 

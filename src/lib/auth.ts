@@ -21,6 +21,9 @@ export type Profile = {
   audience: 'student' | 'teacher';
   grade: string | null;
   created_at: string;
+  /** Only trigger-created signups start with a null dismissal timestamp. */
+  pricing_dismissed_at: string | null;
+  onboarding_source: 'existing' | 'signup' | 'recovered';
 };
 
 export const isAdminProfile = (p: Pick<Profile, 'role' | 'email'>) =>
@@ -29,21 +32,20 @@ export const isAdminProfile = (p: Pick<Profile, 'role' | 'email'>) =>
 /** Returns the signed-in user + profile, or null. */
 export async function getAuth(): Promise<{ user: User; profile: Profile; isAdmin: boolean } | null> {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) return null;
 
   const db = adminClient();
-  let { data: profile } = await db.from('profiles').select('*').eq('id', user.id).maybeSingle();
+  const result = await db.from('profiles').select('*').eq('id', user.id).maybeSingle();
+  if (result.error) throw new HttpError(503, 'Could not load your account. Please try again.', 'profile_unavailable');
+  let profile = result.data;
   if (!profile) {
-    // trigger may not have run (e.g. user existed before migration) – create lazily
-    const ins = await db
-      .from('profiles')
-      .insert({ id: user.id, email: user.email, full_name: user.user_metadata?.full_name ?? null, credits_balance: 500 })
-      .select('*')
-      .single();
-    profile = ins.data;
+    // The RPC verifies auth.users, serializes concurrent recovery and grants configured credits once.
+    // Missing profiles are existing-account recoveries, never inferred to be new signups.
+    const recovery = await db.rpc('ensure_user_profile', { p_user: user.id }).single();
+    if (recovery.error || !recovery.data) throw new HttpError(503, 'Could not restore your account. Please try again.', 'profile_unavailable');
+    profile = recovery.data;
   }
-  if (!profile) return null;
   return { user, profile: profile as Profile, isAdmin: isAdminProfile(profile as Profile) };
 }
 

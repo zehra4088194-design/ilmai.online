@@ -1,5 +1,5 @@
 import 'server-only';
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { env } from '@/lib/env';
 import { HttpError } from '@/lib/http';
@@ -34,6 +34,46 @@ export const deleteObject = (key: string) =>
 export const signedDownloadUrl = (key: string, expiresIn = 3600) =>
   getSignedUrl(client(), new GetObjectCommand({ Bucket: env.b2.bucket, Key: key }), { expiresIn });
 
-/** Time-limited URL for the BROWSER to upload directly (needs CORS rule on the bucket – see docs). */
-export const signedUploadUrl = (key: string, contentType: string, expiresIn = 600) =>
-  getSignedUrl(client(), new PutObjectCommand({ Bucket: env.b2.bucket, Key: key, ContentType: contentType }), { expiresIn });
+/** Browser credentials can only ever write quarantine keys, never a published object. */
+export const signedUploadUrl = (key: string, contentType: string, expiresIn = 300) => {
+  if (!key.startsWith('staging/')) throw new Error('Browser uploads must be quarantined');
+  return getSignedUrl(client(), new PutObjectCommand({ Bucket: env.b2.bucket, Key: key, ContentType: contentType }), { expiresIn });
+};
+
+export const headObject = (key: string) =>
+  client().send(new HeadObjectCommand({ Bucket: env.b2.bucket, Key: key }));
+
+/** Bounded, version/ETag-pinned read. Never fetch a caller-supplied URL or buffer an unbounded SDK body. */
+export async function readObject(key: string, expectedSize: number, mime: string, maxBytes: number) {
+  const head = await headObject(key);
+  if (!Number.isSafeInteger(expectedSize) || expectedSize <= 0 || expectedSize > maxBytes || head.ContentLength !== expectedSize)
+    throw new HttpError(400, 'Uploaded file size does not match its declaration');
+  if (head.ContentType?.split(';')[0].trim().toLowerCase() !== mime || head.ContentEncoding)
+    throw new HttpError(400, 'Uploaded file MIME type does not match its declaration');
+  if (!head.ETag) throw new HttpError(400, 'Storage did not return an object version');
+  const result = await client().send(new GetObjectCommand({
+    Bucket: env.b2.bucket, Key: key, IfMatch: head.ETag, VersionId: head.VersionId,
+    Range: `bytes=0-${expectedSize}`, // at most the declared size plus one sentinel byte
+  }));
+  if (!result.Body) throw new HttpError(400, 'Uploaded file is empty');
+  const reader = result.Body.transformToWebStream().getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    if (result.ETag !== head.ETag || result.ContentLength !== expectedSize ||
+        result.ContentType?.split(';')[0].trim().toLowerCase() !== mime || result.ContentEncoding)
+      throw new HttpError(400, 'Uploaded file changed during validation');
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > expectedSize || size > maxBytes) throw new HttpError(413, 'Uploaded file is too large');
+      chunks.push(value);
+    }
+    if (size !== expectedSize) throw new HttpError(400, 'Uploaded file is incomplete');
+    return Buffer.concat(chunks, size);
+  } finally {
+    await reader.cancel().catch(() => undefined);
+    reader.releaseLock();
+  }
+}

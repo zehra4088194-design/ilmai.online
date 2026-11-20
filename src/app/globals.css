@@ -95,7 +95,10 @@
 .md { @apply prose prose-sm max-w-none dark:prose-invert prose-p:leading-relaxed prose-pre:p-0 prose-pre:bg-transparent; }
 .md a { color: hsl(var(--primary)); }
 .md code:not(pre code) { @apply rounded-md bg-muted px-1.5 py-0.5 text-[0.85em] font-medium before:content-none after:content-none; }
-.md table { @apply block overflow-x-auto; }
+.md table { @apply w-full; }
+.md .katex { color: inherit; direction: ltr; unicode-bidi: isolate; }
+.md .katex-display { max-width: 100%; overflow-x: auto; overflow-y: hidden; padding-block: 0.4rem; }
+.md .katex-display > .katex { display: inline-block; min-width: min-content; }
 .cursor::after { content: '▍'; @apply animate-blink text-primary; }
 
 @media (prefers-reduced-motion: reduce) {

@@ -3,6 +3,7 @@ import { unstable_cache } from 'next/cache';
 import { adminClient } from '@/lib/supabase/admin';
 import { fetchOrModels, type OrModel } from '@/lib/openrouter';
 import type { Plan } from '@/lib/auth';
+import { HttpError } from '@/lib/http';
 
 export type ModelInfo = {
   id: string;
@@ -16,6 +17,8 @@ export type ModelInfo = {
   enabled: boolean;
   isDefault: boolean;
   vision: boolean;
+  documents: boolean;
+  outputModalities: string[];
   sort: number;
   notes?: string | null;
 };
@@ -55,19 +58,24 @@ const merge = (m: OrModel, row?: Row): ModelInfo => {
     enabled: row?.enabled ?? true,
     isDefault: row?.is_default ?? false,
     vision: !!m.architecture?.input_modalities?.includes('image'),
+    documents: !!m.architecture?.input_modalities?.some((v) => v === 'file' || v === 'pdf'),
+    outputModalities: m.architecture?.output_modalities ?? ['text'],
     sort: row?.sort_order ?? 1000,
     notes: row?.notes,
   };
 };
 
-/** All text-output models, merged with admin overrides. */
-export async function getAllTextModels(): Promise<ModelInfo[]> {
+export async function getAllModels(): Promise<ModelInfo[]> {
   const [or, rows] = await Promise.all([fetchOrModels(), getRows()]);
   const byId = new Map(rows.map((r) => [r.model_id, r]));
   return or
-    .filter((m) => (m.architecture?.output_modalities ?? ['text']).includes('text'))
     .map((m) => merge(m, byId.get(m.id)))
+    .filter((m) => Number.isFinite(m.pricePromptPerM) && Number.isFinite(m.priceCompletionPerM) && m.pricePromptPerM >= 0 && m.priceCompletionPerM >= 0)
     .sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name));
+}
+
+export async function getAllTextModels(): Promise<ModelInfo[]> {
+  return (await getAllModels()).filter((m) => m.outputModalities.includes('text'));
 }
 
 /** Models the end user may pick (enabled only). */
@@ -76,10 +84,12 @@ export async function getUserModels(): Promise<ModelInfo[]> {
 }
 
 export async function getModel(id: string) {
-  return (await getAllTextModels()).find((m) => m.id === id) ?? null;
+  return (await getAllModels()).find((m) => m.id === id) ?? null;
 }
 
 export async function getDefaultModelId(): Promise<string> {
   const list = await getUserModels();
-  return list.find((m) => m.isDefault)?.id ?? list.find((m) => m.isFree)?.id ?? list[0]?.id ?? 'openai/gpt-4o-mini';
+  const id = list.find((m) => m.isDefault)?.id ?? list.find((m) => m.isFree)?.id ?? list[0]?.id;
+  if (!id) throw new HttpError(503, 'No enabled text models are currently available');
+  return id;
 }

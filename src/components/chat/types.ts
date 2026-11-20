@@ -1,9 +1,17 @@
+import type { Attachment } from '@/lib/attachment-validation';
+export type { Attachment } from '@/lib/attachment-validation';
+
 export type Msg = {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   model?: string | null;
-  meta?: { kind?: string; quiz_id?: string; turn?: string } | null;
+  attachments?: Attachment[];
+  prompt_tokens?: number | null;
+  completion_tokens?: number | null;
+  credits_used?: number | null;
+  cost_usd?: number | null;
+  meta?: { kind?: string; quiz_id?: string; turn?: string; credits_used?: number; [key: string]: unknown } | null;
   streaming?: boolean;
   error?: boolean;
 };

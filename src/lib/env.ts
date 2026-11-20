@@ -1,4 +1,4 @@
-/** Central place to read env vars. Server-only values must never be imported in client components. */
+import 'server-only';
 export const env = {
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000',
   supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',

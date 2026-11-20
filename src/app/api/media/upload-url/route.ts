@@ -7,33 +7,34 @@ import { requireFeature } from '@/lib/features';
 import { getSettings } from '@/lib/settings';
 import { signedUploadUrl } from '@/lib/storage/b2';
 import { adminClient } from '@/lib/supabase/admin';
+import { sanitizeFilename, uploadLimits, validateDeclaration } from '@/lib/attachment-validation';
 
 export const dynamic = 'force-dynamic';
 
-const ALLOWED: Record<string, { kind: 'image' | 'pdf'; ext: string }> = {
-  'image/png': { kind: 'image', ext: 'png' },
-  'image/jpeg': { kind: 'image', ext: 'jpg' },
-  'image/webp': { kind: 'image', ext: 'webp' },
-  'application/pdf': { kind: 'pdf', ext: 'pdf' },
-};
+/** Shared server-enforced limits for all attachment pickers. */
+export const GET = handle(async () => {
+  const { profile, isAdmin } = await requireUserApi();
+  await requireFeature('file_upload', profile.plan, isAdmin);
+  return json(uploadLimits((await getSettings()).max_upload_mb), { headers: { 'Cache-Control': 'private, no-store' } });
+});
 
-const Body = z.object({ mime: z.string(), size: z.number().int().positive() });
+const Body = z.object({ mime: z.string().max(160), size: z.number().int().positive(), name: z.string().max(255).optional() });
 
-/** Step 1 of a browser → B2 upload. The browser then PUTs the file to `uploadUrl`, then PATCHes /api/media/:id. */
+/** Browser PUTs only into quarantine, then PATCHes /api/media/:id to verify and publish. */
 export const POST = handle(async (req: NextRequest) => {
   const { profile, isAdmin } = await requireUserApi();
   await requireFeature('file_upload', profile.plan, isAdmin);
-  const { mime, size } = Body.parse(await req.json());
-  const type = ALLOWED[mime];
-  if (!type) throw new HttpError(400, 'Only PNG, JPG, WEBP and PDF files are allowed');
-  const settings = await getSettings();
-  if (size > settings.max_upload_mb * 1024 * 1024) throw new HttpError(413, `Max file size is ${settings.max_upload_mb} MB`);
+  const { mime, size, name } = Body.parse(await req.json());
+  const limits = uploadLimits((await getSettings()).max_upload_mb);
+  let type;
+  try { type = validateDeclaration(mime, size, limits.maxBytes); }
+  catch (e) { throw new HttpError(size > limits.maxBytes || (mime === 'text/plain' && size > limits.maxTextBytes) ? 413 : 400, e instanceof Error ? e.message : 'Invalid file'); }
 
-  const key = `uploads/${profile.id}/${randomUUID()}.${type.ext}`;
-  const { data, error } = await adminClient()
-    .from('media_assets')
-    .insert({ user_id: profile.id, kind: type.kind, storage_key: key, mime, size_bytes: size, status: 'pending' })
+  const key = `staging/${profile.id}/${randomUUID()}.${type.ext}`;
+  const uploadUrl = await signedUploadUrl(key, mime);
+  const { data, error } = await adminClient().from('media_assets')
+    .insert({ user_id: profile.id, kind: type.kind, storage_key: key, mime, size_bytes: size, status: 'pending', meta: { name: sanitizeFilename(name ?? `attachment.${type.ext}`) } })
     .select('id').single();
   if (error) throw error;
-  return json({ assetId: data.id, uploadUrl: await signedUploadUrl(key, mime), key });
+  return json({ assetId: data.id, uploadUrl, expiresIn: 300 }, { headers: { 'Cache-Control': 'private, no-store' } });
 });
