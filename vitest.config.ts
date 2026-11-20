@@ -1,18 +1,23 @@
 import { defineConfig } from 'vitest/config';
-import { transformWithEsbuild } from 'vite';
+import ts from 'typescript';
 import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
   plugins: [{
     name: 'test-tsx-transform',
     enforce: 'pre',
-    async transform(code, id) {
+    transform(code, id) {
       if (!id.endsWith('.tsx')) return null;
-      return transformWithEsbuild(code, id, {
-        loader: 'tsx',
-        jsx: 'automatic',
-        tsconfigRaw: { compilerOptions: { jsx: 'react-jsx' } },
+      const result = ts.transpileModule(code, {
+        fileName: id,
+        compilerOptions: {
+          jsx: ts.JsxEmit.ReactJSX,
+          module: ts.ModuleKind.ESNext,
+          target: ts.ScriptTarget.ES2022,
+          moduleResolution: ts.ModuleResolutionKind.Bundler,
+        },
       });
+      return { code: result.outputText, map: null };
     },
   }],
   resolve: {
