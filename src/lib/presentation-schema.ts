@@ -31,6 +31,7 @@ export const PresentationDeckSchema = z.object({
 });
 
 export const PresentationGenerateInput = z.object({
+  requestId: z.string().uuid(),
   topic: z.string().trim().min(3).max(2000),
   slides: z.number().int().min(3).max(20).default(8),
   language: z.enum(['English','Urdu','Roman Urdu']).default('English'),
