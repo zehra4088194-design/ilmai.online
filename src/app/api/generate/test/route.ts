@@ -3,10 +3,10 @@ import { randomUUID } from 'crypto';
 import { handle, HttpError, json } from '@/lib/http';
 import { requireUserApi } from '@/lib/auth';
 import { requireFeature } from '@/lib/features';
-import { getModel, getDefaultModelId, canUseTier } from '@/lib/models';
+import { getAllTextModels, canUseTier } from '@/lib/models';
 import { orChat } from '@/lib/openrouter';
 import { adminClient } from '@/lib/supabase/admin';
-import { AttachmentIds, attachmentContent } from '@/lib/attachments';
+import { AttachmentIds, attachmentContent, validateAttachments } from '@/lib/attachments';
 import { GenerateTestInput, StudioPolicySchema, TestConfigSchema, parseGeneratedTest, sanitizeStudentPaper, testGenerationPrompt } from '@/lib/test-studio';
 
 export const runtime = 'nodejs';
@@ -25,14 +25,30 @@ export const POST = handle(async (req: NextRequest) => {
 
   if (requested > policy.max_questions) throw new HttpError(400, 'This test exceeds the administrator question limit');
   if (ids.length > policy.max_sources) throw new HttpError(400, 'Too many source files for the current Test Studio settings');
-  if (ids.length) await requireFeature('file_upload', profile.plan, isAdmin);
-
-  const modelId = askedModel ?? policy.default_model ?? await getDefaultModelId();
-  const model = await getModel(modelId);
-  if (!model || (!model.enabled && !isAdmin) || !model.outputModalities.includes('text'))
-    throw new HttpError(400, 'The selected model cannot generate test content', 'model_unavailable');
-  if (!isAdmin && !canUseTier(profile.plan, model.tier))
-    throw new HttpError(403, 'This model requires the ' + model.tier + ' plan', 'plan_required');
+  let sourceFiles: Awaited<ReturnType<typeof validateAttachments>> = [];
+  if (ids.length) {
+    await requireFeature('file_upload', profile.plan, isAdmin);
+    sourceFiles = await validateAttachments(ids, profile.id);
+  }
+  const needsVision = sourceFiles.some((file) => file.kind === 'image');
+  const needsDocuments = sourceFiles.some((file) => file.mime === 'application/pdf');
+  const allTextModels = await getAllTextModels();
+  const permittedModels = allTextModels.filter((candidate) =>
+    (isAdmin || candidate.enabled) &&
+    (isAdmin || canUseTier(profile.plan, candidate.tier)) &&
+    (!needsVision || candidate.vision) &&
+    (!needsDocuments || candidate.documents)
+  );
+  const preferredId = askedModel ?? policy.default_model;
+  const model = (preferredId ? permittedModels.find((candidate) => candidate.id === preferredId) : undefined) ??
+    (askedModel ? undefined : permittedModels.find((candidate) => candidate.isDefault) ??
+      permittedModels.find((candidate) => candidate.isFree) ?? permittedModels[0]);
+  if (!model) {
+    if (askedModel) throw new HttpError(400, 'The selected model cannot read the attached sources or is not available on your plan', 'model_unavailable');
+    throw new HttpError(400, needsVision || needsDocuments
+      ? 'No enabled model on your plan supports these image/PDF sources. Choose a vision/document-capable model or remove the source file.'
+      : 'No enabled text model is available on your plan', 'model_unavailable');
+  }
 
   const db = adminClient();
   if (!isAdmin && policy.daily_limit > 0) {
