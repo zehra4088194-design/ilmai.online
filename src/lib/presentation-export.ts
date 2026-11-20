@@ -61,7 +61,7 @@ export async function buildPresentationPptx(deck: PresentationDeck, theme: Prese
       slide.addText(deck.title, {
         x: 0.85, y: 1.65, w: 8.4, h: 1.65,
         fontFace: 'Aptos Display', fontSize: 36, bold: true, color: colors.text,
-        margin: 0, breakLine: false, valign: 'mid', fit: 'shrink',
+        margin: 0, breakLine: false, valign: 'middle', fit: 'shrink',
       });
       if (item.title && item.title !== deck.title)
         slide.addText(item.title, { x: 0.9, y: 3.55, w: 7.8, h: 0.75, fontFace: 'Aptos', fontSize: 21, color: colors.muted, margin: 0, fit: 'shrink' });
@@ -111,7 +111,7 @@ export async function buildPresentationPptx(deck: PresentationDeck, theme: Prese
         slide.addText(item.quote, {
           x: 1.8, y: 2.8, w: 9.7, h: 2.0, fontFace: 'Aptos Display',
           fontSize: 27, italic: true, color: colors.text, margin: 0,
-          valign: 'mid', align: 'center', fit: 'shrink',
+          valign: 'middle', align: 'center', fit: 'shrink',
         });
         if (item.bullets.length)
           slide.addText(item.bullets.join(' · '), { x: 1.5, y: 5.35, w: 10.3, h: 0.55, fontFace: 'Aptos', fontSize: 14, color: colors.muted, align: 'center', margin: 0, fit: 'shrink' });
