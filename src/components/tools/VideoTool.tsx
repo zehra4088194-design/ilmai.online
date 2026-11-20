@@ -13,6 +13,7 @@ type VideoModel = {
   supportedAspectRatios:string[];supportedDurations:number[];supportedResolutions:string[];
   supportedFrameImages:string[];generateAudio:boolean;price:number|null;
 };
+type VideoTemplate = {id:string;title:string;templatePrompt:string;altText:string;url:string};
 type VideoJob = {
   id:string;status:string;model:string;prompt:string;config:Record<string,unknown>;
   error:string|null;creditsCharged:number;createdAt:string;completedAt:string|null;downloadUrl:string|null;
@@ -23,6 +24,7 @@ export function VideoTool() {
   const { refreshMe } = useApp();
   const toast = useToast();
   const [models,setModels] = useState<VideoModel[]>([]);
+  const [templates,setTemplates] = useState<VideoTemplate[]>([]);
   const [modelId,setModelId] = useState('auto');
   const [prompt,setPrompt] = useState('');
   const [duration,setDuration] = useState(5);
@@ -61,7 +63,11 @@ export function VideoTool() {
   },[]);
 
   const loadModels = useCallback(async () => {
-    const result = await api<{models:VideoModel[];creditsPerSecond:number;maxDuration:number;defaultModel:string|null}>('/api/models/videos','GET');
+    const [result,creativeData] = await Promise.all([
+      api<{models:VideoModel[];creditsPerSecond:number;maxDuration:number;defaultModel:string|null}>('/api/models/videos','GET'),
+      api<{creatives:VideoTemplate[]}>('/api/creatives?location=video_template','GET').catch(()=>({creatives:[]})),
+    ]);
+    setTemplates(creativeData.creatives??[]);
     setModels(result.models);
     setCreditsPerSecond(result.creditsPerSecond);
     setMaxDuration(result.maxDuration);
@@ -134,6 +140,7 @@ export function VideoTool() {
           <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary"><Film className="h-5 w-5"/></div>
           <div><h2 className="text-xl font-extrabold">Video Studio</h2><p className="mt-1 text-sm text-muted-foreground">Create short videos from a prompt or an optional first-frame image. Generation runs in the background.</p></div>
         </div>
+        {templates.length>0&&<div className="space-y-2"><p className="text-sm font-semibold">Admin templates</p><div className="grid gap-2 sm:grid-cols-2">{templates.map((template)=><button key={template.id} type="button" className="rounded-xl border border-border p-3 text-left hover:bg-muted" onClick={()=>setPrompt(template.templatePrompt)}><span className="font-semibold">{template.title}</span><span className="block text-xs text-muted-foreground">{template.altText}</span></button>)}</div></div>}
         <label className="block space-y-1 text-sm font-medium">Describe the video
           <textarea className="input min-h-28" dir="auto" maxLength={6000} value={prompt} onChange={(e)=>setPrompt(e.target.value)} placeholder="Describe the scene, camera movement, subject action, lighting, style and mood…"/>
         </label>
