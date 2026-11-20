@@ -39,6 +39,7 @@ export function ImageTool() {
   const [busy, setBusy] = useState(false);
   const [action, setAction] = useState('');
   const [assets, setAssets] = useState<GeneratedAsset[]>([]);
+  const [templates, setTemplates] = useState<Template[]>(BUILT_IN_TEMPLATES);
   const [error, setError] = useState('');
 
   const selectedModel = useMemo(() => models.find((model) => model.id === modelId) ?? null, [models, modelId]);
@@ -47,8 +48,19 @@ export function ImageTool() {
   const loadModels = useCallback(async () => {
     setLoadingModels(true); setError('');
     try {
-      const data = await api<{ models: ImageModel[] }>('/api/models/images', 'GET');
+      const [data,creativeData] = await Promise.all([
+        api<{ models: ImageModel[] }>('/api/models/images', 'GET'),
+        api<{ creatives: {id:string;title:string;altText:string;templatePrompt:string;url:string}[] }>('/api/creatives?location=image_template','GET').catch(()=>({creatives:[]})),
+      ]);
       setModels(data.models ?? []);
+      setTemplates([
+        ...BUILT_IN_TEMPLATES,
+        ...creativeData.creatives.map((item)=>({
+          id:item.id,label:item.title||'Custom template',
+          description:item.altText||'Admin-provided image template',
+          prompt:item.templatePrompt,
+        })),
+      ]);
       setModelId((current) => current && data.models.some((item) => item.id === current) ? current : data.models[0]?.id ?? '');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load image models');
@@ -94,8 +106,6 @@ export function ImageTool() {
       setError(e instanceof Error ? e.message : 'Image generation failed');
     } finally { setBusy(false); setAction(''); }
   }
-
-  const templates = BUILT_IN_TEMPLATES;
 
   return (
     <div className="space-y-6">
