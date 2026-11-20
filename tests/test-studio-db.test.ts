@@ -63,7 +63,7 @@ describe('Test Studio PostgreSQL data and wallet invariants', () => {
 
   it('rejects stale paper versions and cross-owner reads', async () => {
     await expect(db.query('select save_test_studio_paper($1,$2,$3,$4,$5::jsonb,$6::jsonb,$7::jsonb,$8::jsonb)',
-      [user,paperId,0,'Stale save',config,questions,answers,'[]'])).rejects.toThrow('test_version_conflict');
+      [user,paperId,1,'Stale save',config,questions,answers,'[]'])).rejects.toThrow('test_version_conflict');
     const crossOwner = await db.query('select count(*)::int as count from test_papers where id=$1 and user_id=$2',[paperId,other]);
     expect((crossOwner.rows[0] as { count: number }).count).toBe(0);
   });
