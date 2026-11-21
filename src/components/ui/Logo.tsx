@@ -3,16 +3,29 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
 export function LogoMark({ className }: { className?: string }) {
+  const sizeClass = cn('h-8 w-8 shrink-0 object-contain', className);
+
   return (
-    <Image
-      src="/icon.svg"
-      alt=""
-      aria-hidden
-      width={64}
-      height={64}
-      unoptimized
-      className={cn('h-8 w-8 shrink-0 object-contain', className)}
-    />
+    <>
+      <Image
+        src="/brand/ilm-ai-light.webp"
+        alt=""
+        aria-hidden
+        width={64}
+        height={64}
+        unoptimized
+        className={cn(sizeClass, 'dark:hidden')}
+      />
+      <Image
+        src="/icon.svg"
+        alt=""
+        aria-hidden
+        width={64}
+        height={64}
+        unoptimized
+        className={cn(sizeClass, 'hidden dark:block')}
+      />
+    </>
   );
 }
 
