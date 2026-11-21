@@ -93,38 +93,26 @@ export const POST=handle(async(req:NextRequest)=>{
       const total=(data.details as Record<string,unknown>|undefined)?.totals as Record<string,unknown>|undefined;
       const grandTotal=total?.grand_total??total?.total;
       const amount=moneyFromPaddle(grandTotal,currency);
-      let paymentId:string|null=null;
+      if(!transactionId) throw new Error('Paddle transaction ID is missing');
 
-      const byReference=transactionId
-        ? await db.from('payments').select('id').eq('provider','paddle').eq('provider_reference',transactionId).maybeSingle()
-        : {data:null,error:null};
+      let payment:Record<string,any>|null=null;
+      const byReference=await db.from('payments').select('*').eq('provider','paddle').eq('provider_reference',transactionId).maybeSingle();
       if(byReference.error) throw byReference.error;
-      if(byReference.data) paymentId=byReference.data.id;
+      if(byReference.data) payment=byReference.data;
 
-      if(!paymentId&&suppliedPaymentId) {
+      if(!payment&&suppliedPaymentId) {
         const supplied=await db.from('payments').select('*').eq('id',suppliedPaymentId).eq('provider','paddle').maybeSingle();
         if(supplied.error) throw supplied.error;
-        if(supplied.data) {
-          paymentId=supplied.data.id;
-          await db.from('payments').update({
-            provider_reference:transactionId||supplied.data.provider_reference,
-            metadata:{
-              ...(supplied.data.metadata??{}),
-              subscription_id:subscriptionId,customer_id:customerId,
-              period_start:iso((data.billing_period as Record<string,unknown>|undefined)?.starts_at),
-              period_end:iso((data.billing_period as Record<string,unknown>|undefined)?.ends_at),
-            },
-            updated_at:new Date().toISOString(),
-          }).eq('id',paymentId);
-        }
+        if(supplied.data) payment=supplied.data;
       }
 
-      if(!paymentId&&subscriptionId) {
+      if(!payment&&subscriptionId) {
         const subscription=await db.from('subscriptions').select('user_id,plan_id')
           .eq('provider','paddle').eq('external_subscription_id',subscriptionId).maybeSingle();
         if(subscription.error) throw subscription.error;
         if(subscription.data) {
-          const plan=await db.from('billing_plans').select('credits_per_period').eq('id',subscription.data.plan_id).single();
+          const plan=await db.from('billing_plans').select('credits_per_period,paddle_price_id,currency')
+            .eq('id',subscription.data.plan_id).single();
           if(plan.error) throw plan.error;
           const renewal=await db.from('payments').insert({
             user_id:subscription.data.user_id,provider:'paddle',provider_reference:transactionId,
@@ -136,16 +124,44 @@ export const POST=handle(async(req:NextRequest)=>{
               period_start:iso((data.billing_period as Record<string,unknown>|undefined)?.starts_at),
               period_end:iso((data.billing_period as Record<string,unknown>|undefined)?.ends_at),
             },
-          }).select('id').single();
+          }).select('*').single();
           if(renewal.error) {
-            const prior=await db.from('payments').select('id').eq('provider','paddle').eq('provider_reference',transactionId).maybeSingle();
+            const prior=await db.from('payments').select('*').eq('provider','paddle').eq('provider_reference',transactionId).maybeSingle();
             if(prior.error||!prior.data) throw renewal.error;
-            paymentId=prior.data.id;
-          } else paymentId=renewal.data.id;
+            payment=prior.data;
+          } else payment=renewal.data;
         }
       }
-      if(!paymentId) throw new Error('No matching pending Paddle payment or subscription was found');
-      await completePayment({paymentId,providerReference:transactionId,amount,currency});
+      if(!payment) throw new Error('No matching pending Paddle payment or subscription was found');
+
+      const {data:plan,error:planError}=await db.from('billing_plans')
+        .select('paddle_price_id,currency,active').eq('id',payment.plan_id).maybeSingle();
+      if(planError) throw planError;
+      if(!plan||!plan.paddle_price_id) throw new Error('The Paddle payment plan has no configured catalogue price');
+      if(currency!==String(plan.currency).toUpperCase()) throw new Error('Paddle transaction currency does not match the configured plan');
+      const items=Array.isArray(data.items)?data.items as Record<string,unknown>[]:[];
+      const matchingItem=items.find((item)=>{
+        const price=item.price&&typeof item.price==='object'?item.price as Record<string,unknown>:{};
+        return price.id===plan.paddle_price_id && Number(item.quantity??1)===1;
+      });
+      if(!matchingItem) throw new Error('Paddle transaction does not contain the configured plan price and quantity');
+
+      const metadata={
+        ...(payment.metadata??{}),
+        subscription_id:subscriptionId,customer_id:customerId,
+        period_start:iso((data.billing_period as Record<string,unknown>|undefined)?.starts_at),
+        period_end:iso((data.billing_period as Record<string,unknown>|undefined)?.ends_at),
+      };
+      const updated=await db.from('payments').update({
+        amount,currency,provider_reference:transactionId,metadata,updated_at:new Date().toISOString(),
+      }).eq('id',payment.id).eq('status','pending').select('id').maybeSingle();
+      if(updated.error) throw updated.error;
+      if(!updated.data) {
+        const current=await db.from('payments').select('status').eq('id',payment.id).maybeSingle();
+        if(current.error) throw current.error;
+        if(current.data?.status!=='paid') throw new Error('Paddle payment is no longer pending');
+      }
+      await completePayment({paymentId:payment.id,providerReference:transactionId,amount,currency});
     } else if(type.startsWith('subscription.')) {
       const subscriptionId=String(data.id??'');
       if(!subscriptionId) throw new Error('Paddle subscription event has no subscription ID');
