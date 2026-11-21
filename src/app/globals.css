@@ -25,21 +25,21 @@
   --blob-3: 90 60% 70%;
 }
 .dark {
-  --background: 160 32% 5%;
-  --foreground: 140 25% 94%;
-  --card: 160 26% 8%;
-  --card-foreground: 140 25% 94%;
-  --muted: 160 20% 12%;
-  --muted-foreground: 150 10% 62%;
-  --border: 160 16% 16%;
-  --input: 160 16% 16%;
-  --primary: 152 58% 48%;
-  --primary-foreground: 160 40% 6%;
-  --accent: 160 30% 14%;
-  --accent-foreground: 142 60% 80%;
-  --ring: 152 58% 50%;
-  --blob-1: 152 60% 28%;
-  --blob-2: 168 55% 24%;
+  --background: 0 0% 4%;
+  --foreground: 0 0% 94%;
+  --card: 0 0% 7%;
+  --card-foreground: 0 0% 94%;
+  --muted: 0 0% 12%;
+  --muted-foreground: 0 0% 62%;
+  --border: 0 0% 17%;
+  --input: 0 0% 17%;
+  --primary: 142 71% 45%;
+  --primary-foreground: 0 0% 4%;
+  --accent: 142 42% 13%;
+  --accent-foreground: 142 58% 78%;
+  --ring: 142 71% 48%;
+  --blob-1: 142 65% 28%;
+  --blob-2: 155 55% 24%;
   --blob-3: 120 45% 22%;
 }
 
@@ -87,7 +87,7 @@
 .aurora::before { width: 42vw; height: 42vw; left: -8vw; top: -10vw; background: hsl(var(--blob-1)); }
 .aurora::after  { width: 36vw; height: 36vw; right: -6vw; top: 20vh; background: hsl(var(--blob-2)); animation-delay: -6s; }
 .aurora i       { width: 30vw; height: 30vw; left: 30vw; bottom: -14vw; background: hsl(var(--blob-3)); animation-delay: -12s; }
-.dark .aurora::before, .dark .aurora::after, .dark .aurora i { opacity: 0.22; }
+.dark .aurora::before, .dark .aurora::after, .dark .aurora i { opacity: 0; }
 
 .dots { background-image: radial-gradient(hsl(var(--primary) / 0.12) 1px, transparent 1px); background-size: 22px 22px; }
 
