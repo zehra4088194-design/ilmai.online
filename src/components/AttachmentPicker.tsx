@@ -110,7 +110,7 @@ export function AttachmentPicker({ value, onChange, disabled = false, onUploadin
           const type = limits.types.find((t) => t.mime === file.type) ??
             limits.types.find((t) => t.ext === ext || (t.ext === 'jpg' && ext === 'jpeg'));
           if (!type) throw new Error('Unsupported file type');
-          const limit = type.mime === 'text/plain' ? limits.maxTextBytes : limits.maxBytes;
+          const limit = type.kind === 'file' ? limits.maxTextBytes : limits.maxBytes;
           if (!file.size || file.size > limit) throw new Error(`File must be between 1 byte and ${Math.round(limit / 1024)} KB`);
           setProgress({ name, percent: 0, stage: 'Preparing' });
           const ticket = await request<{ assetId: string; uploadUrl: string }>('/api/media/upload-url', 'POST', { name, mime: type.mime, size: file.size });
@@ -149,7 +149,7 @@ export function AttachmentPicker({ value, onChange, disabled = false, onUploadin
   return <div className={`${compact ? '' : 'rounded-2xl p-2'} ${dragging ? 'bg-primary/10 ring-1 ring-primary' : ''}`
     onDragOver={(e) => { e.preventDefault(); if (!disabled && !active.current) setDragging(true); }}
     onDragLeave={() => setDragging(false)} onDrop={(e) => { e.preventDefault(); setDragging(false); void upload(Array.from(e.dataTransfer.files)); }}>
-    {!compact && value.length > 0 && <div className="mb-2"><AttachmentLinks value={value} previews={previews} disabled={disabled || !!progress} onRemove={(id) => onChange(value.filter((f) => f.asset_id !== id))} /></div>}
+    {value.length > 0 && <div className={compact ? 'mb-2' : 'mb-2'}><AttachmentLinks value={value} previews={previews} disabled={disabled || !!progress} onRemove={(id) => onChange(value.filter((f) => f.asset_id !== id))} /></div>}
     <input ref={input} type="file" multiple className="hidden" aria-label="Choose attachments" disabled={disabled || !!progress || !limits}
       accept={limits?.types.map((t) => `.${t.ext},${t.mime}`).join(',')}
       onChange={(e) => { void upload(Array.from(e.target.files ?? [])); e.target.value = ''; }} />
