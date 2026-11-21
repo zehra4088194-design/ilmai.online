@@ -148,15 +148,25 @@ export const POST = handle(async (req: NextRequest) => {
             '\n\nCurrent project JSON:\n' + JSON.stringify(project),
         },
       ];
-      const repairResult = await aiRouterChat({
-        userId: profile.id,
-        model: model.id,
-        messages: repairMessages,
-        max_tokens: MAX_TOKENS,
-        temperature: 0.1,
-        response_format: { type: 'json_object' },
-        timeoutMs: 240_000,
-      });
+      let repairResult: Awaited<ReturnType<typeof aiRouterChat>>;
+      try {
+        repairResult = await aiRouterChat({
+          userId: profile.id,
+          model: model.id,
+          messages: repairMessages,
+          max_tokens: MAX_TOKENS,
+          temperature: 0.1,
+          response_format: { type: 'json_object' },
+          timeoutMs: 240_000,
+        });
+      } catch (error) {
+        buildCheck = {
+          ...buildCheck,
+          summary: 'The automatic repair model request failed; returning the generated files with the original build diagnostics.',
+          details: [buildCheck.details, error instanceof Error ? error.message : 'Repair request failed'].filter(Boolean).join('\n').slice(-2_400),
+        };
+        break;
+      }
       totalUsage.prompt_tokens += repairResult.usage?.prompt_tokens ?? 0;
       totalUsage.completion_tokens += repairResult.usage?.completion_tokens ?? 0;
       totalUsage.cost += repairResult.usage?.cost ?? 0;
