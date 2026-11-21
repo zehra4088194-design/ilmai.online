@@ -16,7 +16,7 @@ export function Composer({
   value, onChange, onSend, onStop, busy, uploading = false, features, onUnavailable, onQuiz,
   attachments = [], onAttachmentsChange, onUploadingChange, placeholder = 'Message Ilm AI…',
   modelSlot, thinking = 'auto', onThinkingChange, onEnhance, enhancing = false,
-  onBuildWebsite, callActive = false, onToggleCall,
+  onBuildWebsite, callActive = false, callStatus = 'idle', onToggleCall,
 }: {
   value: string; onChange: (v: string) => void; onSend: () => void; onStop: () => void; busy: boolean;
   uploading?: boolean; features: UserFeature[]; onUnavailable: (f: UserFeature) => void;
@@ -27,7 +27,7 @@ export function Composer({
   onThinkingChange?: (value: 'auto' | 'low' | 'medium' | 'high') => void;
   onEnhance?: () => void; enhancing?: boolean;
   onBuildWebsite?: () => void;
-  callActive?: boolean; onToggleCall?: () => void;
+  callActive?: boolean; callStatus?: 'idle'|'listening'|'thinking'|'speaking'; onToggleCall?: () => void;
 }) {
   const ta = useRef<HTMLTextAreaElement>(null);
   const recognition = useRef<SpeechRecognitionLike | null>(null);
@@ -150,7 +150,7 @@ export function Composer({
           <ChevronDown className="h-3 w-3" />
         </label>
 
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ml-auto flex items-center gap-1">\n          {callActive && <span className="mr-1 flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary" aria-live="polite"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />{callStatus === 'speaking' ? 'Speaking' : callStatus === 'thinking' ? 'Thinking' : 'Listening'}</span>}
           <button type="button" onClick={toggleDictation} disabled={busy || uploading} aria-label={dictating ? 'Stop dictation' : 'Dictate'}
             title={dictating ? 'Stop dictation' : 'Dictate prompt'}
             className={cn('grid h-9 w-9 place-items-center rounded-full transition hover:bg-muted', dictating ? 'text-danger' : 'text-muted-foreground')}>
