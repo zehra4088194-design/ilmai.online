@@ -35,7 +35,8 @@ const Body = z.object({
   contactDetails: z.string().max(1000).default(''),
 }).strict();
 
-const MAX_TOKENS = 14_000;\nconst MAX_REPAIR_ATTEMPTS = 2;
+const MAX_TOKENS = 14_000;
+const MAX_REPAIR_ATTEMPTS = 2;
 
 export const POST = handle(async (req: NextRequest) => {
   const { profile, isAdmin } = await requireUserApi();
