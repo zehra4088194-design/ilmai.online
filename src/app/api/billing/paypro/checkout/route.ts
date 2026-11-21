@@ -49,7 +49,7 @@ export const POST=handle(async(req:NextRequest)=>{
     user_id:profile.id,provider:'paypro',trade_no:tradeNo,plan_id:quote.plan.id,discount_id:quote.discount?.id??null,
     amount:quote.amount,currency:'PKR',credits_to_grant:quote.credits,status:'pending',
     customer_email:user.email??body.email,payment_method:body.paymentType,idempotency_key:body.requestId,
-    metadata:{customer_name:body.name,mobile},
+    metadata:{customer_name:body.name,mobile,period_days:quote.plan.period_days},
   }).select('id').single();
   if(insertError) throw insertError;
 
@@ -88,7 +88,7 @@ export const POST=handle(async(req:NextRequest)=>{
   }
   await db.from('payments').update({
     provider_reference:result.data.platFormTradeNo,
-    metadata:{customer_name:body.name,mobile,paypro_initial_status:providerStatus},
+    metadata:{customer_name:body.name,mobile,period_days:quote.plan.period_days,paypro_initial_status:providerStatus},
     updated_at:new Date().toISOString(),
   }).eq('id',payment.id);
   return json({
