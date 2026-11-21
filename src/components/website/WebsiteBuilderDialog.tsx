@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   X, ArrowLeft, ArrowRight, Loader2, Download, Globe, Check, Code2,
@@ -40,11 +40,20 @@ export function WebsiteBuilderDialog({ open, onClose, models, preferredModel }: 
   });
 
   const candidates = useMemo(() => models.filter((model) =>
-    !model.locked && model.id !== 'auto' && model.outputModalities?.includes('text')
+    !model.locked && model.id !== 'auto'
   ), [models]);
   const chinese = useMemo(() => candidates.filter((model) => CODE_FAMILIES.test(model.id + ' ' + model.name)), [candidates]);
   const available = chinese.length ? chinese : candidates;
   const [modelId, setModelId] = useState('');
+
+  useEffect(() => {
+    if (!open) { setStep(0); setResult(null); setBusy(false); setFileFilter(''); return; }
+    setModelId((old) => old && available.some((model) => model.id === old)
+      ? old
+      : preferredModel && available.some((model) => model.id === preferredModel && CODE_FAMILIES.test(model.id))
+        ? preferredModel
+        : available[0]?.id ?? '');
+  }, [open, available, preferredModel]);
 
   const setField = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
     setForm((old) => ({ ...old, [key]: value }));
