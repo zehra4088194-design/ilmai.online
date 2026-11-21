@@ -11,7 +11,7 @@ export type WebsiteBuildCheck = {
   details?: string;
 };
 
-const WORKDIR = '/home/user/ilmai-website';
+const WORKDIR = '/home/user/ilmai-website';\nconst DEFAULT_TEMPLATE = 'ilmai-website-builder-node22';
 const MAX_LOG_CHARS = 2_400;
 const SANDBOX_TIMEOUT_MS = 300_000;
 
@@ -60,7 +60,7 @@ export async function runWebsiteBuildInSandbox(
   let sandbox: Sandbox | undefined;
 
   try {
-    sandbox = await Sandbox.create({
+    const templateName = process.env.E2B_WEBSITE_TEMPLATE?.trim() || DEFAULT_TEMPLATE;\n    sandbox = await Sandbox.create(templateName, {
       apiKey,
       timeoutMs: SANDBOX_TIMEOUT_MS,
       cpuCount: 2,
