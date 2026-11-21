@@ -14,7 +14,7 @@ Worker `ilmai-ai-router` is account par deploy ho chuka hai:
 
 `https://ilmai-ai-router.ilmai.workers.dev`
 
-Iske `RequestGate` aur `KeyPool` SQLite Durable Objects bhi provision ho chuke hain. `AI_ROUTER_SECRET` Cloudflare Worker mein configured hai. **Abhi `OPENROUTER_API_KEY` add karna baqi hai**, warna inference gateway OpenRouter requests serve nahi kar sakega.
+Iske `RequestGate` aur `KeyPool` SQLite Durable Objects provision ho chuke hain. `AI_ROUTER_SECRET` aur `OPENROUTER_API_KEY` dono Cloudflare Worker mein Secret ke taur par configured hain. Groq/Gemini ki 20 numbered keys ko abhi normal Variables se Secret type mein convert karna baqi hai.
 
 Cloudflare Dashboard → Workers & Pages → `ilmai-ai-router` → Settings → Variables and Secrets mein `AI_ROUTER_SECRET` aur `OPENROUTER_API_KEY` Secret ke taur par configured hain. Groq/Gemini ki 20 numbered keys ko bhi normal Variables ke bajaye **Secrets** mein convert karna baqi hai.
 
