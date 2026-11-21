@@ -7,9 +7,10 @@ import { Plus, Search, Pin, Pencil, Trash2, Settings, ShieldCheck, Menu, X, Imag
 import { Logo } from '@/components/ui/Logo';
 import { cn, fmtNum } from '@/lib/utils';
 import type { UserFeature } from '@/lib/features';
+import { useAppearance, DEFAULT_APPEARANCE, type Appearance } from '@/components/providers';
 
 export type Conv = { id: string; title: string; model: string | null; mode: string | null; pinned: boolean; updated_at: string };
-export type ShellUser = { id: string; name: string; email: string; plan: string; credits: number; isAdmin: boolean };
+export type ShellUser = { id: string; name: string; email: string; plan: string; credits: number; isAdmin: boolean; appearance?: Partial<Appearance> | null };
 
 type Ctx = {
   user: ShellUser;
@@ -32,6 +33,7 @@ export function AppShell({ user, features, announcement, banner, children }: {
   user: ShellUser; features: UserFeature[]; announcement: { enabled: boolean; text: string }; banner?: { title: string; altText: string; url: string } | null; children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const { appearance, updateAppearance, loaded: appearanceLoaded } = useAppearance();
   const [credits, setCredits] = useState(user.credits);
   const [conversations, setConversations] = useState<Conv[]>([]);
   const pathname = usePathname();
@@ -46,6 +48,7 @@ export function AppShell({ user, features, announcement, banner, children }: {
   }, []);
 
   useEffect(() => { refreshConversations(); }, [refreshConversations]);
+  useEffect(() => { if (appearanceLoaded) { try { if (!localStorage.getItem('ilm-appearance') && user.appearance) updateAppearance({ ...DEFAULT_APPEARANCE, ...user.appearance }); } catch { if (user.appearance) updateAppearance({ ...DEFAULT_APPEARANCE, ...user.appearance }); } } }, [appearanceLoaded, user.appearance, updateAppearance]);
   useEffect(() => setOpen(false), [pathname]);
 
   const featureOn = useCallback((key: string) => features.some((f) => f.key === key && f.state === 'active'), [features]);
