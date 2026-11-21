@@ -150,6 +150,14 @@ export function PlansTool(){
       ))}
     </section>
     <p className="flex items-center gap-2 text-xs text-muted-foreground"><ShieldCheck className="h-4 w-4"/>Your plan and credits change only after a verified payment notification or provider status response.</p>
+    <nav className="flex flex-wrap gap-x-4 gap-y-2 border-t border-border pt-4 text-xs text-muted-foreground">
+      <a href="/privacy" className="hover:text-foreground">Privacy</a>
+      <a href="/terms" className="hover:text-foreground">Terms</a>
+      <a href="/refunds" className="hover:text-foreground">Refunds & cancellation</a>
+      <a href="/cookies" className="hover:text-foreground">Cookies</a>
+      <a href="/acceptable-use" className="hover:text-foreground">Acceptable use</a>
+      <a href="/contact" className="hover:text-foreground">Support</a>
+    </nav>
     {error&&<p role="alert" className="rounded-xl bg-danger/10 p-3 text-sm text-danger">{error}</p>}
   </div>;
 }
