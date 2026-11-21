@@ -15,10 +15,10 @@ function CodeBlock({ children }: { children?: ReactNode }) {
   const lang = /language-([\w-]+)/.exec(props.className ?? '')?.[1] ?? 'code';
   const text = String(props.children ?? '').replace(/\n$/, '');
   return (
-    <div className="my-3 overflow-hidden rounded-xl border border-white/10 bg-[#0b1a13] text-[#d7f5e3]" dir="ltr">
-      <div className="flex items-center justify-between border-b border-white/10 px-3.5 py-1.5 text-xs text-emerald-200/70">
+    <div className="my-3 overflow-hidden rounded-xl border border-border bg-card text-foreground" dir="ltr">
+      <div className="flex items-center justify-between border-b border-border px-3.5 py-1.5 text-xs text-muted-foreground">
         <span className="font-mono">{lang}</span>
-        <button className="flex items-center gap-1.5 rounded-md px-1.5 py-0.5 transition hover:bg-white/10 hover:text-white"
+        <button className="flex items-center gap-1.5 rounded-md px-1.5 py-0.5 transition hover:bg-muted hover:text-foreground"
           onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); }}>
           {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}{copied ? 'Copied' : 'Copy'}
         </button>
