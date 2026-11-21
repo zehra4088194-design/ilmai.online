@@ -16,7 +16,7 @@ type WebsiteProject = {
   files: { path: string; content: string }[];
   nextSteps: string[];
 };
-type WebsiteBuildCheck = { status: 'passed' | 'failed' | 'unavailable'; phase: 'sandbox' | 'runtime' | 'dependencies' | 'production'; durationMs: number; summary: string; details?: string };
+type WebsiteBuildCheck = { status: 'passed' | 'failed' | 'unavailable'; phase: 'sandbox' | 'runtime' | 'dependencies' | 'production'; durationMs: number; summary: string; details?: string; repairAttempts?: number };
 type WebsiteResponse = { project: WebsiteProject; model: string; creditsCharged: number; buildCheck: WebsiteBuildCheck; createdAt: string };
 
 const PAGE_OPTIONS = ['Home', 'About', 'Services', 'Products', 'Pricing', 'Portfolio', 'Gallery', 'Blog', 'FAQ', 'Contact'];
@@ -240,7 +240,7 @@ export function WebsiteBuilderDialog({ open, onClose, models, preferredModel }: 
                       {result.buildCheck.status === 'passed' ? 'E2B production build passed' : result.buildCheck.status === 'failed' ? 'Production build needs fixes' : 'Build verification unavailable'}
                     </p>
                     <p className="mt-1.5 text-sm text-muted-foreground">{result.buildCheck.summary}</p>
-                    {result.buildCheck.durationMs > 0 && <p className="mt-1 text-[11px] text-muted-foreground">Sandbox time: {(result.buildCheck.durationMs / 1000).toFixed(1)}s · Phase: {result.buildCheck.phase}</p>}
+                    {result.buildCheck.durationMs > 0 && <p className="mt-1 text-[11px] text-muted-foreground">Sandbox time: {(result.buildCheck.durationMs / 1000).toFixed(1)}s · Phase: {result.buildCheck.phase}</p>}\n                    {typeof result.buildCheck.repairAttempts === 'number' && <p className="mt-1 text-[11px] text-muted-foreground">Automatic repair attempts: {result.buildCheck.repairAttempts}</p>}
                     {result.buildCheck.details && <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-black/40 p-3 font-mono text-[10px] leading-5 text-muted-foreground">{result.buildCheck.details}</pre>}
                   </div>
                   <button type="button" onClick={downloadZip} className="btn-primary flex h-12 w-full justify-center"><Download className="h-4 w-4" />Download complete website ZIP</button>
