@@ -30,19 +30,42 @@ function validatePackageJson(content: string) {
   let pkg: Record<string, unknown>;
   try { pkg = JSON.parse(content) as Record<string, unknown>; }
   catch { throw new Error('Generated package.json is not valid JSON'); }
-  const scripts = pkg.scripts && typeof pkg.scripts === 'object' ? pkg.scripts as Record<string, unknown> : {};
-  const deps = { ...(pkg.dependencies as Record<string, unknown> ?? {}), ...(pkg.devDependencies as Record<string, unknown> ?? {}) };
-  if (typeof scripts.dev !== 'string' || typeof scripts.build !== 'string' ||
-      !deps.next || !deps.react || !deps['react-dom'])
-    throw new Error('The website project is incomplete: package.json needs Next.js, React, and dev/build scripts');
-  const lifecycle = ['preinstall', 'install', 'postinstall', 'prepare'];
-  if (lifecycle.some((key) => scripts[key])) throw new Error('Generated package.json includes a blocked install lifecycle script');
-  for (const value of Object.values(scripts)) {
-    if (typeof value === 'string' && /\b(curl|wget|powershell|invoke-webrequest|rm\s+-rf|mkfs|format\s+[a-z]:|nc\s+-|netcat)\b/i.test(value))
-      throw new Error('Generated package.json includes an unsafe shell command');
+
+  const scripts = pkg.scripts && typeof pkg.scripts === 'object'
+    ? pkg.scripts as Record<string, unknown>
+    : {};
+  const allowedScripts = new Set(['dev', 'build', 'start']);
+  if (Object.keys(scripts).some((key) => !allowedScripts.has(key)) ||
+      scripts.dev !== 'next dev' || scripts.build !== 'next build' || scripts.start !== 'next start') {
+    throw new Error('Generated package.json must use only the fixed next dev, next build, and next start scripts');
+  }
+
+  const dependencyGroups = ['dependencies', 'devDependencies', 'optionalDependencies'];
+  const dependencies: Record<string, unknown> = {};
+  for (const group of dependencyGroups) {
+    const value = pkg[group];
+    if (value === undefined) continue;
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      throw new Error(`Generated package.json has an invalid ${group} field`);
+    }
+    Object.assign(dependencies, value);
+  }
+
+  const names = Object.keys(dependencies);
+  const packageName = /^(?:@[a-z0-9][a-z0-9._-]*\\/)?[a-z0-9][a-z0-9._-]*$/;
+  const registryVersion = /^[~^]?\\d+(?:\\.\\d+){0,2}(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$/;
+  if (names.length > 80) throw new Error('Generated package.json contains too many dependencies');
+  for (const name of names) {
+    const version = dependencies[name];
+    if (!packageName.test(name) || typeof version !== 'string' || !registryVersion.test(version)) {
+      throw new Error('Generated package.json contains a non-registry or invalid dependency; only pinned npm registry versions are allowed');
+    }
+  }
+
+  if (!dependencies.next || !dependencies.react || !dependencies['react-dom']) {
+    throw new Error('The website project is incomplete: package.json needs Next.js and React');
   }
 }
-
 export type WebsiteProject = {
   projectName: string;
   summary: string;
