@@ -40,6 +40,7 @@ describe('website project validation', () => {
   it('rejects missing entry pages and invalid package metadata', () => {
     const missingPage = goodProject();
     missingPage.files = missingPage.files.filter((file) => file.path !== 'src/app/page.tsx');
+    missingPage.files.push({ path: 'src/components/extra.tsx', content: 'export const Extra = () => null;' });
     expect(() => validateWebsiteProject(missingPage)).toThrow(/main page/i);
 
     const badPackage = goodProject();
