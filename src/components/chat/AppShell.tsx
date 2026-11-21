@@ -18,6 +18,8 @@ type Ctx = {
   credits: number;
   features: UserFeature[];
   conversations: Conv[];
+  folders: ChatFolder[];
+  refreshFolders: () => Promise<void>;
   refreshConversations: () => Promise<void>;
   refreshMe: () => Promise<void>;
   openSidebar: () => void;
@@ -44,6 +46,11 @@ export function AppShell({ user, features, announcement, banner, children }: {
     const r = await fetch('/api/conversations', { cache: 'no-store' });
     if (r.ok) setConversations((await r.json()).conversations);
   }, []);
+  const refreshFolders = useCallback(async () => {
+    const r = await fetch('/api/chat-folders', { cache: 'no-store' });
+    if (r.ok) setFolders((await r.json()).folders);
+  }, []);
+
   const refreshMe = useCallback(async () => {
     const r = await fetch('/api/me', { cache: 'no-store' });
     if (r.ok) setCredits((await r.json()).credits);
