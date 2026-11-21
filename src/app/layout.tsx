@@ -15,7 +15,7 @@ export const viewport: Viewport = {
   themeColor: [{ media: '(prefers-color-scheme: light)', color: '#f3faf5' }, { media: '(prefers-color-scheme: dark)', color: '#07110c' }],
 };
 
-const accentBoot = `try{var a=localStorage.getItem('ilm-accent');if(a)document.documentElement.dataset.accent=a}catch(e){}`;
+const accentBoot = `try{document.documentElement.classList.add('dark');document.documentElement.dataset.accent='emerald'}catch(e){}`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
