@@ -9,7 +9,7 @@ import { aiRouterChat } from '@/lib/ai-router';
 import { extractJson } from '@/lib/json-extract';
 import { validateWebsiteProject } from '@/lib/website-builder';
 import { runWebsiteBuildInSandbox } from '@/lib/website-sandbox';
-import { generationEstimate, reserveGeneration, settleGeneration, releaseGeneration } from '@/lib/generations';
+import { generationEstimate, reserveGeneration, settleGeneration, releaseGeneration } from '@/lib/generations';\nimport { creditsFor } from '@/lib/credits';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -185,7 +185,7 @@ export const POST = handle(async (req: NextRequest) => {
     }
     buildCheck = { ...buildCheck, repairAttempts };
     const usage = totalUsage;
-    const chargedByUsage = (await import('@/lib/credits')).creditsFor(
+    const chargedByUsage = creditsFor(
       usage.cost ?? 0,
       (usage.prompt_tokens ?? 0) + (usage.completion_tokens ?? MAX_TOKENS * (repairAttempts + 1)),
       settings,
