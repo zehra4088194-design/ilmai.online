@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Save, Trash2, CreditCard, Wallet, History } from 'lucide-react';
+import { Plus, Save, Trash2, CreditCard, Wallet, History, RefreshCw } from 'lucide-react';
 import { api } from '@/lib/client-api';
 import { useToast } from '@/components/providers';
 
@@ -20,8 +20,14 @@ type Payment={
   id:string;user_id?:string;customer_email?:string|null;provider:string;plan_id:string;
   amount:number;currency:string;status:string;created_at:string;paid_at?:string|null;
 };
+type ExchangeRate={
+  usdToPkr:number;base:'USD';target:'PKR';mode:'auto'|'manual';
+  lastUpdated:string|null;fetchedAt:string|null;fetchedRate:number|null;
+  source:'preview'|'manual'|'ExchangeRate-API';
+};
 type Data={
   plans:Plan[];discounts:Discount[];payments:Payment[];
+  exchangeRate:ExchangeRate;exchangeRateApiConfigured:boolean;
   providers:{paddleConfigured:boolean;payproConfigured:boolean};
 };
 
@@ -30,6 +36,9 @@ function money(value:number,currency:string){return new Intl.NumberFormat('en-PK
 
 export function BillingAdmin({initial}:{initial:Data}) {
   const [data,setData]=useState(initial);
+  const [exchangeRate,setExchangeRate]=useState(initial.exchangeRate);
+  const [rateInput,setRateInput]=useState(String(initial.exchangeRate.usdToPkr));
+  const [rateBusy,setRateBusy]=useState('');
   const [discount,setDiscount]=useState({
     code:'',description:'',discount_type:'percent' as 'percent'|'fixed',value:10,
     currency:'PKR' as 'PKR'|'USD',paddle_discount_id:'',active:true,max_redemptions:'',per_user_limit:1,
@@ -48,6 +57,35 @@ export function BillingAdmin({initial}:{initial:Data}) {
   function change<K extends keyof Plan>(id:Plan['id'],key:K,value:Plan[K]) {
     setData((old)=>({...old,plans:old.plans.map((plan)=>plan.id===id?{...plan,[key]:value}:plan)}));
   }
+  async function saveExchangeRate() {
+    setRateBusy('save');
+    try {
+      const result=await api<{exchangeRate:ExchangeRate}>('/api/admin/billing/exchange-rate','PATCH',{
+        mode:exchangeRate.mode,
+        usdToPkr:Number(rateInput),
+      });
+      setExchangeRate(result.exchangeRate);
+      setRateInput(String(result.exchangeRate.usdToPkr));
+      toast('USD/PKR settings saved','ok');
+    }catch(e){toast(e instanceof Error?e.message:'Could not save the exchange rate','err');}
+    finally{setRateBusy('');}
+  }
+  async function refreshExchangeRate() {
+    setRateBusy('refresh');
+    try {
+      const result=await api<{exchangeRate:ExchangeRate}>('/api/admin/billing/exchange-rate','POST',{});
+      setExchangeRate(result.exchangeRate);
+      setRateInput(String(result.exchangeRate.usdToPkr));
+      toast('USD/PKR reference rate refreshed','ok');
+    }catch(e){toast(e instanceof Error?e.message:'Could not refresh the exchange rate','err');}
+    finally{setRateBusy('');}
+  }
+  function rateDate(value:string|null) {
+    if(!value)return 'No successful API refresh yet';
+    const date=new Date(value);
+    return Number.isNaN(date.getTime())?'Timestamp unavailable':date.toLocaleString('en-PK',{dateStyle:'medium',timeStyle:'short',timeZone:'Asia/Karachi'});
+  }
+
   async function addDiscount(event:React.FormEvent) {
     event.preventDefault();
     setBusy('discount');
@@ -94,6 +132,56 @@ export function BillingAdmin({initial}:{initial:Data}) {
         </div>
       </div>
       <p className="text-xs text-muted-foreground">Webhook endpoints: <code>/api/webhooks/paddle</code> and <code>/api/webhooks/paypro</code></p>
+    </section>
+
+    <section className="card space-y-4 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-bold">USD / PKR reference rate</h2>
+          <p className="mt-1 text-xs text-muted-foreground">PKR plan prices use this rate to show an approximate USD equivalent on the public pricing page.</p>
+        </div>
+        <span className="badge">
+          {data.exchangeRateApiConfigured?'ExchangeRate-API key configured':'ExchangeRate-API key missing'}
+        </span>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-xl border border-border p-3">
+          <p className="text-xs text-muted-foreground">Applied rate</p>
+          <p className="mt-1 text-2xl font-bold tabular-nums">1 USD = Rs. {Number(exchangeRate.usdToPkr).toFixed(2)}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{exchangeRate.mode==='manual'?'Admin manual override':exchangeRate.source==='ExchangeRate-API'?'Daily API reference':'Preview estimate · first API sync pending'}</p>
+        </div>
+        <div className="rounded-xl border border-border p-3">
+          <p className="text-xs text-muted-foreground">Latest fetched API rate</p>
+          <p className="mt-1 text-2xl font-bold tabular-nums">{exchangeRate.fetchedRate?('Rs. '+Number(exchangeRate.fetchedRate).toFixed(2)):'Not fetched yet'}</p>
+          <p className="mt-1 text-xs text-muted-foreground">Fetched: {rateDate(exchangeRate.fetchedAt)}</p>
+          {exchangeRate.lastUpdated&&<p className="mt-1 text-xs text-muted-foreground">Provider data: {rateDate(exchangeRate.lastUpdated)}</p>}
+        </div>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-xs font-medium">Rate mode
+          <select className="input mt-1" value={exchangeRate.mode} onChange={(e)=>setExchangeRate((old)=>({...old,mode:e.target.value as ExchangeRate['mode']}))}>
+            <option value="auto">Automatic daily rate</option>
+            <option value="manual">Manual rate</option>
+          </select>
+        </label>
+        <label className="text-xs font-medium">Manual rate (PKR per 1 USD)
+          <input className="input mt-1" type="number" min="1" max="10000" step="0.01" value={rateInput} disabled={exchangeRate.mode!=='manual'} onChange={(e)=>setRateInput(e.target.value)}/>
+        </label>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button className="btn-outline" disabled={rateBusy!==''||!data.exchangeRateApiConfigured} onClick={refreshExchangeRate}>
+          <RefreshCw className={`h-4 w-4 ${rateBusy==='refresh'?'animate-spin':''}`}/>Refresh rate now
+        </button>
+        <button className="btn-primary" disabled={rateBusy!==''||(exchangeRate.mode==='manual'&&(!Number.isFinite(Number(rateInput))||Number(rateInput)<=0))} onClick={saveExchangeRate}>
+          <Save className="h-4 w-4"/>Save rate settings
+        </button>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Automatic mode keeps the applied rate in sync when the daily credit cron runs. Manual mode preserves the rate you enter, while the scheduled job continues recording the latest API reference in the background.
+      </p>
+      {!data.exchangeRateApiConfigured&&<p className="rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
+        Add the server-only <code>EXCHANGE_RATE_API_KEY</code> variable in Coolify. You can copy the same key from the existing ilmAI deployment if it is already configured there.
+      </p>}
     </section>
 
     <section className="space-y-3">

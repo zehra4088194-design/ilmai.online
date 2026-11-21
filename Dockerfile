@@ -31,6 +31,7 @@ ENV SUPABASE_SERVICE_ROLE_KEY="" \
     OPENROUTER_API_KEY="" \
     ADMIN_EMAILS="ilmai.store2@gmail.com" \
     CRON_SECRET="" \
+    EXCHANGE_RATE_API_KEY="" \
     AI_ROUTER_URL="" \
     AI_ROUTER_SECRET="" \
     E2B_API_KEY="" \
