@@ -24,4 +24,4 @@ The UI reports one of three outcomes: **passed**, **failed**, or **unavailable**
 
 ## Runtime requirement
 
-The server and build environment must run Node.js 22.19 or newer, as required by the pinned E2B SDK. The E2B dependency is pinned to version 2.64.0 in package.json and package-lock.json.
+The Ilm AI application server must run Node.js 22.19 or newer, as required by the pinned E2B SDK. The isolated E2B build machine only needs a compatible Node.js runtime for the generated Next.js project. The E2B dependency is pinned to version 2.64.0 in package.json and package-lock.json.
