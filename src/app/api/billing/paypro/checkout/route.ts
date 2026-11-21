@@ -18,7 +18,7 @@ const Body=z.object({
 }).strict();
 
 export const POST=handle(async(req:NextRequest)=>{
-  const {profile}=await requireUserApi();
+  const {profile,user}=await requireUserApi();
   const body=Body.parse(await req.json());
   const db=adminClient();
   const existing=await db.from('payments').select('id,status,trade_no,provider_reference,metadata')
@@ -48,14 +48,14 @@ export const POST=handle(async(req:NextRequest)=>{
   const {data:payment,error:insertError}=await db.from('payments').insert({
     user_id:profile.id,provider:'paypro',trade_no:tradeNo,plan_id:quote.plan.id,discount_id:quote.discount?.id??null,
     amount:quote.amount,currency:'PKR',credits_to_grant:quote.credits,status:'pending',
-    customer_email:body.email,payment_method:body.paymentType,idempotency_key:body.requestId,
+    customer_email:user.email??body.email,payment_method:body.paymentType,idempotency_key:body.requestId,
     metadata:{customer_name:body.name,mobile},
   }).select('id').single();
   if(insertError) throw insertError;
 
   const payload:Record<string,string>={
     tradeNo,paymentType:body.paymentType,amount:String(Math.round(quote.amount)),
-    name:body.name,mobile,email:body.email,remark:'Ilm AI '+quote.plan.name,
+    name:body.name,mobile,email:user.email??body.email,remark:'Ilm AI '+quote.plan.name,
     timestamp:String(Date.now()),custId:randomUUID().replace(/-/g,''),notifyUrl,
   };
   payload.sign=payProSignature(payload,secret);
@@ -71,19 +71,28 @@ export const POST=handle(async(req:NextRequest)=>{
     await db.from('payments').update({status:'failed',metadata:{customer_name:body.name,error:detail.slice(0,500)},updated_at:new Date().toISOString()}).eq('id',payment.id);
     throw new HttpError(502,detail.slice(0,400)||'PayPro could not create the payment request','paypro_checkout_failed');
   }
-  const result=await response.json().catch(()=>({})) as {data?:{platFormTradeNo?:string;status?:string;desc?:string};msg?:string};
+  const result=await response.json().catch(()=>({})) as {
+    code?:string;success?:boolean|string;msg?:string;
+    data?:{platFormTradeNo?:string;status?:string;desc?:string};
+  };
+  if(result.code!=='0000'||!(result.success===true||result.success==='true')) {
+    const detail=result.data?.desc??result.msg??'PayPro rejected the payment request';
+    await db.from('payments').update({status:'failed',metadata:{customer_name:body.name,provider_message:detail},updated_at:new Date().toISOString()}).eq('id',payment.id);
+    throw new HttpError(502,detail,'paypro_payment_rejected');
+  }
   const providerStatus=String(result.data?.status??'');
-  if(!['0000','0015'].includes(providerStatus)) {
-    await db.from('payments').update({status:'failed',metadata:{customer_name:body.name,provider_message:result.data?.desc??result.msg??'Payment rejected'},updated_at:new Date().toISOString()}).eq('id',payment.id);
-    throw new HttpError(502,result.data?.desc??result.msg??'PayPro rejected the payment request','paypro_payment_rejected');
+  if(!['0000','0015'].includes(providerStatus)||!result.data?.platFormTradeNo) {
+    const detail=result.data?.desc??'PayPro returned an invalid payment response';
+    await db.from('payments').update({status:'failed',metadata:{customer_name:body.name,provider_message:detail},updated_at:new Date().toISOString()}).eq('id',payment.id);
+    throw new HttpError(502,detail,'paypro_payment_rejected');
   }
   await db.from('payments').update({
-    provider_reference:result.data?.platFormTradeNo??null,
+    provider_reference:result.data.platFormTradeNo,
     metadata:{customer_name:body.name,mobile,paypro_initial_status:providerStatus},
     updated_at:new Date().toISOString(),
   }).eq('id',payment.id);
   return json({
-    paymentId:payment.id,tradeNo,platformTradeNo:result.data?.platFormTradeNo??null,
+    paymentId:payment.id,tradeNo,platformTradeNo:result.data.platFormTradeNo,
     status:'pending',message:'Approve the payment request on your JazzCash/Easypaisa mobile account, then check its status here.',
   },{status:202,headers:{'Cache-Control':'private, no-store'}});
 });
