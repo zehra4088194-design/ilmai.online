@@ -10,7 +10,7 @@ import type { Attachment } from '@/lib/attachment-validation';
 const COMPOSER_FEATURES = ['quiz', 'web_search', 'voice_input'];
 
 export function Composer({ value, onChange, onSend, onStop, busy, uploading = false, features, onUnavailable, onQuiz,
-  attachments = [], onAttachmentsChange, onUploadingChange, placeholder = 'Ask anything…  /  کچھ بھی پوچھیں' }: {
+  attachments = [], onAttachmentsChange, onUploadingChange, placeholder = 'Message Ilm AI…' }: {
   value: string; onChange: (v: string) => void; onSend: () => void; onStop: () => void; busy: boolean;
   uploading?: boolean; features: UserFeature[]; onUnavailable: (f: UserFeature) => void;
   onQuiz?: () => void; attachments?: Attachment[]; onAttachmentsChange?: (files: Attachment[]) => void;
