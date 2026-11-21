@@ -4,6 +4,7 @@ import { featuresForUser } from '@/lib/features';
 import { getSettings } from '@/lib/settings';
 import { adminClient } from '@/lib/supabase/admin';
 import { AppShell } from '@/components/chat/AppShell';
+import type { Appearance } from '@/components/providers';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,7 +35,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <AppShell
-      user={{ id: profile.id, name: profile.full_name ?? '', email: profile.email ?? '', plan: profile.plan, credits: profile.credits_balance, isAdmin, appearance: profile.preferences?.appearance ?? null }}
+      user={{ id: profile.id, name: profile.full_name ?? '', email: profile.email ?? '', plan: profile.plan, credits: profile.credits_balance, isAdmin, appearance: (profile.preferences?.appearance as Partial<Appearance> | undefined) ?? null }}
       features={features}
       announcement={settings.announcement}
       banner={banner}
