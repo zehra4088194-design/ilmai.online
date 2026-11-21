@@ -3,13 +3,13 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, Search, Pin, Pencil, Trash2, Settings, ShieldCheck, Menu, X, Image as ImageIcon, Video, GraduationCap, FolderKanban, Library as LibraryIcon } from 'lucide-react';
+import { Plus, Search, Pin, Pencil, Trash2, Settings, ShieldCheck, Menu, X, Image as ImageIcon, Video, GraduationCap, FolderKanban, Library as LibraryIcon, Folder, FolderPlus, FolderInput, FolderOpen } from 'lucide-react';
 import { Logo } from '@/components/ui/Logo';
 import { cn, fmtNum } from '@/lib/utils';
 import type { UserFeature } from '@/lib/features';
-import { useAppearance, DEFAULT_APPEARANCE, type Appearance } from '@/components/providers';
+import { useAppearance, DEFAULT_APPEARANCE, type Appearance, useToast } from '@/components/providers';
 
-export type Conv = { id: string; title: string; model: string | null; mode: string | null; pinned: boolean; updated_at: string };
+export type Conv = { id: string; title: string; model: string | null; mode: string | null; pinned: boolean; folder_id: string | null; updated_at: string };\nexport type ChatFolder = { id: string; name: string; color: string; created_at: string; updated_at: string };
 export type ShellUser = { id: string; name: string; email: string; plan: string; credits: number; isAdmin: boolean; appearance?: Partial<Appearance> | null };
 
 type Ctx = {
@@ -35,7 +35,7 @@ export function AppShell({ user, features, announcement, banner, children }: {
   const [open, setOpen] = useState(false);
   const { updateAppearance, loaded: appearanceLoaded } = useAppearance();
   const [credits, setCredits] = useState(user.credits);
-  const [conversations, setConversations] = useState<Conv[]>([]);
+  const [conversations, setConversations] = useState<Conv[]>([]);\n  const [folders, setFolders] = useState<ChatFolder[]>([]);
   const pathname = usePathname();
 
   const refreshConversations = useCallback(async () => {
@@ -47,15 +47,15 @@ export function AppShell({ user, features, announcement, banner, children }: {
     if (r.ok) setCredits((await r.json()).credits);
   }, []);
 
-  useEffect(() => { refreshConversations(); }, [refreshConversations]);
+  useEffect(() => { refreshConversations(); refreshFolders(); }, [refreshConversations, refreshFolders]);
   useEffect(() => { if (appearanceLoaded) { try { if (!localStorage.getItem('ilm-appearance') && user.appearance) updateAppearance({ ...DEFAULT_APPEARANCE, ...user.appearance }); } catch { if (user.appearance) updateAppearance({ ...DEFAULT_APPEARANCE, ...user.appearance }); } } }, [appearanceLoaded, user.appearance, updateAppearance]);
   useEffect(() => setOpen(false), [pathname]);
 
   const featureOn = useCallback((key: string) => features.some((f) => f.key === key && f.state === 'active'), [features]);
   const value = useMemo(() => ({
-    user, credits, features, conversations, refreshConversations, refreshMe,
+    user, credits, features, conversations, folders, refreshFolders, refreshConversations, refreshMe,
     openSidebar: () => setOpen(true), featureOn,
-  }), [user, credits, features, conversations, refreshConversations, refreshMe, featureOn]);
+  }), [user, credits, features, conversations, folders, refreshFolders, refreshConversations, refreshMe, featureOn]);
 
   return (
     <AppCtx.Provider value={value}>
@@ -94,15 +94,80 @@ export function AppShell({ user, features, announcement, banner, children }: {
 }
 
 function Sidebar() {
-  const { user, credits, features, conversations, refreshConversations } = useApp();
+  const { user, credits, features, conversations, folders, refreshFolders, refreshConversations } = useApp();
   const router = useRouter();
   const pathname = usePathname();
-  const [q, setQ] = useState('');
+  const [q, setQ] = useState('');\n  const [activeFolderId, setActiveFolderId] = useState<string | null>('all');\n  const [moveChatId, setMoveChatId] = useState<string | null>(null);\n  const toast = useToast();
 
   const activeId = pathname.startsWith('/chat/') ? pathname.split('/')[2] : null;
-  const list = conversations.filter((c) => c.title.toLowerCase().includes(q.toLowerCase()));
+  const list = conversations.filter((c) =>
+    c.title.toLowerCase().includes(q.toLowerCase()) &&
+    (activeFolderId === 'all' ? true : activeFolderId === null ? !c.folder_id : c.folder_id === activeFolderId)
+  );
+  const unfiledCount = conversations.filter((c) => !c.folder_id).length;
+  const folderCount = (id: string) => conversations.filter((c) => c.folder_id === id).length;
   const imageFeature = features.find((f) => f.key === 'image_generation');
   const videoFeature = features.find((f) => f.key === 'video_generation');
+
+  async function folderRequest(url: string, method: 'POST'|'PATCH'|'DELETE', body?: unknown) {
+    const response = await fetch(url, { method, headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Could not update folders');
+    return result;
+  }
+
+  async function createFolder() {
+    const name = prompt('Folder name (up to 40 characters)')?.trim();
+    if (!name) return;
+    try {
+      await folderRequest('/api/chat-folders', 'POST', { name });
+      await refreshFolders();
+      toast('Folder created', 'ok');
+    } catch (error) { toast(error instanceof Error ? error.message : 'Could not create folder', 'err'); }
+  }
+
+  async function renameFolder(folder: ChatFolder) {
+    const name = prompt('Rename folder', folder.name)?.trim();
+    if (!name || name === folder.name) return;
+    try {
+      await folderRequest('/api/chat-folders/' + folder.id, 'PATCH', { name });
+      await refreshFolders();
+      toast('Folder renamed', 'ok');
+    } catch (error) { toast(error instanceof Error ? error.message : 'Could not rename folder', 'err'); }
+  }
+
+  async function cycleFolderColor(folder: ChatFolder) {
+    const colors = ['#22c55e','#a78bfa','#f472b6','#60a5fa','#f59e0b','#22d3ee','#fb7185','#a3e635'];
+    const next = colors[(colors.indexOf(folder.color) + 1) % colors.length];
+    try {
+      await folderRequest('/api/chat-folders/' + folder.id, 'PATCH', { color: next });
+      await refreshFolders();
+    } catch (error) { toast(error instanceof Error ? error.message : 'Could not change folder colour', 'err'); }
+  }
+
+  async function deleteFolder(folder: ChatFolder) {
+    if (!confirm(`Delete folder "${folder.name}"? Its chats will stay in All chats.`)) return;
+    try {
+      await folderRequest('/api/chat-folders/' + folder.id, 'DELETE');
+      if (activeFolderId === folder.id) setActiveFolderId('all');
+      await Promise.all([refreshFolders(), refreshConversations()]);
+      toast('Folder deleted. Its chats are safe in All chats.', 'ok');
+    } catch (error) { toast(error instanceof Error ? error.message : 'Could not delete folder', 'err'); }
+  }
+
+  async function moveChat(chatId: string, folderId: string) {
+    try {
+      const response = await fetch('/api/conversations/' + chatId, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folderId: folderId || null }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || 'Could not move chat');
+      setMoveChatId(null);
+      await refreshConversations();
+      toast(folderId ? 'Chat moved to folder' : 'Chat moved to All chats', 'ok');
+    } catch (error) { toast(error instanceof Error ? error.message : 'Could not move chat', 'err'); }
+  }
 
   async function act(id: string, kind: 'pin' | 'rename' | 'delete', c: Conv) {
     if (kind === 'delete') {
@@ -159,23 +224,56 @@ function Sidebar() {
       </nav>
 
       <div className="mt-4 min-h-0 flex-1 overflow-y-auto border-t border-border pt-3">
-        <div className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Recent chats</div>
+        <div className="mb-2 flex items-center justify-between px-2">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Folders</span>
+          <button type="button" onClick={createFolder} className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-primary" aria-label="Create folder" title="Create folder"><FolderPlus className="h-4 w-4"/></button>
+        </div>
+        <div className="space-y-0.5">
+          <button type="button" onClick={() => setActiveFolderId('all')} className={cn('flex h-8 w-full items-center gap-2 rounded-lg px-2.5 text-left text-xs',activeFolderId==='all'?'bg-muted text-foreground':'text-muted-foreground hover:bg-muted')}>
+            <FolderOpen className="h-3.5 w-3.5"/>All chats<span className="ml-auto text-[10px] opacity-70">{conversations.length}</span>
+          </button>
+          {folders.map(folder=>(
+            <div key={folder.id} className={cn('group/folder flex h-8 items-center rounded-lg',activeFolderId===folder.id?'bg-muted':'hover:bg-muted')}>
+              <button type="button" onClick={()=>setActiveFolderId(folder.id)} className={cn('flex min-w-0 flex-1 items-center gap-2 px-2.5 text-left text-xs',activeFolderId===folder.id?'text-foreground':'text-muted-foreground')}>
+                <Folder className="h-3.5 w-3.5 shrink-0" style={{color:folder.color}}/><span className="truncate">{folder.name}</span><span className="ml-auto text-[10px] opacity-70">{folderCount(folder.id)}</span>
+              </button>
+              <div className="mr-1 hidden items-center group-hover/folder:flex">
+                <button type="button" onClick={()=>cycleFolderColor(folder)} className="rounded p-1 text-muted-foreground hover:text-primary" title="Change folder colour" aria-label="Change folder colour"><span className="block h-2.5 w-2.5 rounded-full" style={{background:folder.color}}/></button>
+                <button type="button" onClick={()=>renameFolder(folder)} className="rounded p-1 text-muted-foreground hover:text-primary" title="Rename folder" aria-label="Rename folder"><Pencil className="h-3 w-3"/></button>
+                <button type="button" onClick={()=>deleteFolder(folder)} className="rounded p-1 text-muted-foreground hover:text-danger" title="Delete folder" aria-label="Delete folder"><Trash2 className="h-3 w-3"/></button>
+              </div>
+            </div>
+          ))}
+          {unfiledCount>0 && <button type="button" onClick={()=>setActiveFolderId(null)} className={cn('flex h-8 w-full items-center gap-2 rounded-lg px-2.5 text-left text-xs',activeFolderId===null?'bg-muted text-foreground':'text-muted-foreground hover:bg-muted')}><FolderInput className="h-3.5 w-3.5"/>Unfiled chats<span className="ml-auto text-[10px] opacity-70">{unfiledCount}</span></button>}
+        </div>
+        <div className="mb-2 mt-3 flex items-center justify-between border-t border-border px-2 pt-3">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{activeFolderId==='all'?'All chats':activeFolderId===null?'Unfiled chats':folders.find(f=>f.id===activeFolderId)?.name??'Folder'}</span>
+          <span className="text-[10px] text-muted-foreground">{list.length}</span>
+        </div>
         <div className="relative mb-2 px-1">
           <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
           <input className="h-8 w-full rounded-lg border border-transparent bg-muted pl-8 pr-2 text-xs outline-none placeholder:text-muted-foreground focus:border-primary/50" placeholder="Search chats" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
         <div className="space-y-0.5">
-          {list.length === 0 && <p className="px-2 py-4 text-xs text-muted-foreground">{q ? 'No chats found' : 'Your chats will appear here'}</p>}
+          {list.length === 0 && <p className="px-2 py-4 text-xs text-muted-foreground">{q ? 'No chats found' : 'No chats in this view yet'}</p>}
           {list.map((c) => (
             <div key={c.id} className={cn('group relative rounded-lg transition', activeId === c.id ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground')}>
-              <Link href={'/chat/' + c.id} className="block truncate px-2.5 py-2 pr-20 text-xs" dir="auto">
+              <Link href={'/chat/' + c.id} className="block truncate px-2.5 py-2 pr-24 text-xs" dir="auto">
                 {c.pinned && <Pin className="mr-1 inline h-3 w-3 text-primary" />}{c.title}
               </Link>
               <div className="absolute right-1 top-1 hidden items-center gap-0.5 group-hover:flex">
-                <button className="rounded-md p-1.5 hover:bg-background" onClick={() => act(c.id, 'pin', c)} aria-label="Pin chat"><Pin className="h-3 w-3" /></button>
-                <button className="rounded-md p-1.5 hover:bg-background" onClick={() => act(c.id, 'rename', c)} aria-label="Rename chat"><Pencil className="h-3 w-3" /></button>
-                <button className="rounded-md p-1.5 text-danger hover:bg-background" onClick={() => act(c.id, 'delete', c)} aria-label="Delete chat"><Trash2 className="h-3 w-3" /></button>
+                <button className="rounded-md p-1.5 hover:bg-background" onClick={() => act(c.id, 'pin', c)} aria-label="Pin chat" title="Pin chat"><Pin className="h-3 w-3" /></button>
+                <button className="rounded-md p-1.5 hover:bg-background" onClick={() => act(c.id, 'rename', c)} aria-label="Rename chat" title="Rename chat"><Pencil className="h-3 w-3" /></button>
+                <button className="rounded-md p-1.5 hover:bg-background" onClick={() => setMoveChatId(moveChatId===c.id?null:c.id)} aria-label="Move chat to folder" title="Move chat to folder"><FolderInput className="h-3 w-3"/></button>
+                <button className="rounded-md p-1.5 text-danger hover:bg-background" onClick={() => act(c.id, 'delete', c)} aria-label="Delete chat" title="Delete chat"><Trash2 className="h-3 w-3" /></button>
               </div>
+              {moveChatId===c.id && <div className="absolute right-1 top-9 z-30 w-44 rounded-xl border border-border bg-card p-2 shadow-xl">
+                <label className="mb-1 block text-[10px] font-semibold text-muted-foreground">Move to</label>
+                <select autoFocus className="input h-8 py-1 text-xs" value={c.folder_id??''} onChange={e=>moveChat(c.id,e.target.value)}>
+                  <option value="">All chats (unfiled)</option>
+                  {folders.map(folder=><option key={folder.id} value={folder.id}>{folder.name}</option>)}
+                </select>
+              </div>}
             </div>
           ))}
         </div>
