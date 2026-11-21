@@ -23,6 +23,7 @@ const Body = z.object({
   userMessageId: z.string().uuid(),
   model: z.string().min(3).max(200),
   multi: z.boolean().optional(),
+  thinking: z.enum(['low', 'medium', 'high']).optional(),
 });
 
 type Row = { id: string; role: 'user' | 'assistant' | 'system'; content: string; model: string | null; meta: { kind?: string } | null };
@@ -107,6 +108,7 @@ export const POST = handle(async (req: NextRequest) => {
     path: '/v1/chat/completions',
     body: {
       model: model.id, messages, stream: true, usage: { include: true },
+      ...(body.thinking ? { reasoning: { effort: body.thinking } } : {}),
       routing: { provider: autoMode ? 'auto' : 'openrouter', candidates, hints },
     },
     signal: ac.signal,
