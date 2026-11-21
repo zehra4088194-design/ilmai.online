@@ -10,7 +10,7 @@ import { extractJson } from '@/lib/json-extract';
 import { validateWebsiteProject } from '@/lib/website-builder';
 import { runWebsiteBuildInSandbox } from '@/lib/website-sandbox';
 import { generationEstimate, reserveGeneration, settleGeneration, releaseGeneration } from '@/lib/generations';
-import { creditsFor from '@/lib/credits';
+import { creditsFor } from '@/lib/credits';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
