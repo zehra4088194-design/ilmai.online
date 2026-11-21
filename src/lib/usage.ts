@@ -3,7 +3,7 @@ import { adminClient } from '@/lib/supabase/admin';
 
 export type UsageInput = {
   userId: string | null;
-  kind: 'chat' | 'compare' | 'image' | 'video' | 'presentation' | 'test' | 'quiz' | 'suggest';
+  kind: 'chat' | 'compare' | 'image' | 'video' | 'presentation' | 'test' | 'quiz' | 'suggest' | 'prompt_enhance' | 'website';
   model?: string | null;
   promptTokens?: number;
   completionTokens?: number;
