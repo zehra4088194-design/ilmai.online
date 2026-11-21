@@ -6,6 +6,7 @@ import { requireFeature } from '@/lib/features';
 import { getSettings } from '@/lib/settings';
 import { getModel, canUseTier } from '@/lib/models';
 import { aiRouterChat } from '@/lib/ai-router';
+import { extractJson } from '@/lib/json-extract';
 import { validateWebsiteProject } from '@/lib/website-builder';
 import { generationEstimate, reserveGeneration, settleGeneration, releaseGeneration } from '@/lib/generations';
 
@@ -100,9 +101,9 @@ export const POST = handle(async (req: NextRequest) => {
       timeoutMs: 240_000,
     });
     const raw = result.choices?.[0]?.message?.content ?? '';
-    let parsed: unknown;
-    try { parsed = JSON.parse(raw); }
-    catch { throw new HttpError(502, 'The code model returned incomplete project JSON. Try again with fewer pages or a shorter brief.', 'website_invalid_json'); }
+    const parsed = extractJson(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed))
+      throw new HttpError(502, 'The code model returned incomplete project JSON. Try again with fewer pages or a shorter brief.', 'website_invalid_json');
 
     let project;
     try { project = validateWebsiteProject(parsed); }
