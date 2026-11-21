@@ -6,11 +6,7 @@ import { CheckCircle2, AlertCircle, Info } from 'lucide-react';
 
 /* ---------- accent palette ---------- */
 export const ACCENTS = [
-  { id: 'emerald', label: 'Emerald', swatch: '#1f9d63' },
-  { id: 'mint', label: 'Mint', swatch: '#2aa58a' },
-  { id: 'forest', label: 'Forest', swatch: '#2f7a45' },
-  { id: 'teal', label: 'Teal', swatch: '#1b9488' },
-  { id: 'lime', label: 'Lime', swatch: '#6aa629' },
+  { id: 'emerald', label: 'Green', swatch: '#22c55e' },
 ] as const;
 
 const AccentCtx = createContext<{ accent: string; setAccent: (a: string) => void }>({ accent: 'emerald', setAccent: () => {} });
@@ -19,13 +15,14 @@ export const useAccent = () => useContext(AccentCtx);
 function AccentProvider({ children }: { children: React.ReactNode }) {
   const [accent, set] = useState('emerald');
   useEffect(() => {
-    const a = localStorage.getItem('ilm-accent');
-    if (a) set(a);
+    set('emerald');
+    document.documentElement.dataset.accent = 'emerald';
+    try { localStorage.setItem('ilm-accent', 'emerald'); } catch { /* private mode */ }
   }, []);
-  const setAccent = (a: string) => {
-    set(a);
-    document.documentElement.dataset.accent = a;
-    try { localStorage.setItem('ilm-accent', a); } catch { /* private mode */ }
+  const setAccent = (_a: string) => {
+    set('emerald');
+    document.documentElement.dataset.accent = 'emerald';
+    try { localStorage.setItem('ilm-accent', 'emerald'); } catch { /* private mode */ }
   };
   return <AccentCtx.Provider value={{ accent, setAccent }}>{children}</AccentCtx.Provider>;
 }
