@@ -33,12 +33,12 @@ export function PresentationTool() {
   const [deck, setDeck] = useState<PresentationDeck | null>(null);
   const [lastDownload, setLastDownload] = useState<string | null>(null);
   const [models, setModels] = useState<PresentationModel[]>([]);
-  const [model, setModel] = useState('claude-auto');
+  const [model, setModel] = useState('auto');
 
   useEffect(() => {
     let cancelled = false;
     fetch('/api/models', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null)
-      .then((data) => { if (!cancelled && Array.isArray(data?.models)) setModels(data.models.filter((item: PresentationModel) => /claude|anthropic/i.test(item.id + ' ' + item.name))); })
+      .then((data) => { if (!cancelled && Array.isArray(data?.models)) { const available = data.models.filter((item: PresentationModel) => /claude|anthropic/i.test(item.id + ' ' + item.name)); setModels(available); if (available.some((item: PresentationModel) => !item.locked)) setModel((current) => current === 'auto' ? 'claude-auto' : current); } })
       .catch(() => undefined);
     return () => { cancelled = true; };
   }, []);
