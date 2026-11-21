@@ -108,7 +108,7 @@ export function AttachmentPicker({ value, onChange, disabled = false, onUploadin
         try {
           const ext = file.name.split('.').pop()?.toLowerCase();
           const type = limits.types.find((t) => t.mime === file.type) ??
-            ((!file.type || file.type === 'application/octet-stream') ? limits.types.find((t) => t.ext === ext || (t.ext === 'jpg' && ext === 'jpeg')) : undefined);
+            limits.types.find((t) => t.ext === ext || (t.ext === 'jpg' && ext === 'jpeg'));
           if (!type) throw new Error('Unsupported file type');
           const limit = type.mime === 'text/plain' ? limits.maxTextBytes : limits.maxBytes;
           if (!file.size || file.size > limit) throw new Error(`File must be between 1 byte and ${Math.round(limit / 1024)} KB`);
