@@ -3,8 +3,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, Search, Pin, Pencil, Trash2, Settings, ShieldCheck, Menu, X, Image as ImageIcon, Video, GraduationCap, FolderKanban, Library as LibraryIcon, Folder, FolderPlus, FolderInput, FolderOpen, CreditCard, ChevronDown, ChevronRight } from 'lucide-react';
-import { Logo } from '@/components/ui/Logo';
+import { Plus, Search, Pin, Pencil, Trash2, ShieldCheck, Menu, X, Image as ImageIcon, Video, GraduationCap, FolderKanban, Library as LibraryIcon, Folder, FolderPlus, FolderInput, FolderOpen, CreditCard, ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Logo, LogoMark } from '@/components/ui/Logo';
+import { ThemeModeToggle } from '@/components/chat/ThemeModeToggle';
 import { cn, fmtNum } from '@/lib/utils';
 import type { UserFeature } from '@/lib/features';
 import { useAppearance, DEFAULT_APPEARANCE, type Appearance, useToast } from '@/components/providers';
@@ -36,6 +37,7 @@ export function AppShell({ user, features, announcement, banner, children }: {
   user: ShellUser; features: UserFeature[]; announcement: { enabled: boolean; text: string }; banner?: { title: string; altText: string; url: string } | null; children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { updateAppearance, loaded: appearanceLoaded } = useAppearance();
   const [credits, setCredits] = useState(user.credits);
   const [conversations, setConversations] = useState<Conv[]>([]);
@@ -69,8 +71,8 @@ export function AppShell({ user, features, announcement, banner, children }: {
   return (
     <AppCtx.Provider value={value}>
       <div className="flex h-dvh overflow-hidden bg-background">
-        <aside className="hidden w-[16rem] shrink-0 border-r border-border bg-card lg:flex">
-          <Sidebar />
+        <aside className={cn('hidden shrink-0 border-r border-border bg-card transition-[width] duration-200 lg:flex',sidebarCollapsed?'w-[4.25rem]':'w-[16rem]')}>
+          <Sidebar collapsed={sidebarCollapsed} onCollapse={()=>setSidebarCollapsed(value=>!value)} />
         </aside>
 
         <AnimatePresence>
@@ -85,7 +87,8 @@ export function AppShell({ user, features, announcement, banner, children }: {
           )}
         </AnimatePresence>
 
-        <main className="flex min-w-0 flex-1 flex-col bg-background">
+        <main className="relative flex min-w-0 flex-1 flex-col bg-background">
+          {(pathname==='/chat'||pathname.startsWith('/chat/'))&&<div className="pointer-events-auto absolute right-4 top-3 z-40"><ThemeModeToggle/></div>}
           {banner?.url && (
             <div className="relative w-full overflow-hidden bg-muted">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -102,7 +105,7 @@ export function AppShell({ user, features, announcement, banner, children }: {
   );
 }
 
-function Sidebar() {
+function Sidebar({ collapsed=false, onCollapse }: { collapsed?:boolean; onCollapse?:()=>void }) {
   const { user, credits, features, conversations, folders, refreshFolders, refreshConversations } = useApp();
   const router = useRouter();
   const pathname = usePathname();
@@ -205,6 +208,28 @@ function Sidebar() {
       ? 'bg-muted text-foreground'
       : 'text-muted-foreground hover:bg-muted hover:text-foreground',
   );
+
+  if(collapsed) {
+    return (
+      <div className="flex h-full w-full flex-col items-center gap-3 px-2 py-3">
+        <LogoMark className="h-8 w-8"/>
+        <button type="button" onClick={()=>router.push('/chat')} className="grid h-9 w-9 place-items-center rounded-xl border border-border bg-muted/60 text-primary hover:bg-accent" title="New chat" aria-label="New chat"><Plus className="h-4 w-4"/></button>
+        <nav className="flex w-full flex-1 flex-col items-center gap-2 pt-1">
+          <Link href="/tools/image_generation" className={cn('grid h-9 w-9 place-items-center rounded-xl hover:bg-muted',pathname.startsWith('/tools/image_generation')?'bg-accent text-primary':'text-muted-foreground')} title="Photo Studio" aria-label="Photo Studio"><ImageIcon className="h-4 w-4"/></Link>
+          {videoFeature&&<Link href="/tools/video_generation" className={cn('grid h-9 w-9 place-items-center rounded-xl hover:bg-muted',pathname.startsWith('/tools/video_generation')?'bg-accent text-primary':'text-muted-foreground')} title="Video Studio" aria-label="Video Studio"><Video className="h-4 w-4"/></Link>}
+          <Link href="/education" className={cn('grid h-9 w-9 place-items-center rounded-xl hover:bg-muted',pathname.startsWith('/education')?'bg-accent text-primary':'text-muted-foreground')} title="Education" aria-label="Education"><GraduationCap className="h-4 w-4"/></Link>
+          <Link href="/projects" className={cn('grid h-9 w-9 place-items-center rounded-xl hover:bg-muted',pathname.startsWith('/projects')?'bg-accent text-primary':'text-muted-foreground')} title="Projects" aria-label="Projects"><FolderKanban className="h-4 w-4"/></Link>
+          <Link href="/library" className={cn('grid h-9 w-9 place-items-center rounded-xl hover:bg-muted',pathname.startsWith('/library')?'bg-accent text-primary':'text-muted-foreground')} title="Library" aria-label="Library"><LibraryIcon className="h-4 w-4"/></Link>
+          <Link href="/pricing" className="grid h-9 w-9 place-items-center rounded-xl text-muted-foreground hover:bg-muted" title="Pricing & plans" aria-label="Pricing and plans"><CreditCard className="h-4 w-4"/></Link>
+        </nav>
+        <div className="flex flex-col items-center gap-2 border-t border-border pt-3">
+          <button type="button" onClick={onCollapse} className="grid h-9 w-9 place-items-center rounded-xl text-muted-foreground hover:bg-muted hover:text-primary" title="Expand sidebar" aria-label="Expand sidebar"><PanelLeftOpen className="h-4 w-4"/></button>
+          <Link href="/settings" className="grid h-9 w-9 place-items-center rounded-full bg-muted text-xs font-bold text-primary" title="Account settings" aria-label="Account settings">{(user.name||user.email||'A').slice(0,1).toUpperCase()}</Link>
+          {user.isAdmin&&<Link href="/admin" className="grid h-9 w-9 place-items-center rounded-xl text-primary hover:bg-muted" title="Admin panel" aria-label="Admin panel"><ShieldCheck className="h-4 w-4"/></Link>}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full w-full flex-col px-2.5 py-3">
@@ -333,15 +358,15 @@ function Sidebar() {
 
       <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
         <Link href="/pricing" className="mb-1 flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"><CreditCard className="h-3.5 w-3.5"/>Pricing & plans</Link>
-        <Link href="/settings" className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1.5 py-1.5 hover:bg-muted">
+        <Link href="/settings" className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1.5 py-1.5 hover:bg-muted" title="Open account settings">
           <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-muted text-xs font-bold text-primary">{(user.name || user.email || 'A').slice(0, 1).toUpperCase()}</span>
           <span className="min-w-0 flex-1">
             <span className="block truncate text-xs font-semibold text-foreground">{user.name || 'Account'}</span>
             <span className="block truncate text-[10px] text-muted-foreground">{user.email}</span>
             <span className="block text-[10px] text-muted-foreground">{user.isAdmin ? 'Unlimited' : fmtNum(credits) + ' credits'} · {user.plan.toUpperCase()}</span>
           </span>
-          <Settings className="h-4 w-4 shrink-0 text-muted-foreground" />
         </Link>
+        <button type="button" onClick={onCollapse} className="hidden h-8 w-8 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-primary lg:grid" title="Collapse sidebar" aria-label="Collapse sidebar"><PanelLeftClose className="h-4 w-4"/></button>
         {user.isAdmin && <Link href="/admin" className="btn-ghost h-8 w-8 !p-0" title="Admin panel"><ShieldCheck className="h-4 w-4 text-primary" /></Link>}
       </div>
     </div>
