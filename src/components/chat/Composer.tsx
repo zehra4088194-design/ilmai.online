@@ -36,6 +36,7 @@ export function Composer({
   const [collapsed, setCollapsed] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [lockMode, setLockMode] = useState<'auto'|'open'|'folded'>('auto');
+  const [lockLoaded, setLockLoaded] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
@@ -46,20 +47,22 @@ export function Composer({
         setCollapsed(saved==='folded');
       }
     } catch { /* local storage optional */ }
+    setLockLoaded(true);
   }, []);
 
   useEffect(() => {
+    if(!lockLoaded) return;
     try {
       if(lockMode==='auto') localStorage.removeItem('ilm-composer-lock');
       else localStorage.setItem('ilm-composer-lock',lockMode);
     } catch { /* local storage optional */ }
-  }, [lockMode]);
+  }, [lockMode,lockLoaded]);
 
   useEffect(() => {
-    if(lockMode!=='auto'||hovered||busy||uploading||value.trim()||attachments.length||menuOpen||dictating) return;
+    if(!lockLoaded||lockMode!=='auto'||hovered||busy||uploading||value.trim()||attachments.length||menuOpen||dictating) return;
     const timer=window.setTimeout(()=>setCollapsed(true),3000);
     return ()=>window.clearTimeout(timer);
-  },[lockMode,hovered,busy,uploading,value,attachments.length,menuOpen,dictating]);
+  },[lockLoaded,lockMode,hovered,busy,uploading,value,attachments.length,menuOpen,dictating]);
 
   function toggleComposerLock() {
     setLockMode(current=>current==='auto'?(collapsed?'folded':'open'):'auto');
@@ -120,7 +123,7 @@ export function Composer({
         {collapsed ? (
           <motion.div key="composer-folded" initial={{opacity:0,y:8,scale:0.98}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:8,scale:0.98}}
             className="glass flex min-h-14 items-center gap-3 rounded-2xl border border-border/80 bg-card/95 px-3 py-2 shadow-soft transition hover:border-primary/40">
-            <button type="button" onClick={()=>setCollapsed(false)} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label="Expand message composer">
+            <button type="button" onClick={()=>{if(lockMode==='folded')setLockMode('auto');setCollapsed(false);}} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label="Expand message composer">
               <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/10 text-primary"><Plus className="h-4 w-4"/></span>
               <span className="min-w-0"><span className="block truncate text-sm font-medium text-muted-foreground">{value.trim()?'Draft ready · expand to continue':'Message Ilm AI…'}</span><span className="block text-[10px] text-muted-foreground">Hover or click to expand</span></span>
               <ChevronUp className="ml-auto h-4 w-4 shrink-0 text-muted-foreground"/>
