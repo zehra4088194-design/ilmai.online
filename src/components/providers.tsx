@@ -59,10 +59,11 @@ function AppearanceRuntime({ children }: { children: React.ReactNode }) {
   const { setTheme } = useTheme();
   const [appearance,setAppearance] = useState<Appearance>(DEFAULT_APPEARANCE);
   const [loaded,setLoaded] = useState(false);
+  const [persistReady,setPersistReady] = useState(false);
   useEffect(() => {
     try {
       const stored=localStorage.getItem('ilm-appearance');
-      if(stored){const parsed=JSON.parse(stored);setAppearance({...DEFAULT_APPEARANCE,...parsed});}
+      if(stored){const parsed=JSON.parse(stored);setAppearance({...DEFAULT_APPEARANCE,...parsed});setPersistReady(true);}
     } catch { /* local storage can be unavailable */ }
     setLoaded(true);
   }, []);
@@ -76,9 +77,9 @@ function AppearanceRuntime({ children }: { children: React.ReactNode }) {
     root.style.setProperty('--custom-primary',hexToHsl(appearance.monochrome?'#a1a1aa':appearance.accent));
     root.style.setProperty('--heading-color',appearance.headingColor==='auto'?'hsl(var(--primary))':appearance.headingColor);
     setTheme(appearance.mode);
-    try{localStorage.setItem('ilm-appearance',JSON.stringify(appearance));localStorage.setItem('ilm-accent',appearance.accent);}catch{/* storage optional */}
-  },[appearance,loaded,setTheme]);
-  const updateAppearance=useCallback((patch:Partial<Appearance>)=>setAppearance(p=>({...p,...patch})),[]);
+    try{if(persistReady){localStorage.setItem('ilm-appearance',JSON.stringify(appearance));localStorage.setItem('ilm-accent',appearance.accent);}}catch{/* storage optional */}
+  },[appearance,loaded,persistReady,setTheme]);
+  const updateAppearance=useCallback((patch:Partial<Appearance>)=>{setPersistReady(true);setAppearance(p=>({...p,...patch}));},[]);
   return <AppearanceCtx.Provider value={{appearance,updateAppearance,loaded}}><AccentCtx.Provider value={{accent:appearance.accent,setAccent:(accent)=>updateAppearance({accent})}}>{children}</AccentCtx.Provider></AppearanceCtx.Provider>;
 }
 
