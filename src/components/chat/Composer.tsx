@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   ArrowUp, Square, Plus, Paperclip, WandSparkles, Mic, MicOff, PhoneCall, PhoneOff,
-  GraduationCap, Globe, ChevronDown, Loader2,
+  GraduationCap, Globe, ChevronDown, Loader2, Lock, Unlock, ChevronUp,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -33,7 +33,42 @@ export function Composer({
   const recognition = useRef<SpeechRecognitionLike | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [dictating, setDictating] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const [lockMode, setLockMode] = useState<'auto'|'open'|'folded'>('auto');
   const toast = useToast();
+
+  useEffect(() => {
+    try {
+      const saved=localStorage.getItem('ilm-composer-lock');
+      if(saved==='open'||saved==='folded') {
+        setLockMode(saved);
+        setCollapsed(saved==='folded');
+      }
+    } catch { /* local storage optional */ }
+  }, []);
+
+  useEffect(() => {
+    try {
+      if(lockMode==='auto') localStorage.removeItem('ilm-composer-lock');
+      else localStorage.setItem('ilm-composer-lock',lockMode);
+    } catch { /* local storage optional */ }
+  }, [lockMode]);
+
+  useEffect(() => {
+    if(lockMode!=='auto'||hovered||busy||uploading||value.trim()||attachments.length||menuOpen||dictating) return;
+    const timer=window.setTimeout(()=>setCollapsed(true),3000);
+    return ()=>window.clearTimeout(timer);
+  },[lockMode,hovered,busy,uploading,value,attachments.length,menuOpen,dictating]);
+
+  function toggleComposerLock() {
+    setLockMode(current=>current==='auto'?(collapsed?'folded':'open'):'auto');
+  }
+
+  function handleComposerEnter() {
+    setHovered(true);
+    if(lockMode!=='folded') setCollapsed(false);
+  }
 
   useEffect(() => {
     const el = ta.current;
@@ -80,8 +115,28 @@ export function Composer({
   const quizFeature = features.find((f) => f.key === 'quiz');
 
   return (
-    <div className="glass mx-auto w-full max-w-4xl rounded-3xl border border-border/80 bg-card/95 p-2.5 shadow-soft transition focus-within:border-primary/40 focus-within:shadow-glow sm:p-3">
-      {modelSlot && <div className="mb-2 flex min-w-0 items-center gap-2 border-b border-border/70 pb-2">{modelSlot}</div>}
+    <div className="mx-auto w-full max-w-4xl" onMouseEnter={handleComposerEnter} onMouseLeave={()=>setHovered(false)}>
+      <AnimatePresence mode="wait" initial={false}>
+        {collapsed ? (
+          <motion.div key="composer-folded" initial={{opacity:0,y:8,scale:0.98}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:8,scale:0.98}}
+            className="glass flex min-h-14 items-center gap-3 rounded-2xl border border-border/80 bg-card/95 px-3 py-2 shadow-soft transition hover:border-primary/40">
+            <button type="button" onClick={()=>setCollapsed(false)} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label="Expand message composer">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/10 text-primary"><Plus className="h-4 w-4"/></span>
+              <span className="min-w-0"><span className="block truncate text-sm font-medium text-muted-foreground">{value.trim()?'Draft ready · expand to continue':'Message Ilm AI…'}</span><span className="block text-[10px] text-muted-foreground">Hover or click to expand</span></span>
+              <ChevronUp className="ml-auto h-4 w-4 shrink-0 text-muted-foreground"/>
+            </button>
+            <button type="button" onClick={toggleComposerLock} className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-lg transition hover:bg-muted',lockMode!=='auto'?'bg-primary/10 text-primary':'text-muted-foreground')} title={lockMode==='folded'?'Unlock folded composer':lockMode==='open'?'Unlock expanded composer':'Lock composer in its current state'} aria-label="Toggle composer lock">
+              {lockMode==='auto'?<Unlock className="h-4 w-4"/>:<Lock className="h-4 w-4"/>}
+            </button>
+          </motion.div>
+        ) : (
+          <motion.div key="composer-expanded" initial={{opacity:0,y:8,scale:0.985}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:6,scale:0.985}}
+            className="glass w-full rounded-3xl border border-border/80 bg-card/95 p-2.5 shadow-soft transition focus-within:border-primary/40 focus-within:shadow-glow sm:p-3">
+      {modelSlot && <div className="mb-2 flex min-w-0 items-center gap-2 border-b border-border/70 pb-2">{modelSlot}
+        <button type="button" onClick={toggleComposerLock} className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-lg transition hover:bg-muted',lockMode!=='auto'?'bg-primary/10 text-primary':'text-muted-foreground')} title={lockMode==='open'?'Unlock expanded composer':'Lock composer open'} aria-label="Toggle composer lock">
+          {lockMode==='open'?<Lock className="h-4 w-4"/>:<Unlock className="h-4 w-4"/>}
+        </button>
+      </div>}
 
       <textarea ref={ta} rows={1} dir="auto" value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); if (!busy && !uploading) onSend(); } }}
@@ -176,6 +231,9 @@ export function Composer({
         <span>Enter to send · Shift+Enter for new line</span>
         <span>Attach up to 8 supported files</span>
       </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
