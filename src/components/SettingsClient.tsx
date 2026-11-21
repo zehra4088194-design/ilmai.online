@@ -1,5 +1,5 @@
  'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { LogOut, Save, Loader2, RotateCcw, Palette, Sun, Moon, Monitor, Type, Paintbrush2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -11,7 +11,7 @@ export function SettingsClient({ id, name: initial, preferences }: { id: string;
   const [busy,setBusy]=useState(false);
   const {appearance,updateAppearance}=useAppearance();
   const router=useRouter();const toast=useToast();
-  const saved=(preferences?.appearance&&typeof preferences.appearance==='object'?preferences.appearance:{}) as Partial<Appearance>;
+  useEffect(()=>{try{if(!localStorage.getItem('ilm-appearance')&&preferences?.appearance&&typeof preferences.appearance==='object'){updateAppearance({...DEFAULT_APPEARANCE,...preferences.appearance as Partial<Appearance>});}}catch{/* storage unavailable */}},[preferences,updateAppearance]);
   async function save(){
     setBusy(true);
     const {error}=await createClient().from('profiles').update({full_name:name,preferences:{...preferences,appearance}}).eq('id',id);
