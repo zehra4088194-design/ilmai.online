@@ -15,6 +15,7 @@ const Body=z.object({
 type PaddlePrice = {
   unit_price?:{amount?:string;currency_code?:string};
   status?:string;
+  billing_cycle?:{interval?:string;frequency?:number}|null;
 };
 type PaddleDiscount = {
   type?:string;amount?:string;currency_code?:string|null;
@@ -58,8 +59,16 @@ export const POST=handle(async(req:NextRequest)=>{
   const priceResponse=await paddleJson<{data?:PaddlePrice}>(base+'/prices/'+encodeURIComponent(String(quote.plan.paddle_price_id)),apiKey);
   const cataloguePrice=priceResponse.data?.unit_price;
   const expectedMinor=Math.round(Number(quote.plan.price_amount)*100);
-  if(!cataloguePrice || cataloguePrice.currency_code!==quote.plan.currency || Number(cataloguePrice.amount)!==expectedMinor) {
-    throw new HttpError(409,'The Paddle price ID does not match the currency and base price saved in Admin → Plans & discounts','paddle_price_mismatch');
+  if(!cataloguePrice || priceResponse.data?.status!=='active' || cataloguePrice.currency_code!==quote.plan.currency || Number(cataloguePrice.amount)!==expectedMinor) {
+    throw new HttpError(409,'The Paddle price ID must be active and match the currency and base price saved in Admin → Plans & discounts','paddle_price_mismatch');
+  }
+  const cycle=priceResponse.data?.billing_cycle??null;
+  if(cycle) {
+    const frequency=Number(cycle.frequency??0);
+    const cycleDays=cycle.interval==='day'?frequency:cycle.interval==='week'?frequency*7:cycle.interval==='month'?frequency*30:cycle.interval==='year'?frequency*365:0;
+    if(!cycleDays||Math.abs(cycleDays-Number(quote.plan.period_days))>3) {
+      throw new HttpError(409,'The Paddle recurring interval does not match the plan period configured in Admin → Plans & discounts','paddle_billing_cycle_mismatch');
+    }
   }
 
   if(quote.discount?.paddle_discount_id) {
