@@ -7,6 +7,7 @@ export type SpeechRecognitionLike = {
   interimResults: boolean;
   maxAlternatives: number;
   onresult: ((event: SpeechResultEvent) => void) | null;
+  onstart: (() => void) | null;
   onerror: ((event: { error?: string }) => void) | null;
   onend: (() => void) | null;
   start: () => void;
