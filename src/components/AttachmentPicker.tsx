@@ -147,7 +147,7 @@ export function AttachmentPicker({ value, onChange, disabled = false, onUploadin
     }
   }
 
-  return <div className={`${compact ? '' : 'rounded-2xl p-2'} ${dragging ? 'bg-primary/10 ring-1 ring-primary' : ''}`
+  return <div className={`${compact ? '' : 'rounded-2xl p-2'} ${dragging ? 'bg-primary/10 ring-1 ring-primary' : ''}`}
     onDragOver={(e) => { e.preventDefault(); if (!disabled && !active.current) setDragging(true); }}
     onDragLeave={() => setDragging(false)} onDrop={(e) => { e.preventDefault(); setDragging(false); void upload(Array.from(e.dataTransfer.files)); }}>
     {value.length > 0 && <div className={compact ? 'mb-2' : 'mb-2'}><AttachmentLinks value={value} previews={previews} disabled={disabled || !!progress} onRemove={(id) => onChange(value.filter((f) => f.asset_id !== id))} /></div>}
