@@ -56,6 +56,13 @@ jobs:
       - name: Build Worker with Wrangler
         working-directory: workers/ai-router
         run: npm run build
+      - name: Upload deployable Worker bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: ilmai-ai-router-bundle
+          path: workers/ai-router/dist/
+          if-no-files-found: error
+          retention-days: 2
 
   pdf-renderer:
     runs-on: ubuntu-latest
