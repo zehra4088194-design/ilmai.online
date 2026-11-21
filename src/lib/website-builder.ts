@@ -46,14 +46,14 @@ function validatePackageJson(content: string) {
     const value = pkg[group];
     if (value === undefined) continue;
     if (!value || typeof value !== 'object' || Array.isArray(value)) {
-      throw new Error(`Generated package.json has an invalid ${group} field`);
+      throw new Error(\`Generated package.json has an invalid \${group} field\`);
     }
     Object.assign(dependencies, value);
   }
 
   const names = Object.keys(dependencies);
-  const packageName = /^(?:@[a-z0-9][a-z0-9._-]*\\/)?[a-z0-9][a-z0-9._-]*$/;
-  const registryVersion = /^[~^]?\\d+(?:\\.\\d+){0,2}(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$/;
+  const packageName = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/;
+  const registryVersion = /^[~^]?\d+(?:\.\d+){0,2}(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
   if (names.length > 80) throw new Error('Generated package.json contains too many dependencies');
   for (const name of names) {
     const version = dependencies[name];
