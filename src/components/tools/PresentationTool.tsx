@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Download, Loader2, Presentation, Plus, Trash2 } from 'lucide-react';
 import { useApp } from '@/components/chat/AppShell';
@@ -9,6 +9,7 @@ import type { PresentationDeck, PresentationSlide } from '@/lib/presentation-sch
 
 type Format = 'pptx' | 'pdf';
 type Theme = 'emerald' | 'midnight' | 'sand';
+type PresentationModel = { id: string; name: string; provider?: string; locked?: boolean };
 
 const innerTypes = ['bullets','two_column','quote'] as const;
 const emptySlide = (type: PresentationSlide['type'] = 'bullets'): PresentationSlide => ({
@@ -31,6 +32,16 @@ export function PresentationTool() {
   const [action, setAction] = useState('');
   const [deck, setDeck] = useState<PresentationDeck | null>(null);
   const [lastDownload, setLastDownload] = useState<string | null>(null);
+  const [models, setModels] = useState<PresentationModel[]>([]);
+  const [model, setModel] = useState('claude-auto');
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/models', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null)
+      .then((data) => { if (!cancelled && Array.isArray(data?.models)) setModels(data.models.filter((item: PresentationModel) => /claude|anthropic/i.test(item.id + ' ' + item.name))); })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
 
   const presentationFeature = features.find((feature) => feature.key === 'presentations');
   const pdfEnabled = presentationFeature?.config?.pdf_export !== false;
@@ -40,17 +51,19 @@ export function PresentationTool() {
 
   async function generate() {
     if (topic.trim().length < 3 || busy) return;
-    setBusy(true); setAction('Creating slide outline'); setLastDownload(null);
+    const selectedClaude = model === 'claude-auto' ? models.find((item) => !item.locked) : models.find((item) => item.id === model && !item.locked);
+    if (model !== 'auto' && !selectedClaude) { toast('Claude is not enabled or available for your account. Choose Auto or ask admin to enable a Claude model.', 'err'); return; }
+    setBusy(true); setAction('Building complete presentation'); setLastDownload(null);
     try {
       const response = await fetch('/api/generate/presentation', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requestId: crypto.randomUUID(), topic, slides: count, language }),
+        body: JSON.stringify({ requestId: crypto.randomUUID(), topic, slides: count, language, ...(model === 'auto' ? {} : { model: selectedClaude?.id }) }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? 'Could not create the presentation');
       setDeck(data.deck);
       await refreshMe();
-      toast('Presentation outline created', 'ok');
+      toast('Full presentation created', 'ok');
     } catch (error) {
       toast(error instanceof Error ? error.message : 'Could not create the presentation', 'err');
     } finally { setBusy(false); setAction(''); }
@@ -100,18 +113,26 @@ export function PresentationTool() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ format, language, theme, deck }),
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? 'Export failed');
-      const url = data.asset?.url as string | undefined;
-      if (!url) throw new Error('The export completed without a download link');
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.error || data?.message || 'Export failed. Please try again.');
+      }
+      const blob = await response.blob();
+      if (!blob.size) throw new Error('The exported file is empty.');
+      const fallbackName = (deck.title || 'ilmai-presentation').replace(/[\\/:*?"<>|]+/g, '-').trim();
+      const disposition = response.headers.get('content-disposition') || '';
+      const match = /filename="?([^";]+)"?/i.exec(disposition);
+      const filename = match?.[1] || fallbackName + (format === 'pptx' ? '.pptx' : '.pdf');
+      const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      link.download = (deck.title || 'ilmai-presentation') + (format === 'pptx' ? '.pptx' : '.pdf');
+      link.download = filename;
+      document.body.appendChild(link);
       link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 15000);
       setLastDownload(format.toUpperCase());
-      toast(format.toUpperCase() + ' export ready', 'ok');
+      toast(format.toUpperCase() + ' downloaded', 'ok');
     } catch (error) {
       toast(error instanceof Error ? error.message : 'Export failed', 'err');
     } finally { setBusy(false); setAction(''); }
@@ -127,17 +148,26 @@ export function PresentationTool() {
         <label className="block space-y-1 text-sm font-medium">Topic / learning objective
           <textarea dir="auto" className="input min-h-20" maxLength={2000} placeholder="e.g. The water cycle for Class 6, with a simple explanation and a short recap" value={topic} onChange={(e) => setTopic(e.target.value)} />
         </label>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="space-y-1 text-sm font-medium">Number of slides
             <input className="input" type="number" min={3} max={20} value={count} onChange={(e) => setCount(Math.max(3, Math.min(20, Number(e.target.value) || 3)))} />
           </label>
           <label className="space-y-1 text-sm font-medium">Language
             <select className="input" value={language} onChange={(e) => setLanguage(e.target.value as typeof language)}><option>English</option><option>Urdu</option><option>Roman Urdu</option></select>
           </label>
+          <label className="space-y-1 text-sm font-medium">AI model
+            <select className="input" value={model} onChange={(e) => setModel(e.target.value)}>
+              <option value="claude-auto">Claude · best available</option>
+              <option value="auto">Auto · choose a model</option>
+              {models.filter((item) => !item.locked).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+          </label>
           <label className="space-y-1 text-sm font-medium">Design theme
             <select className="input" value={theme} onChange={(e) => setTheme(e.target.value as Theme)}><option value="emerald">Emerald</option><option value="midnight">Midnight</option><option value="sand">Sand</option></select>
           </label>
         </div>
+        {models.length === 0 && <p className="text-xs text-muted-foreground">Claude models are not currently listed as enabled. Auto can still create the deck; an admin can enable Claude in Model Settings.</p>}
+        {models.length > 0 && models.every((item) => item.locked) && <p className="text-xs text-muted-foreground">Claude models are listed but unavailable on this plan. Ask an admin to enable plan access.</p>}
         <button className="btn-primary" disabled={busy || topic.trim().length < 3} onClick={generate}>
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Presentation className="h-4 w-4" />} {busy ? action || 'Working…' : 'Create presentation'}
         </button>
