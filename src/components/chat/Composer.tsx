@@ -83,13 +83,6 @@ export function Composer({
     <div className="glass mx-auto w-full max-w-4xl rounded-3xl border border-border/80 bg-card/95 p-2.5 shadow-soft transition focus-within:border-primary/40 focus-within:shadow-glow sm:p-3">
       {modelSlot && <div className="mb-2 flex min-w-0 items-center gap-2 border-b border-border/70 pb-2">{modelSlot}</div>}
 
-      {attachments.length > 0 && onAttachmentsChange && (
-        <div className="mb-2 px-1">
-          <AttachmentPicker value={attachments} onChange={onAttachmentsChange} disabled={busy || uploading}
-            onUploadingChange={onUploadingChange} compact />
-        </div>
-      )}
-
       <textarea ref={ta} rows={1} dir="auto" value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); if (!busy && !uploading) onSend(); } }}
         className="max-h-52 min-h-12 w-full resize-none bg-transparent px-3 py-2.5 text-[0.95rem] leading-6 outline-none placeholder:text-muted-foreground/65" />
