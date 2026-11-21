@@ -1,8 +1,12 @@
 'use client';
 import { motion } from 'framer-motion';
-import type { LucideIcon } from 'lucide-react';
+import { Users, UserPlus, Zap, MessageSquare, Hash, DollarSign, Coins, AlertTriangle, Timer, HardDrive, CircleHelp, Target, Trophy, Lightbulb } from 'lucide-react';
 
-export function StatCard({ label, value, hint, Icon, i = 0 }: { label: string; value: string; hint?: string; Icon: LucideIcon; i?: number }) {
+const ICONS = { users: Users, userPlus: UserPlus, zap: Zap, messageSquare: MessageSquare, hash: Hash, dollarSign: DollarSign, coins: Coins, alertTriangle: AlertTriangle, timer: Timer, hardDrive: HardDrive, circleHelp: CircleHelp, target: Target, trophy: Trophy, lightbulb: Lightbulb };
+type IconName = keyof typeof ICONS;
+
+export function StatCard({ label, value, hint, icon, i = 0 }: { label: string; value: string; hint?: string; icon: IconName; i?: number }) {
+  const Icon = ICONS[icon];
   return (
     <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }} whileHover={{ y: -3 }} className="card relative overflow-hidden p-4">
       <div className="absolute -right-5 -top-5 h-20 w-20 rounded-full bg-primary/10" />
