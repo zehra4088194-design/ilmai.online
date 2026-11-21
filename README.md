@@ -2,7 +2,7 @@
 
 Every AI model, one beautiful place – built for students and teachers (English · اردو · Roman Urdu).
 
-**Stack:** Next.js 15 (App Router, TypeScript) · Tailwind 3 · Framer Motion · Supabase (Auth + Postgres + RLS) · OpenRouter (one key, all models) · Backblaze B2 (S3 API) · Docker → Coolify.
+**Stack:** Next.js 15 (App Router, TypeScript) · Tailwind 3 · Framer Motion · Supabase (Auth + Postgres + RLS) · Cloudflare Workers (signed AI gateway) · OpenRouter (model catalogue + primary inference gateway) · Backblaze B2 (S3 API) · Docker → Coolify.
 
 ## What exists today
 | Area | Status |
@@ -29,4 +29,4 @@ npm install && npm run dev      # http://localhost:3000
 Database: run **both** `supabase/migrations/0001_init.sql` and `0002_modes_quiz_suggestions.sql` (in order) in the Supabase SQL editor.
 
 ## Docs
-`docs/SETUP.md` (Roman Urdu, step by step) · `docs/ARCHITECTURE.md` · `docs/ROADMAP.md` · `AGENTS.md` (rules for AI assistants)
+`docs/SETUP.md` (Roman Urdu, step by step) · `docs/AI-ROUTER-SETUP.md` (Cloudflare Worker deployment + Coolify variables) · `docs/ARCHITECTURE.md` · `docs/ROADMAP.md` · `AGENTS.md` (rules for AI assistants)
