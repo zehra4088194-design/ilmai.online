@@ -1,7 +1,8 @@
 'use client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { MobileTopBar, useApp } from '@/components/chat/AppShell';
+import { Menu } from 'lucide-react';
+import { useApp } from '@/components/chat/AppShell';
 import { ModelBar } from '@/components/chat/ModelBar';
 import { Composer } from '@/components/chat/Composer';
 import { TurnView } from '@/components/chat/TurnView';
@@ -13,6 +14,8 @@ import { groupMessages, type Msg, type Attachment } from '@/components/chat/type
 import { useModels } from '@/components/chat/useModels';
 import { useToast } from '@/components/providers';
 import { api } from '@/lib/client-api';
+import { createSpeechRecognition, type SpeechRecognitionLike } from '@/lib/speech';
+import { WebsiteBuilderDialog } from '@/components/website/WebsiteBuilderDialog';
 
 type ServerMsg = { id: string; role: 'user' | 'assistant'; content: string; model: string | null; attachments?: Attachment[]; meta: Msg['meta'] };
 
@@ -20,7 +23,7 @@ export function ChatView() {
   const pathname = usePathname();
   const routeId = pathname.startsWith('/chat/') ? pathname.split('/')[2] || null : null;
 
-  const { features, featureOn, refreshConversations, refreshMe } = useApp();
+  const { features, featureOn, refreshConversations, refreshMe, openSidebar } = useApp();
   const toast = useToast();
   const { models, selected, toggle, maxParallel, loading: modelsLoading } = useModels();
 
@@ -33,6 +36,10 @@ export function ChatView() {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [sugLoading, setSugLoading] = useState(false);
   const [quizDlg, setQuizDlg] = useState<{ topic?: string; context?: string } | null>(null);
+  const [websiteBuilderOpen, setWebsiteBuilderOpen] = useState(false);
+  const [thinking, setThinking] = useState<'auto' | 'low' | 'medium' | 'high'>('auto');
+  const [enhancing, setEnhancing] = useState(false);
+  const [callActive, setCallActive] = useState(false);
 
   const names = useMemo(() => new Map(models.map((m) => [m.id, m.name.replace(/^[^:]+:\\s*/, '')])), [models]);
   const groups = useMemo(() => groupMessages(messages), [messages]);
@@ -43,6 +50,11 @@ export function ChatView() {
   const endRef = useRef<HTMLDivElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
+  const callRecognition = useRef<SpeechRecognitionLike | null>(null);
+  const callActiveRef = useRef(false);
+  const callPausedRef = useRef(false);
+  const sendRef = useRef<((text?: string) => Promise<void>) | null>(null);
+  const busyRef = useRef(false);
 
   useEffect(() => {
     if (routeId === convRef.current) return;
@@ -63,6 +75,58 @@ export function ChatView() {
 
   useEffect(() => { if (stick.current) endRef.current?.scrollIntoView({ block: 'end' }); }, [messages, suggestions]);
 
+  useEffect(() => {
+    callActiveRef.current = callActive;
+    if (!callActive) {
+      callPausedRef.current = false;
+      try { callRecognition.current?.stop(); } catch { /* already stopped */ }
+      callRecognition.current = null;
+      if (typeof window !== 'undefined') window.speechSynthesis?.cancel();
+      return;
+    }
+
+    const speech = createSpeechRecognition();
+    if (!speech) {
+      setCallActive(false);
+      toast('Voice call is not supported in this browser. Use Chrome over HTTPS.', 'info');
+      return;
+    }
+    speech.lang = typeof navigator !== 'undefined' && navigator.language ? navigator.language : 'en-US';
+    speech.continuous = false;
+    speech.interimResults = false;
+    speech.maxAlternatives = 1;
+    speech.onresult = (event) => {
+      const transcript = Array.from({ length: event.results.length }, (_, index) => event.results[index]?.[0]?.transcript ?? '').join(' ').trim();
+      if (!transcript) return;
+      callPausedRef.current = true;
+      speech.stop();
+      void sendRef.current?.(transcript);
+    };
+    speech.onerror = (event) => {
+      if (event.error !== 'no-speech' && event.error !== 'aborted') toast('Voice call microphone error: ' + (event.error ?? 'check permissions'), 'err');
+    };
+    speech.onend = () => {
+      if (callActiveRef.current && !callPausedRef.current && !busyRef.current) {
+        window.setTimeout(() => {
+          if (callActiveRef.current && !callPausedRef.current && !busyRef.current) {
+            try { callRecognition.current?.start(); } catch { /* browser may still be closing the previous recognition session */ }
+          }
+        }, 350);
+      }
+    };
+    callRecognition.current = speech;
+    callPausedRef.current = false;
+    try { speech.start(); }
+    catch {
+      setCallActive(false);
+      toast('Could not start the voice call. Check microphone permissions.', 'err');
+    }
+    return () => {
+      try { speech.abort(); } catch { /* cleanup */ }
+      if (callRecognition.current === speech) callRecognition.current = null;
+    };
+  }, [callActive, toast]);
+
   const onScroll = () => {
     const el = scroller.current;
     if (el) stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 160;
@@ -77,13 +141,13 @@ export function ChatView() {
     } catch { /* suggestions are optional */ } finally { if (token === sugToken.current) setSugLoading(false); }
   }, []);
 
-  async function streamOne(cid: string, umid: string, model: string, multi: boolean, aid: string): Promise<string> {
+  async function streamOne(cid: string, umid: string, model: string, multi: boolean, aid: string, effort: 'low' | 'medium' | 'high' | undefined): Promise<string> {
     const ac = new AbortController();
     aborts.current.push(ac);
     const patch = (p: Partial<Msg>) => setMessages((ms) => ms.map((x) => (x.id === aid ? { ...x, ...p } : x)));
     let acc = '';
     try {
-      const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ac.signal, body: JSON.stringify({ conversationId: cid, userMessageId: umid, model, multi }) });
+      const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ac.signal, body: JSON.stringify({ conversationId: cid, userMessageId: umid, model, multi, thinking: effort }) });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? 'Request failed');
       const actualModel = res.headers.get('x-ilm-model');
       if (actualModel) patch({ model: actualModel });
@@ -115,7 +179,8 @@ export function ChatView() {
     if (!selected.length) { toast('Please choose a model first', 'err'); return; }
     const chosen = [...selected];
     const multi = chosen.length > 1;
-    setInput(''); setBusy(true); setSuggestions([]); sugToken.current++; setSugLoading(false); stick.current = true;
+    setInput(''); setBusy(true); busyRef.current = true; setSuggestions([]); sugToken.current++; setSugLoading(false); stick.current = true;
+    if (callActiveRef.current) callPausedRef.current = true;
     aborts.current = [];
 
     let cid = convRef.current;
@@ -145,16 +210,72 @@ export function ChatView() {
       ...chosen.map((m): Msg => ({ id: aid(m), role: 'assistant', content: '', model: m, streaming: true, meta: { turn: umid } })),
     ]);
 
-    const results = await Promise.all(chosen.map((m) => streamOne(cid!, umid, m, multi, aid(m))));
+    const effort = thinking === 'auto' ? undefined : thinking;
+    const results = await Promise.all(chosen.map((m) => streamOne(cid!, umid, m, multi, aid(m), effort)));
     setBusy(false);
+    busyRef.current = false;
     refreshConversations();
     refreshMe();
     const firstOk = results.find((r) => r.length > 0);
     if (firstOk && featureOn('suggestions')) loadSuggestions(t, firstOk);
+    if (firstOk && callActiveRef.current && typeof window !== 'undefined' && window.speechSynthesis) {
+      const spoken = firstOk.replace(/(```[\s\S]*?```|[*_#>`])/g, ' ').replace(/https?:\/\/\S+/g, 'link').slice(0, 5000);
+      const utterance = new SpeechSynthesisUtterance(spoken);
+      utterance.onend = () => {
+        callPausedRef.current = false;
+        if (callActiveRef.current && !busyRef.current) {
+          try { callRecognition.current?.start(); } catch { /* recognition session may still be closing */ }
+        }
+      };
+      utterance.onerror = () => {
+        callPausedRef.current = false;
+        if (callActiveRef.current && !busyRef.current) {
+          try { callRecognition.current?.start(); } catch { /* ignore browser restart race */ }
+        }
+      };
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utterance);
+    } else if (callActiveRef.current) {
+      callPausedRef.current = false;
+      try { callRecognition.current?.start(); } catch { /* restart after response */ }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [input, attachments, busy, uploading, selected, featureOn, loadSuggestions, refreshConversations, refreshMe, toast]);
+  }, [input, attachments, busy, uploading, selected, featureOn, loadSuggestions, refreshConversations, refreshMe, toast, thinking]);
 
-  const stop = () => aborts.current.forEach((a) => a.abort());
+  sendRef.current = send;
+
+  const stop = () => {
+    aborts.current.forEach((a) => a.abort());
+    busyRef.current = false;
+    setBusy(false);
+    if (callActiveRef.current) {
+      callPausedRef.current = false;
+      window.speechSynthesis?.cancel();
+      try { callRecognition.current?.start(); } catch { /* resume recognition */ }
+    }
+  };
+
+  async function enhancePrompt() {
+    if (!input.trim() || enhancing || busy || uploading) return;
+    setEnhancing(true);
+    try {
+      const result = await api<{ prompt: string }>('/api/prompt/enhance', 'POST', { prompt: input });
+      setInput(result.prompt);
+      toast('Prompt enhanced. Review it before sending.', 'ok');
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'Could not enhance prompt', 'err');
+    } finally { setEnhancing(false); }
+  }
+
+  function toggleVoiceCall() {
+    if (callActive) { setCallActive(false); return; }
+    if (!createSpeechRecognition() || typeof window === 'undefined' || !window.speechSynthesis) {
+      toast('Voice call needs browser speech recognition and speech synthesis. Try Chrome over HTTPS.', 'info');
+      return;
+    }
+    setCallActive(true);
+    toast('Voice call is starting. Speak after the microphone begins listening.', 'info');
+  }
 
   const onQuizCreated = (r: QuizCreated) => {
     if (!convRef.current) { convRef.current = r.conversationId; window.history.replaceState(null, '', '/chat/' + r.conversationId); }
@@ -165,20 +286,12 @@ export function ChatView() {
 
   const lastGroup = groups[groups.length - 1];
   const quizOn = featureOn('quiz');
-  const askQuizOnThis = () => {
-    const lastUser = [...groups].reverse().find((g) => g.user)?.user?.content ?? '';
-    const lastAnswer = [...messages].reverse().find((m) => m.role === 'assistant' && !m.meta?.kind && m.content && !m.error)?.content ?? '';
-    setQuizDlg({ topic: lastUser.slice(0, 80), context: lastAnswer.slice(0, 7000) });
-  };
 
   const empty = messages.length === 0 && !loadingChat;
 
   return (
     <>
-      <MobileTopBar title="Ilm AI" />
-      <div className="glass relative z-20 shrink-0 border-x-0 border-t-0 px-3 py-1.5">
-        {modelsLoading ? <div className="h-7 w-48 animate-pulse rounded-full bg-muted" /> : <ModelBar models={models} selected={selected} onToggle={toggle} max={maxParallel} disabled={busy} />}
-      </div>
+      <div ref={scroller} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto">
 
       <div ref={scroller} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col px-4 pb-5 pt-3">
@@ -188,8 +301,8 @@ export function ChatView() {
           )}
           <div className="space-y-7">
             {groups.map((g) => <TurnView key={g.key} group={g} names={names} onAsk={send} onNewQuiz={(topic) => setQuizDlg({ topic })} />)}
-            {!busy && lastGroup && (suggestions.length > 0 || sugLoading || (quizOn && !lastGroup.quiz)) && (
-              <Suggestions items={suggestions} loading={sugLoading} onPick={send} onQuiz={quizOn && !lastGroup.quiz && lastGroup.answers.some((a) => !a.error) ? askQuizOnThis : undefined} />
+            {!busy && lastGroup && (suggestions.length > 0 || sugLoading) && (
+              <Suggestions items={suggestions} loading={sugLoading} onPick={send} />
             )}
           </div>
           <div ref={endRef} />
@@ -200,12 +313,19 @@ export function ChatView() {
         <Composer value={input} onChange={setInput} onSend={() => send()} onStop={stop} busy={busy} uploading={uploading}
           attachments={attachments} onAttachmentsChange={setAttachments} onUploadingChange={setUploading}
           features={features} onQuiz={quizOn ? () => setQuizDlg({}) : undefined}
+          modelSlot={<>
+            <button type="button" onClick={openSidebar} className="btn-ghost h-8 w-8 shrink-0 !p-0 lg:hidden" aria-label="Open menu"><Menu className="h-4 w-4" /></button>
+            {modelsLoading ? <div className="h-7 w-48 animate-pulse rounded-full bg-muted" /> : <ModelBar models={models} selected={selected} onToggle={toggle} max={maxParallel} disabled={busy} />}
+          </>}
+          thinking={thinking} onThinkingChange={setThinking} onEnhance={enhancePrompt} enhancing={enhancing}
+          onBuildWebsite={() => setWebsiteBuilderOpen(true)} callActive={callActive} onToggleCall={toggleVoiceCall}
           onUnavailable={(f) => toast(f.state === 'active' ? (f.label + ': this chat action is not available yet.') : (f.label + ' is coming soon'), 'info')} />
         <p className="mt-2 text-center text-[11px] text-muted-foreground">AI can make mistakes. Please double-check important information.</p>
       </div>
 
       <QuizDialog open={!!quizDlg} onClose={() => setQuizDlg(null)} conversationId={convRef.current}
         defaultTopic={quizDlg?.topic} context={quizDlg?.context} onCreated={onQuizCreated} key={quizDlg?.topic ?? 'new'} />
+      <WebsiteBuilderDialog open={websiteBuilderOpen} onClose={() => setWebsiteBuilderOpen(false)} models={models} preferredModel={selected[0]} />
     </>
   );
 }
