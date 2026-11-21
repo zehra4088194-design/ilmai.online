@@ -43,6 +43,39 @@
   --blob-3: 120 45% 22%;
 }
 
+/* User appearance palettes. Accent color remains user-customizable. */
+:root { --primary: var(--custom-primary, 142 71% 45%); --ring: var(--primary); --heading-color: hsl(var(--primary)); }
+.dark { --primary: var(--custom-primary, 142 71% 45%); --ring: var(--primary); }
+html[data-theme-family='violet'] { --blob-1: 265 70% 40%; --blob-2: 230 60% 35%; --blob-3: 290 45% 30%; }
+html[data-theme-family='rose'] { --blob-1: 330 65% 40%; --blob-2: 345 55% 34%; --blob-3: 300 45% 30%; }
+html[data-theme-family='blue'] { --blob-1: 215 70% 35%; --blob-2: 195 55% 30%; --blob-3: 235 45% 30%; }
+html[data-theme-family='paper'] { --background: 42 42% 94%; --foreground: 30 20% 15%; --card: 42 36% 98%; --card-foreground: 30 20% 15%; --muted: 40 24% 88%; --muted-foreground: 30 12% 43%; --border: 38 24% 82%; --input: 38 24% 82%; --accent: 42 30% 88%; --accent-foreground: 30 30% 22%; --blob-1: 35 50% 70%; --blob-2: 42 45% 68%; --blob-3: 22 40% 65%; }
+html.dark[data-theme-family='paper'] { --background: 32 15% 12%; --foreground: 42 30% 90%; --card: 30 15% 16%; --card-foreground: 42 30% 90%; --muted: 30 12% 22%; --muted-foreground: 35 12% 62%; --border: 30 12% 27%; --input: 30 12% 27%; --accent: 35 20% 24%; --accent-foreground: 42 35% 82%; }
+html[data-theme-family='midnight'] { --background: 0 0% 5%; --foreground: 0 0% 94%; --card: 0 0% 9%; --muted: 0 0% 14%; --border: 0 0% 20%; --blob-1: 40 45% 30%; --blob-2: 270 40% 26%; --blob-3: 0 0% 22%; }
+html[data-theme-family='forest'] { --blob-1: 145 50% 34%; --blob-2: 115 42% 28%; --blob-3: 165 38% 25%; }
+html[data-theme-family='sunset'] { --blob-1: 20 70% 36%; --blob-2: 35 60% 32%; --blob-3: 340 45% 30%; }
+html[data-theme-family='copper'] { --blob-1: 25 60% 34%; --blob-2: 35 45% 30%; --blob-3: 10 35% 25%; }
+html[data-theme-family='ice'] { --blob-1: 195 60% 35%; --blob-2: 180 55% 30%; --blob-3: 220 45% 28%; }
+html[data-theme-family='classic'] { --blob-1: 142 65% 28%; --blob-2: 155 55% 24%; --blob-3: 120 45% 22%; }
+html[data-theme-family='violet'] { --primary-foreground: 0 0% 100%; }
+html[data-theme-family='rose'] { --primary-foreground: 0 0% 100%; }
+html[data-theme-family='blue'] { --primary-foreground: 0 0% 100%; }
+html[data-theme-family='sunset'] { --primary-foreground: 0 0% 100%; }
+html[data-theme-family='copper'] { --primary-foreground: 0 0% 100%; }
+html[data-theme-family='ice'] { --primary-foreground: 0 0% 100%; }
+html[data-theme-family='paper'] { --primary-foreground: 0 0% 100%; }
+html[data-monochrome='true'] { --primary: 0 0% 62%; --accent: 0 0% 16%; --accent-foreground: 0 0% 90%; --blob-1: 0 0% 18%; --blob-2: 0 0% 15%; --blob-3: 0 0% 12%; }
+html:not(.dark)[data-monochrome='true'] { --primary: 0 0% 40%; --accent: 0 0% 90%; --accent-foreground: 0 0% 20%; }
+html[data-font-style='serif'] body { font-family: Georgia, 'Times New Roman', serif; }
+html[data-font-style='mono'] body { font-family: 'JetBrains Mono Variable', monospace; }
+html[data-heading-style='handwritten'] .md h1, html[data-heading-style='handwritten'] .md h2, html[data-heading-style='handwritten'] .md h3, html[data-heading-style='handwritten'] .md h4 { font-family: 'Comic Sans MS', 'Segoe Print', cursive; font-weight: 650; letter-spacing: .01em; }
+html[data-heading-style='serif'] .md h1, html[data-heading-style='serif'] .md h2, html[data-heading-style='serif'] .md h3, html[data-heading-style='serif'] .md h4 { font-family: Georgia, 'Times New Roman', serif; }
+html[data-heading-style='minimal'] .md h1, html[data-heading-style='minimal'] .md h2, html[data-heading-style='minimal'] .md h3, html[data-heading-style='minimal'] .md h4 { font-family: inherit; font-weight: 600; letter-spacing: 0; }
+html .md h1, html .md h2, html .md h3, html .md h4 { color: var(--heading-color); }
+html[data-theme-family='paper'] .aurora::before, html[data-theme-family='paper'] .aurora::after, html[data-theme-family='paper'] .aurora i { opacity: .22; }
+html.dark[data-theme-family='paper'] .aurora::before, html.dark[data-theme-family='paper'] .aurora::after, html.dark[data-theme-family='paper'] .aurora i { opacity: 0; }
+html[data-theme-family='midnight'] .aurora::before, html[data-theme-family='midnight'] .aurora::after, html[data-theme-family='midnight'] .aurora i { opacity: .12; }
+
 /* ---------- Accent palettes (all green family) ---------- */
 [data-accent='emerald'] { }
 [data-accent='mint']   { --primary: 160 55% 38%; --ring: 160 55% 42%; --accent: 160 50% 92%; --accent-foreground: 160 60% 22%; --blob-1: 160 70% 65%; --blob-2: 175 70% 66%; }
