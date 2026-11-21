@@ -9,7 +9,8 @@ import { aiRouterChat } from '@/lib/ai-router';
 import { extractJson } from '@/lib/json-extract';
 import { validateWebsiteProject } from '@/lib/website-builder';
 import { runWebsiteBuildInSandbox } from '@/lib/website-sandbox';
-import { generationEstimate, reserveGeneration, settleGeneration, releaseGeneration } from '@/lib/generations';\nimport { creditsFor } from '@/lib/credits';
+import { generationEstimate, reserveGeneration, settleGeneration, releaseGeneration } from '@/lib/generations';
+import { creditsFor from '@/lib/credits';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -91,7 +92,13 @@ export const POST = handle(async (req: NextRequest) => {
 
   // Reserve for the initial generation plus up to two full-project repair attempts.
   const onePassEstimate = generationEstimate(messages, model, settings, MAX_TOKENS);
-  const maxCredits = onePassEstimate * (MAX_REPAIR_ATTEMPTS + 1);
+  const repairInputTokens = MAX_TOKENS + 800;
+  const repairPassEstimate = creditsFor(
+    (repairInputTokens * model.pricePromptPerM + MAX_TOKENS * model.priceCompletionPerM) / 1e6,
+    repairInputTokens + MAX_TOKENS,
+    settings,
+  );
+  const maxCredits = onePassEstimate + repairPassEstimate * MAX_REPAIR_ATTEMPTS;
   const reservationId = await reserveGeneration({
     userId: profile.id, isAdmin, kind: 'website', key: body.requestId, maxCredits,
   });
