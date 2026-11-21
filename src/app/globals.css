@@ -140,3 +140,20 @@ html[data-theme-family='midnight'] .aurora::before, html[data-theme-family='midn
 
 html[data-accent] { --primary: var(--custom-primary, 142 71% 45%); --ring: var(--primary); }
 .dark html[data-accent] { --primary: var(--custom-primary, 142 71% 45%); }
+
+/* Theme family surfaces (keep the default black workspace identity intact). */
+html.dark[data-theme-family='violet'] { --background: 270 18% 5%; --card: 265 17% 9%; --muted: 265 15% 14%; --border: 265 14% 20%; --accent: 265 30% 17%; --accent-foreground: 265 45% 82%; }
+html.dark[data-theme-family='rose'] { --background: 340 18% 5%; --card: 340 16% 9%; --muted: 340 14% 14%; --border: 340 12% 20%; --accent: 340 28% 17%; --accent-foreground: 340 45% 82%; }
+html.dark[data-theme-family='blue'] { --background: 215 25% 5%; --card: 215 22% 9%; --muted: 215 18% 14%; --border: 215 15% 20%; --accent: 215 30% 17%; --accent-foreground: 215 45% 82%; }
+html.dark[data-theme-family='forest'] { --background: 145 20% 5%; --card: 145 18% 9%; --muted: 145 15% 14%; --border: 145 12% 20%; --accent: 145 28% 17%; --accent-foreground: 145 45% 82%; }
+html.dark[data-theme-family='sunset'] { --background: 25 18% 5%; --card: 25 17% 9%; --muted: 25 14% 14%; --border: 25 12% 20%; --accent: 25 28% 17%; --accent-foreground: 25 45% 82%; }
+html.dark[data-theme-family='copper'] { --background: 25 16% 5%; --card: 25 15% 9%; --muted: 25 13% 14%; --border: 25 12% 20%; --accent: 25 28% 17%; --accent-foreground: 25 45% 82%; }
+html.dark[data-theme-family='ice'] { --background: 200 22% 5%; --card: 200 20% 9%; --muted: 200 16% 14%; --border: 200 13% 20%; --accent: 200 28% 17%; --accent-foreground: 200 45% 82%; }
+html:not(.dark)[data-theme-family='violet'] { --background: 260 30% 97%; --card: 0 0% 100%; --muted: 260 24% 93%; --border: 260 20% 86%; --accent: 260 35% 92%; --accent-foreground: 260 48% 25%; }
+html:not(.dark)[data-theme-family='rose'] { --background: 340 35% 97%; --card: 0 0% 100%; --muted: 340 24% 93%; --border: 340 20% 86%; --accent: 340 35% 92%; --accent-foreground: 340 48% 25%; }
+html:not(.dark)[data-theme-family='blue'] { --background: 215 35% 97%; --card: 0 0% 100%; --muted: 215 24% 93%; --border: 215 20% 86%; --accent: 215 35% 92%; --accent-foreground: 215 48% 25%; }
+html:not(.dark)[data-theme-family='forest'] { --background: 145 30% 96%; --card: 0 0% 100%; --muted: 145 24% 92%; --border: 145 20% 85%; --accent: 145 35% 91%; --accent-foreground: 145 48% 25%; }
+html:not(.dark)[data-theme-family='sunset'] { --background: 25 35% 97%; --card: 0 0% 100%; --muted: 25 25% 93%; --border: 25 20% 86%; --accent: 25 35% 92%; --accent-foreground: 25 48% 25%; }
+html:not(.dark)[data-theme-family='copper'] { --background: 30 30% 96%; --card: 0 0% 100%; --muted: 30 24% 91%; --border: 30 20% 84%; --accent: 30 35% 90%; --accent-foreground: 30 48% 25%; }
+html:not(.dark)[data-theme-family='ice'] { --background: 200 35% 97%; --card: 0 0% 100%; --muted: 200 24% 93%; --border: 200 20% 86%; --accent: 200 35% 92%; --accent-foreground: 200 48% 25%; }
+html:not(.dark)[data-theme-family='midnight'] { --background: 0 0% 96%; --card: 0 0% 100%; --muted: 0 0% 91%; --border: 0 0% 84%; --accent: 0 0% 90%; --accent-foreground: 0 0% 22%; }
