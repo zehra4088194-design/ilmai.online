@@ -34,7 +34,7 @@ export const ATTACHMENT_TYPES: Record<string, { kind: string; ext: string }> = {
   'application/rtf': { kind: 'file', ext: 'rtf' },
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': { kind: 'docx', ext: 'docx' },
   'application/vnd.openxmlformats-officedocument.presentationml.presentation': { kind: 'pptx', ext: 'pptx' },
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': { kind: 'xlsx', ext: 'xlsx' },
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': { kind: 'file', ext: 'xlsx' },
 };
 
 export function attachmentType(mime: string) {
@@ -96,6 +96,8 @@ export function validateAttachmentBytes(bytes: Uint8Array, mime: string, declare
       ['VP8 ', 'VP8L', 'VP8X'].includes(ascii(bytes, 12, 16)) && length + 8 === bytes.length;
   } else if (mime === 'application/pdf') {
     valid = /^%PDF-\d\.\d/.test(ascii(bytes, 0, 8)) && /%%EOF\s*$/.test(ascii(bytes, Math.max(0, bytes.length - 1024), bytes.length));
+  } else if (mime === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+    valid = bytes.length >= 22 && matches(bytes, [80, 75, 3, 4]);
   } else if (type.kind === 'file') {
     valid = !!decodeText(bytes).trim();
   } else {
