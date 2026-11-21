@@ -34,7 +34,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <AppShell
-      user={{ id: profile.id, name: profile.full_name ?? '', email: profile.email ?? '', plan: profile.plan, credits: profile.credits_balance, isAdmin }}
+      user={{ id: profile.id, name: profile.full_name ?? '', email: profile.email ?? '', plan: profile.plan, credits: profile.credits_balance, isAdmin, appearance: profile.preferences?.appearance ?? null }}
       features={features}
       announcement={settings.announcement}
       banner={banner}
