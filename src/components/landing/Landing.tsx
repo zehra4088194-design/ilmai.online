@@ -22,6 +22,7 @@ export function Landing() {
       <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5">
         <Logo />
         <nav className="flex items-center gap-2">
+          <Link href="/pricing" className="btn-ghost hidden sm:inline-flex">Pricing</Link>
           <Link href="/login" className="btn-ghost hidden sm:inline-flex">Sign in</Link>
           <Link href="/signup" className="btn-primary">Get started <ArrowRight className="h-4 w-4" /></Link>
         </nav>
@@ -72,7 +73,7 @@ export function Landing() {
         </div>
       </section>
 
-      <footer className="border-t border-border/60 py-8 text-center text-sm text-muted-foreground">© {new Date().getFullYear()} Ilm AI</footer>
+      <footer className="border-t border-border/60 py-8 text-center text-sm text-muted-foreground">© {new Date().getFullYear()} Ilm AI · <Link href="/pricing" className="hover:text-foreground">Pricing</Link></footer>
     </div>
   );
 }
