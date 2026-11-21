@@ -124,7 +124,7 @@ export function ModelBar({
                       <span className="block truncate text-sm font-semibold">{model.name}</span>
                       <span className="block truncate text-xs text-muted-foreground">{model.provider} · {fmtNum(model.context)} ctx{model.isFree?' · Free':` · $${model.pricePromptPerM.toFixed(2)}/M in · $${model.priceCompletionPerM.toFixed(2)}/M out`}</span>
                     </span>
-                    {model.vision&&<Eye className="h-3.5 w-3.5 shrink-0 text-muted-foreground" title="Vision"/>}
+                    {model.vision&&<Eye className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-label="Vision capable"/>}
                     {model.isFree?<span className="badge">Free</span>:<span className="badge uppercase">{model.tier}</span>}
                     {model.locked?<Lock className="h-3.5 w-3.5 shrink-0"/>:atLimit?<span className="text-[10px] text-muted-foreground">Limit</span>:active&&<Check className="h-4 w-4 shrink-0 text-primary"/>}
                   </button>
