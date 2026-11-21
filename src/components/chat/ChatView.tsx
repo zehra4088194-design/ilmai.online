@@ -328,7 +328,7 @@ export function ChatView() {
             <EmptyState onSend={send} />
           )}
           <div className="space-y-7">
-            {groups.map((g) => <TurnView key={g.key} group={g} names={names} onAsk={send} onNewQuiz={(topic) => setQuizDlg({ topic })} />)}
+            {groups.map((g) => <TurnView key={g.key} group={g} names={names} onAsk={send} onEdit={(text) => { setInput(text); toast('Prompt copied to the composer. Edit it, then send.', 'info'); }} onNewQuiz={(topic) => setQuizDlg({ topic })} />)}
             {!busy && lastGroup && (suggestions.length > 0 || sugLoading) && (
               <Suggestions items={suggestions} loading={sugLoading} onPick={send} />
             )}
