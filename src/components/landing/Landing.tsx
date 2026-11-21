@@ -73,7 +73,20 @@ export function Landing() {
         </div>
       </section>
 
-      <footer className="border-t border-border/60 py-8 text-center text-sm text-muted-foreground">© {new Date().getFullYear()} Ilm AI · <Link href="/pricing" className="hover:text-foreground">Pricing</Link></footer>
+      <footer className="border-t border-border/60 px-5 py-7">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 text-sm text-muted-foreground sm:flex-row">
+          <span>© {new Date().getFullYear()} Ilm AI</span>
+          <nav className="flex flex-wrap justify-center gap-x-4 gap-y-2">
+            <Link href="/pricing" className="hover:text-foreground">Pricing</Link>
+            <Link href="/privacy" className="hover:text-foreground">Privacy</Link>
+            <Link href="/terms" className="hover:text-foreground">Terms</Link>
+            <Link href="/refunds" className="hover:text-foreground">Refunds</Link>
+            <Link href="/cookies" className="hover:text-foreground">Cookies</Link>
+            <Link href="/acceptable-use" className="hover:text-foreground">Acceptable use</Link>
+            <Link href="/contact" className="hover:text-foreground">Contact</Link>
+          </nav>
+        </div>
+      </footer>
     </div>
   );
 }
