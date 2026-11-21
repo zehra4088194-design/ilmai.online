@@ -51,7 +51,7 @@ export function QuizBuilder({ conversationId, mode, defaultTopic = '', context, 
         <div><p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">Questions</p><Seg value={count} onChange={setCount} options={[5, 10, 15, 20].map((n) => ({ v: n, label: String(n) }))} /></div>
         <div><p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">Difficulty</p><Seg value={difficulty} onChange={setDifficulty} options={[{ v: 'easy', label: 'Easy' }, { v: 'medium', label: 'Medium' }, { v: 'hard', label: 'Hard' }]} /></div>
         <div><p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">Type</p><Seg value={kind} onChange={setKind} options={[{ v: 'mcq', label: 'MCQ' }, { v: 'tf', label: 'True / False' }, { v: 'mixed', label: 'Mixed' }]} /></div>
-        <div><p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">Language</p><Seg value={language} onChange={setLanguage} options={[{ v: 'Auto', label: 'Auto' }, { v: 'English', label: 'English' }, { v: 'Urdu', label: 'اردو' }, { v: 'Roman Urdu', label: 'Roman Urdu' }]} /></div>
+        <div><p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">Language</p><Seg value={language} onChange={setLanguage} options={[{ v: 'Auto', label: 'Auto' }, { v: 'English', label: 'English' }, { v: 'Urdu', label: 'Urdu' }, { v: 'Roman Urdu', label: 'Roman Urdu' }]} /></div>
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <button className="btn-primary !px-5 !py-2.5" disabled={busy || topic.trim().length < 3} onClick={go}>
