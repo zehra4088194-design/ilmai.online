@@ -6,7 +6,7 @@ on:
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   app:
@@ -63,6 +63,19 @@ jobs:
           path: workers/ai-router/dist/
           if-no-files-found: error
           retention-days: 2
+      - name: Publish bundle to a temporary deployment branch
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        working-directory: workers/ai-router
+        run: |
+          mkdir -p /tmp/ilmai-router-deploy
+          cp dist/index.js /tmp/ilmai-router-deploy/index.js
+          git checkout --orphan cf-worker-deploy-bundle
+          git rm -rf . >/dev/null 2>&1 || true
+          mkdir -p workers/ai-router/deploy-bundle
+          cp /tmp/ilmai-router-deploy/index.js workers/ai-router/deploy-bundle/index.js
+          git add workers/ai-router/deploy-bundle/index.js
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "Temporary Cloudflare Worker deployment bundle"
+          git push origin HEAD:refs/heads/cf-worker-deploy-bundle --force
 
   pdf-renderer:
     runs-on: ubuntu-latest
