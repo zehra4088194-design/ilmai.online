@@ -137,3 +137,6 @@ html[data-theme-family='midnight'] .aurora::before, html[data-theme-family='midn
 @media (prefers-reduced-motion: reduce) {
   .aurora::before, .aurora::after, .aurora i { animation: none; }
 }
+
+html[data-accent] { --primary: var(--custom-primary, 142 71% 45%); --ring: var(--primary); }
+.dark html[data-accent] { --primary: var(--custom-primary, 142 71% 45%); }
