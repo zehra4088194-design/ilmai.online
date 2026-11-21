@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { handle, HttpError } from '@/lib/http';
 import { adminClient } from '@/lib/supabase/admin';
-import { verifyPayProSignature, timestampIsFresh } from '@/lib/billing';
+import { verifyPayProSignature } from '@/lib/billing';
 import { completePayment } from '@/lib/billing-settlement';
 
 export const runtime='nodejs';
@@ -23,8 +23,8 @@ export const POST=handle(async(req:NextRequest)=>{
   const secret=process.env.PAYPRO_APP_SECRET;
   if(!secret) throw new HttpError(503,'PayPro webhook secret is not configured','paypro_webhook_unconfigured');
   const body=Payload.parse(await req.json());
-  if(!timestampIsFresh(body.timestamp,5*60_000))
-    throw new HttpError(401,'PayPro notification timestamp is expired','paypro_timestamp_expired');
+  // Do not reject delayed, correctly signed PayPro notifications: PayPro retries callbacks for up to 24 hours.
+  // The signed payload plus unique event key and idempotent settlement protect against replayed deliveries.
   const fields={...body} as Record<string,unknown>;
   delete fields.sign;
   if(!verifyPayProSignature(fields,secret,body.sign))
