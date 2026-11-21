@@ -1,6 +1,7 @@
 import 'server-only';
 import { unstable_cache } from 'next/cache';
 import { adminClient } from '@/lib/supabase/admin';
+import { DEFAULT_USD_PKR_RATE, normalizeUsdPkrRate, type UsdPkrRate } from '@/lib/exchange-rate';
 
 export type AppSettings = {
   site_name: string;
@@ -19,6 +20,7 @@ export type AppSettings = {
   suggestions_per_day: number;
   quizzes_per_day: number;
   quiz_max_questions: number;
+  usd_pkr_rate: UsdPkrRate;
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -38,6 +40,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   suggestions_per_day: 300,
   quizzes_per_day: 40,
   quiz_max_questions: 20,
+  usd_pkr_rate: DEFAULT_USD_PKR_RATE,
 };
 
 export const getSettings = unstable_cache(
@@ -46,6 +49,7 @@ export const getSettings = unstable_cache(
       const { data } = await adminClient().from('app_settings').select('key,value');
       const out: Record<string, unknown> = { ...DEFAULT_SETTINGS };
       (data ?? []).forEach((r: { key: string; value: unknown }) => (out[r.key] = r.value));
+      out.usd_pkr_rate = normalizeUsdPkrRate(out.usd_pkr_rate);
       return out as AppSettings;
     } catch {
       return DEFAULT_SETTINGS; // DB not configured yet

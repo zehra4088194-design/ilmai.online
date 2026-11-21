@@ -9,6 +9,7 @@ export const env = {
   aiRouterSecret: process.env.AI_ROUTER_SECRET ?? '',
   adminEmails: (process.env.ADMIN_EMAILS ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean),
   cronSecret: process.env.CRON_SECRET ?? '',
+  exchangeRateApiKey: process.env.EXCHANGE_RATE_API_KEY ?? '',
   b2: {
     endpoint: process.env.B2_ENDPOINT ?? '',
     region: process.env.B2_REGION ?? '',
