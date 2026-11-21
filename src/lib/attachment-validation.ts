@@ -34,6 +34,7 @@ export const ATTACHMENT_TYPES: Record<string, { kind: string; ext: string }> = {
   'application/rtf': { kind: 'file', ext: 'rtf' },
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': { kind: 'docx', ext: 'docx' },
   'application/vnd.openxmlformats-officedocument.presentationml.presentation': { kind: 'pptx', ext: 'pptx' },
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': { kind: 'xlsx', ext: 'xlsx' },
 };
 
 export function attachmentType(mime: string) {
@@ -57,7 +58,7 @@ export function sanitizeFilename(name: string, fallback = 'attachment') {
 
 export function validateDeclaration(mime: string, size: number, maxBytes = MAX_ATTACHMENT_BYTES) {
   const type = attachmentType(mime);
-  if (!type) throw new Error('Only PNG, JPEG, WebP, PDF, TXT, DOCX and PPTX files are supported');
+  if (!type) throw new Error('Unsupported file type. Supported: images, PDF, Word, Excel, PowerPoint, text, data and common source-code files.');
   const limit = Math.min(maxBytes, MAX_ATTACHMENT_BYTES, type.kind === 'file' ? MAX_TEXT_BYTES : Infinity);
   if (!Number.isSafeInteger(size) || size <= 0) throw new Error('The file must not be empty');
   if (size > limit) throw new Error(`File exceeds the ${Math.round(limit / 1024)} KB limit`);
@@ -86,13 +87,16 @@ export function validateAttachmentBytes(bytes: Uint8Array, mime: string, declare
       ascii(bytes, bytes.length - 8, bytes.length - 4) === 'IEND';
   } else if (mime === 'image/jpeg') {
     valid = bytes.length >= 4 && matches(bytes, [255, 216, 255]) && matches(bytes, [255, 217], bytes.length - 2);
+  } else if (mime === 'image/gif') {
+    valid = bytes.length >= 14 && /^GIF8[79]a$/.test(ascii(bytes, 0, 6)) &&
+      ascii(bytes, bytes.length - 1, bytes.length) === ';';
   } else if (mime === 'image/webp') {
     const length = bytes.length >= 12 ? new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(4, true) : 0;
     valid = bytes.length >= 20 && ascii(bytes, 0, 4) === 'RIFF' && ascii(bytes, 8, 12) === 'WEBP' &&
       ['VP8 ', 'VP8L', 'VP8X'].includes(ascii(bytes, 12, 16)) && length + 8 === bytes.length;
   } else if (mime === 'application/pdf') {
     valid = /^%PDF-\d\.\d/.test(ascii(bytes, 0, 8)) && /%%EOF\s*$/.test(ascii(bytes, Math.max(0, bytes.length - 1024), bytes.length));
-  } else if (mime === 'text/plain') {
+  } else if (type.kind === 'file') {
     valid = !!decodeText(bytes).trim();
   } else {
     valid = bytes.length >= 22 && matches(bytes, [80, 75, 3, 4]);
