@@ -146,8 +146,9 @@ function boundedText(text: string) {
 export function verifyAttachment(bytes: Uint8Array, mime: string, size: number, maxBytes = MAX_ATTACHMENT_BYTES): string | undefined {
   try {
     const type = validateAttachmentBytes(bytes, mime, size, maxBytes);
-    if (mime === 'text/plain') return boundedText(decodeText(bytes));
-    if (type.kind === 'docx' || type.kind === 'pptx' || type.kind === 'xlsx') return extractOffice(bytes, type.kind);
+    if (type.kind === 'docx' || type.kind === 'pptx') return extractOffice(bytes, type.kind);
+    if (mime === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') return extractOffice(bytes, 'xlsx');
+    if (type.kind === 'file') return boundedText(decodeText(bytes));
   } catch (e) {
     throw new HttpError(400, e instanceof Error ? e.message : 'Invalid attachment', 'invalid_attachment');
   }
