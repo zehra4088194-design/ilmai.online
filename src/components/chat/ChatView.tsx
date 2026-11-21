@@ -40,6 +40,7 @@ export function ChatView() {
   const [thinking, setThinking] = useState<'auto' | 'low' | 'medium' | 'high'>('auto');
   const [enhancing, setEnhancing] = useState(false);
   const [callActive, setCallActive] = useState(false);
+  const [callStatus, setCallStatus] = useState<'idle'|'listening'|'thinking'|'speaking'>('idle');
 
   const names = useMemo(() => new Map(models.map((m) => [m.id, m.name.replace(/^[^:]+:\\s*/, '')])), [models]);
   const groups = useMemo(() => groupMessages(messages), [messages]);
@@ -78,6 +79,7 @@ export function ChatView() {
   useEffect(() => {
     callActiveRef.current = callActive;
     if (!callActive) {
+      setCallStatus('idle');
       callPausedRef.current = false;
       try { callRecognition.current?.stop(); } catch { /* already stopped */ }
       callRecognition.current = null;
@@ -88,6 +90,7 @@ export function ChatView() {
     const speech = createSpeechRecognition();
     if (!speech) {
       setCallActive(false);
+      setCallStatus('idle');
       toast('Voice call is not supported in this browser. Use Chrome over HTTPS.', 'info');
       return;
     }
@@ -98,21 +101,25 @@ export function ChatView() {
     speech.onresult = (event) => {
       const transcript = Array.from({ length: event.results.length }, (_, index) => event.results[index]?.[0]?.transcript ?? '').join(' ').trim();
       if (!transcript) return;
+      setCallStatus('thinking');
       callPausedRef.current = true;
       speech.stop();
       void sendRef.current?.(transcript);
     };
+    speech.onstart = () => setCallStatus('listening');
     speech.onerror = (event) => {
       if (['not-allowed', 'service-not-allowed', 'audio-capture'].includes(event.error ?? '')) {
         callPausedRef.current = true;
         callActiveRef.current = false;
         setCallActive(false);
+        setCallStatus('idle');
         toast('Voice call stopped. Check microphone permission and make sure no other app is using the microphone.', 'err');
       } else if (event.error !== 'no-speech' && event.error !== 'aborted') {
         toast('Voice call microphone error: ' + (event.error ?? 'check permissions'), 'err');
       }
     };
     speech.onend = () => {
+      if (callActiveRef.current && !callPausedRef.current && !busyRef.current) setCallStatus('listening');
       if (callActiveRef.current && !callPausedRef.current && !busyRef.current) {
         window.setTimeout(() => {
           if (callActiveRef.current && !callPausedRef.current && !busyRef.current) {
@@ -123,9 +130,10 @@ export function ChatView() {
     };
     callRecognition.current = speech;
     callPausedRef.current = false;
-    try { speech.start(); }
+    try { speech.start(); setCallStatus('listening'); }
     catch {
       setCallActive(false);
+      setCallStatus('idle');
       toast('Could not start the voice call. Check microphone permissions.', 'err');
     }
     return () => {
@@ -239,13 +247,16 @@ export function ChatView() {
     if (firstOk && callActiveRef.current && typeof window !== 'undefined' && window.speechSynthesis) {
       const spoken = firstOk.replace(/(```[\s\S]*?```|[*_#>`])/g, ' ').replace(/https?:\/\/\S+/g, 'link').slice(0, 5000);
       const utterance = new SpeechSynthesisUtterance(spoken);
+      utterance.onstart = () => setCallStatus('speaking');
       utterance.onend = () => {
+        setCallStatus(callActiveRef.current ? 'listening' : 'idle');
         callPausedRef.current = false;
         if (callActiveRef.current && !busyRef.current) {
           try { callRecognition.current?.start(); } catch { /* recognition session may still be closing */ }
         }
       };
       utterance.onerror = () => {
+        setCallStatus(callActiveRef.current ? 'listening' : 'idle');
         callPausedRef.current = false;
         if (callActiveRef.current && !busyRef.current) {
           try { callRecognition.current?.start(); } catch { /* ignore browser restart race */ }
@@ -255,6 +266,7 @@ export function ChatView() {
       window.speechSynthesis.speak(utterance);
     } else if (callActiveRef.current) {
       callPausedRef.current = false;
+      setCallStatus('listening');
       try { callRecognition.current?.start(); } catch { /* restart after response */ }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -334,7 +346,7 @@ export function ChatView() {
             {modelsLoading ? <div className="h-7 w-48 animate-pulse rounded-full bg-muted" /> : <ModelBar models={models} selected={selected} onToggle={toggle} max={maxParallel} disabled={busy} />}
           </>}
           thinking={thinking} onThinkingChange={setThinking} onEnhance={enhancePrompt} enhancing={enhancing}
-          onBuildWebsite={() => setWebsiteBuilderOpen(true)} callActive={callActive} onToggleCall={toggleVoiceCall}
+          onBuildWebsite={() => setWebsiteBuilderOpen(true)} callActive={callActive} callStatus={callStatus} onToggleCall={toggleVoiceCall}
           onUnavailable={(f) => toast(f.state === 'active' ? (f.label + ': this chat action is not available yet.') : (f.label + ' is coming soon'), 'info')} />
         <p className="mt-2 text-center text-[11px] text-muted-foreground">AI can make mistakes. Please double-check important information.</p>
       </div>
