@@ -103,6 +103,6 @@ export function validateAttachmentBytes(bytes: Uint8Array, mime: string, declare
   } else {
     valid = bytes.length >= 22 && matches(bytes, [80, 75, 3, 4]);
   }
-  if (!valid) throw new Error('File contents do not match the declared type (or the file is incomplete)');
+  if (!valid) throw new Error('File contents do not match the declared type or file signature (the file may be incomplete)');
   return type;
 }
