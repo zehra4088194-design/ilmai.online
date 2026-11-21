@@ -39,7 +39,7 @@ export const POST=handle(async(req:NextRequest)=>{
 
   const environment=process.env.PADDLE_ENVIRONMENT;
   const apiKey=process.env.PADDLE_API_KEY;
-  if(!apiKey||!process.env.PADDLE_WEBHOOK_SECRET||!['sandbox','production'].includes(environment??'')) {
+  if(!apiKey||!process.env.PADDLE_WEBHOOK_SECRET||!process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN||!['sandbox','production'].includes(environment??'')||process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT!==environment) {
     throw new HttpError(503,'Paddle API key, webhook secret and a valid environment are required','paddle_not_configured');
   }
   const base=environment==='sandbox'?'https://sandbox-api.paddle.com':'https://api.paddle.com';
