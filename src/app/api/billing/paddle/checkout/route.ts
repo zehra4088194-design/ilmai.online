@@ -88,7 +88,7 @@ export const POST=handle(async(req:NextRequest)=>{
     user_id:profile.id,provider:'paddle',plan_id:quote.plan.id,discount_id:quote.discount?.id??null,
     amount:quote.amount,currency:quote.plan.currency,credits_to_grant:quote.credits,
     status:'pending',customer_email:user.email,idempotency_key:body.requestId,
-    metadata:{request_id:body.requestId,expected_amount:quote.amount,paddle_price_id:quote.plan.paddle_price_id},
+    metadata:{request_id:body.requestId,expected_amount:quote.amount,paddle_price_id:quote.plan.paddle_price_id,period_days:quote.plan.period_days},
   }).select('id').single();
   if(insertError) throw insertError;
 
