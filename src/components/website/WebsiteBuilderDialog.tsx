@@ -43,7 +43,7 @@ export function WebsiteBuilderDialog({ open, onClose, models, preferredModel }: 
     !model.locked && model.id !== 'auto'
   ), [models]);
   const chinese = useMemo(() => candidates.filter((model) => CODE_FAMILIES.test(model.id + ' ' + model.name)), [candidates]);
-  const available = chinese.length ? chinese : candidates;
+  const available = chinese;
   const [modelId, setModelId] = useState('');
 
   useEffect(() => {
@@ -78,6 +78,7 @@ export function WebsiteBuilderDialog({ open, onClose, models, preferredModel }: 
         requestId: crypto.randomUUID(),
         model: modelId,
         ...form,
+        pages: [...form.pages, ...fileFilter.split(/[\n,]/).map((item) => item.trim()).filter(Boolean)].slice(0, 12),
       });
       setResult(response);
       setStep(4);
@@ -206,7 +207,7 @@ export function WebsiteBuilderDialog({ open, onClose, models, preferredModel }: 
               {!result && step === 3 && (
                 <div className="space-y-4">
                   <div><h3 className="text-lg font-semibold">Choose your website code model</h3><p className="mt-1 text-sm text-muted-foreground">DeepSeek and Qwen code models are prioritised where available. The model you select will write the project files.</p></div>
-                  {chinese.length === 0 && <p className="rounded-xl border border-warning/30 bg-warning/5 p-3 text-xs text-muted-foreground">No unlocked DeepSeek/Qwen-family model was found in the current catalogue. Choose any available text/code model below.</p>}
+                  {chinese.length === 0 && <p className="rounded-xl border border-warning/30 bg-warning/5 p-3 text-xs text-muted-foreground">No unlocked DeepSeek/Qwen/GLM/Kimi-family code model was found. Unlock one of these models in your plan or admin catalogue before generating a website.</p>}
                   <label className="block text-sm font-medium">Code model<select className="input mt-1.5" value={modelId} onChange={(e) => setModelId(e.target.value)}>
                     <option value="">Choose a model…</option>
                     {available.map((model) => <option key={model.id} value={model.id}>{model.name} · {model.provider}{model.isFree ? ' · Free' : ''}</option>)}
