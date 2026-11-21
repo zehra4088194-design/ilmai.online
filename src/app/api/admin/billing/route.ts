@@ -71,7 +71,7 @@ export const PATCH=handle(async(req:NextRequest)=>{
       throw new HttpError(400,'Set a positive price and credit amount before activating a paid plan');
     const paddleReady=next.currency==='USD'&&!!next.paddle_price_id&&!!process.env.PADDLE_API_KEY&&
       !!process.env.PADDLE_WEBHOOK_SECRET&&['sandbox','production'].includes(process.env.PADDLE_ENVIRONMENT??'');
-    const payproReady=next.currency==='PKR'&&!!next.paypro_enabled&&!!process.env.PAYPRO_MERCHANT_NO&&
+    const payproReady=next.currency==='PKR'&&Number.isInteger(Number(next.price_amount))&&Number(next.price_amount)>=100&&!!next.paypro_enabled&&!!process.env.PAYPRO_MERCHANT_NO&&
       !!process.env.PAYPRO_APP_SECRET&&!!process.env.PAYPRO_API_BASE_URL;
     if(!paddleReady&&!payproReady)
       throw new HttpError(400,'Configure a matching payment provider before activating this paid plan');
