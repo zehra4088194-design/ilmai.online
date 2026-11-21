@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
 
 function safeFileName(title: string, extension: 'pptx' | 'pdf') {
-  const base = title.replace(/[\\/:*?"<>|]+/g, '-').replace(/[\\s.]+$/g, '').slice(0, 100) || 'ilmai-presentation';
+  const base = title.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '-').replace(/-+$/g, '').slice(0, 100) || 'ilmai-presentation';
   return `${base}.${extension}`;
 }
 
@@ -29,7 +29,7 @@ export const POST = handle(async (req: NextRequest) => {
   } else {
     if (feature.config?.pdf_export === false)
       throw new HttpError(403, 'PDF export is currently disabled by the administrator', 'pdf_export_disabled');
-    const rendererUrl = process.env.PDF_RENDERER_URL?.replace(/\\/+$/, '');
+    const rendererUrl = process.env.PDF_RENDERER_URL?.replace(/\/+$/, '');
     const rendererSecret = process.env.PDF_RENDERER_SECRET;
     if (!rendererUrl || !rendererSecret)
       throw new HttpError(503, 'PDF renderer is not configured on this deployment yet. Editable PPTX download is available meanwhile.', 'pdf_renderer_not_configured');
