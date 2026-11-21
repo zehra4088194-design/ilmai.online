@@ -33,7 +33,7 @@ export function AppShell({ user, features, announcement, banner, children }: {
   user: ShellUser; features: UserFeature[]; announcement: { enabled: boolean; text: string }; banner?: { title: string; altText: string; url: string } | null; children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const { appearance, updateAppearance, loaded: appearanceLoaded } = useAppearance();
+  const { updateAppearance, loaded: appearanceLoaded } = useAppearance();
   const [credits, setCredits] = useState(user.credits);
   const [conversations, setConversations] = useState<Conv[]>([]);
   const pathname = usePathname();
