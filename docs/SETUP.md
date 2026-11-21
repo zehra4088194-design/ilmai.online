@@ -10,7 +10,14 @@
 4. **Authentication → URL Configuration**: Site URL = `https://ilmai.online`, Redirect URLs mein `https://ilmai.online/auth/callback` (aur local ke liye `http://localhost:3000/auth/callback`).
 5. (Optional) **Authentication → Providers → Google** enable karo. Testing ke liye email confirmation band rakhna chaho to **Providers → Email → Confirm email** off kar do.
 6. Pehla account app se sign-up karo, phir SQL editor mein: `update public.profiles set role='admin' where email='TUMHARI-EMAIL';`
-   (ya `ADMIN_EMAILS` env mein email daal do).
+   (ya Coolify mein `ADMIN_EMAILS=ilmai.store2@gmail.com` set kar do).
+
+## Email and contact addresses
+
+- Owner/admin login: `ilmai.store2@gmail.com` (`ADMIN_EMAILS`). Use this address when creating the first administrator account.
+- General support and privacy requests: `contact@ilmai.online` (`SUPPORT_EMAIL`, `PRIVACY_CONTACT_EMAIL`).
+- Product feedback and suggestions: `feedback@ilmai.online` (`FEEDBACK_EMAIL`).
+- Transactional sender: `Ilm AI <contact@ilmai.online>` (`EMAIL_FROM`). Verify the `ilmai.online` sending domain in Resend and publish its required SPF/DKIM DNS records before expecting delivery. The two domain addresses must exist as mailboxes or forwarding aliases if they are to receive replies.
 
 ## 2. OpenRouter
 https://openrouter.ai/keys → key banao → `OPENROUTER_API_KEY`. Credits add karo. Settings → "Limits" mein monthly spend limit zaroor lagao.
