@@ -93,6 +93,15 @@ export const POST=handle(async(req:NextRequest)=>{
       const total=(data.details as Record<string,unknown>|undefined)?.totals as Record<string,unknown>|undefined;
       const grandTotal=total?.grand_total??total?.total;
       const amount=moneyFromPaddle(grandTotal,currency);
+      const subtotalAmount=moneyFromPaddle(total?.subtotal,currency);
+      const discountAmount=moneyFromPaddle(total?.discount??'0',currency);
+      const netAmount=Math.round((subtotalAmount-discountAmount)*100)/100;
+      const items=Array.isArray(data.items)?data.items as Record<string,unknown>[]:[];
+      const eventPriceIds=items.map((item)=>{
+        const price=item.price&&typeof item.price==='object'?item.price as Record<string,unknown>:{};
+        return {id:typeof price.id==='string'?price.id:'',quantity:Number(item.quantity??1)};
+      }).filter((item)=>item.id&&item.quantity===1);
+      if(!Number.isFinite(netAmount)||netAmount<=0) throw new Error('Paddle transaction has an invalid pre-tax total');
       if(!transactionId) throw new Error('Paddle transaction ID is missing');
 
       let payment:Record<string,any>|null=null;
@@ -107,20 +116,25 @@ export const POST=handle(async(req:NextRequest)=>{
       }
 
       if(!payment&&subscriptionId) {
-        const subscription=await db.from('subscriptions').select('user_id,plan_id')
+        const subscription=await db.from('subscriptions').select('user_id,plan_id,metadata')
           .eq('provider','paddle').eq('external_subscription_id',subscriptionId).maybeSingle();
         if(subscription.error) throw subscription.error;
         if(subscription.data) {
           const plan=await db.from('billing_plans').select('credits_per_period,paddle_price_id,currency')
             .eq('id',subscription.data.plan_id).single();
           if(plan.error) throw plan.error;
+          const storedSubscriptionPrice=typeof subscription.data.metadata?.paddle_price_id==='string'
+            ?subscription.data.metadata.paddle_price_id:plan.data.paddle_price_id;
+          if(!storedSubscriptionPrice||!eventPriceIds.some((item)=>item.id===storedSubscriptionPrice))
+            throw new Error('Paddle renewal price does not match the price linked to this subscription');
           const renewal=await db.from('payments').insert({
             user_id:subscription.data.user_id,provider:'paddle',provider_reference:transactionId,
-            plan_id:subscription.data.plan_id,amount,currency,
+            plan_id:subscription.data.plan_id,amount:netAmount,currency,
             credits_to_grant:Number(plan.data.credits_per_period),status:'pending',
             idempotency_key:'paddle-renewal:'+transactionId,
             metadata:{
               subscription_id:subscriptionId,customer_id:customerId,
+              expected_amount:netAmount,paddle_price_id:storedSubscriptionPrice,
               period_start:iso((data.billing_period as Record<string,unknown>|undefined)?.starts_at),
               period_end:iso((data.billing_period as Record<string,unknown>|undefined)?.ends_at),
             },
@@ -139,16 +153,22 @@ export const POST=handle(async(req:NextRequest)=>{
       if(planError) throw planError;
       if(!plan||!plan.paddle_price_id) throw new Error('The Paddle payment plan has no configured catalogue price');
       if(currency!==String(plan.currency).toUpperCase()) throw new Error('Paddle transaction currency does not match the configured plan');
-      const items=Array.isArray(data.items)?data.items as Record<string,unknown>[]:[];
+      const expectedPriceId=typeof payment.metadata?.paddle_price_id==='string'
+        ?payment.metadata.paddle_price_id:plan.paddle_price_id;
       const matchingItem=items.find((item)=>{
         const price=item.price&&typeof item.price==='object'?item.price as Record<string,unknown>:{};
-        return price.id===plan.paddle_price_id && Number(item.quantity??1)===1;
+        return price.id===expectedPriceId && Number(item.quantity??1)===1;
       });
       if(!matchingItem) throw new Error('Paddle transaction does not contain the configured plan price and quantity');
+      if(payment.metadata?.expected_amount!==undefined &&
+        Math.round(netAmount*100)!==Math.round(Number(payment.metadata.expected_amount)*100))
+        throw new Error('Paddle pre-tax amount does not match the server-calculated plan quote');
 
       const metadata={
         ...(payment.metadata??{}),
         subscription_id:subscriptionId,customer_id:customerId,
+        paddle_price_id:expectedPriceId,
+        expected_amount:payment.metadata?.expected_amount??netAmount,
         period_start:iso((data.billing_period as Record<string,unknown>|undefined)?.starts_at),
         period_end:iso((data.billing_period as Record<string,unknown>|undefined)?.ends_at),
       };
@@ -162,6 +182,18 @@ export const POST=handle(async(req:NextRequest)=>{
         if(current.data?.status!=='paid') throw new Error('Paddle payment is no longer pending');
       }
       await completePayment({paymentId:payment.id,providerReference:transactionId,amount,currency});
+      if(subscriptionId) {
+        const localSubscription=await db.from('subscriptions').select('id,metadata')
+          .eq('provider','paddle').eq('external_subscription_id',subscriptionId).maybeSingle();
+        if(localSubscription.error) throw localSubscription.error;
+        if(localSubscription.data) {
+          const subscriptionMetadata=await db.from('subscriptions').update({
+            metadata:{...(localSubscription.data.metadata??{}),paddle_price_id:expectedPriceId},
+            updated_at:new Date().toISOString(),
+          }).eq('id',localSubscription.data.id);
+          if(subscriptionMetadata.error) throw subscriptionMetadata.error;
+        }
+      }
     } else if(type.startsWith('subscription.')) {
       const subscriptionId=String(data.id??'');
       if(!subscriptionId) throw new Error('Paddle subscription event has no subscription ID');
