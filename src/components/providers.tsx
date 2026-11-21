@@ -66,7 +66,7 @@ function ToastProvider({ children }: { children: React.ReactNode }) {
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+    <ThemeProvider attribute="class" defaultTheme="dark" forcedTheme="dark" enableSystem={false} disableTransitionOnChange>
       <AccentProvider><ToastProvider>{children}</ToastProvider></AccentProvider>
     </ThemeProvider>
   );
