@@ -105,7 +105,7 @@ export function ModelBar({
               <label className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground">
                 Provider
                 <select className="max-w-[10rem] rounded-full border border-border bg-background px-2.5 py-1 text-xs text-foreground outline-none focus:border-primary" value={provider} onChange={(event)=>setProvider(event.target.value)}>
-                  {providers.map((item)=><option key={item} value={item}>{item==='all'?'All providers':item}</option>)}
+                  {providers.map((item)=><option key={item} value={item}>{item==='all'?'All providers':item.split(/[-_\s]+/).map(part=>part.charAt(0).toUpperCase()+part.slice(1)).join(' ')}</option>)}
                 </select>
               </label>
             </div>
