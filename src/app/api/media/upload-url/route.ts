@@ -7,7 +7,7 @@ import { requireFeature } from '@/lib/features';
 import { getSettings } from '@/lib/settings';
 import { signedUploadUrl } from '@/lib/storage/b2';
 import { adminClient } from '@/lib/supabase/admin';
-import { sanitizeFilename, uploadLimits, validateDeclaration } from '@/lib/attachment-validation';
+import { attachmentType, OFFICE_LIMITS, sanitizeFilename, uploadLimits, validateDeclaration } from '@/lib/attachment-validation';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,9 +26,16 @@ export const POST = handle(async (req: NextRequest) => {
   await requireFeature('file_upload', profile.plan, isAdmin);
   const { mime, size, name } = Body.parse(await req.json());
   const limits = uploadLimits((await getSettings()).max_upload_mb);
+  const declaredType = attachmentType(mime);
+  const maxUploadBytes = declaredType && ['docx', 'pptx', 'xlsx'].includes(declaredType.ext)
+    ? Math.min(limits.maxBytes, OFFICE_LIMITS.fileBytes)
+    : limits.maxBytes;
   let type;
-  try { type = validateDeclaration(mime, size, limits.maxBytes); }
-  catch (e) { throw new HttpError(size > limits.maxBytes || (type?.kind === 'file' && type.ext !== 'xlsx' && size > limits.maxTextBytes) ? 413 : 400, e instanceof Error ? e.message : 'Invalid file'); }
+  try { type = validateDeclaration(mime, size, maxUploadBytes); }
+  catch (e) {
+    const overTextLimit = declaredType?.kind === 'file' && declaredType.ext !== 'xlsx' && size > limits.maxTextBytes;
+    throw new HttpError(size > maxUploadBytes || overTextLimit ? 413 : 400, e instanceof Error ? e.message : 'Invalid file');
+  }
 
   const key = `staging/${profile.id}/${randomUUID()}.${type.ext}`;
   const uploadUrl = await signedUploadUrl(key, mime);
