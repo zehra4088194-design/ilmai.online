@@ -4,7 +4,6 @@ import { handle, json } from '@/lib/http';
 import { requireUserApi } from '@/lib/auth';
 import { requireFeature } from '@/lib/features';
 import { getSettings } from '@/lib/settings';
-import { getMode } from '@/lib/modes';
 import { utilityChat } from '@/lib/utility-ai';
 import { extractJson } from '@/lib/json-extract';
 import { logUsage, countLast24h } from '@/lib/usage';
@@ -31,20 +30,18 @@ export const POST = handle(async (req: NextRequest) => {
   lastCall.set(profile.id, now);
   if (!isAdmin && (await countLast24h(profile.id, 'suggest')) >= settings.suggestions_per_day) return json({ suggestions: [] });
 
-  const mode = await getMode(b.mode);
   const started = Date.now();
   try {
     const r = await utilityChat(
       [
-        { role: 'system', content: 'You suggest what a learner could ask next. Reply with ONLY a JSON array of exactly 3 short strings. No markdown.' },
+        { role: 'system', content: 'You suggest useful follow-up prompts for a general-purpose AI assistant conversation. Reply with ONLY a JSON array of exactly 3 short strings. No markdown.' },
         {
           role: 'user',
-          content: `Learner: ${profile.audience}${profile.grade ? `, ${profile.grade}` : ''}
-Mode: ${mode?.name ?? 'General'}
+          content: `Conversation context: General-purpose AI assistant
 Last question: ${b.user.slice(0, 600)}
 Assistant's answer (may be truncated): ${b.assistant.slice(0, 1500)}
 
-Suggest 3 different follow-up messages the learner might send next: (1) go deeper, (2) ask for an example or practice question, (3) a closely related topic.
+Suggest 3 different follow-up messages the user might send next: (1) go deeper, (2) ask for an example or practice question, (3) a closely related topic.
 Each at most 12 words, written from the learner's point of view, in the same language and script as the last question.`,
         },
       ],
