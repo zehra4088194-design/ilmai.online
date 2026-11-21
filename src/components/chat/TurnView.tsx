@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Copy, Check, AlertTriangle } from 'lucide-react';
+import { Copy, Check, AlertTriangle, Pencil, RotateCcw } from 'lucide-react';
 import { LogoMark } from '@/components/ui/Logo';
 import { Markdown } from '@/components/chat/Markdown';
 import { QuizCard } from '@/components/quiz/QuizCard';
@@ -38,7 +38,7 @@ function Answer({ m, label, boxed }: { m: Msg; label: string; boxed: boolean }) 
   );
 }
 
-export function TurnView({ group, names, onAsk, onNewQuiz }: { group: Group; names: Map<string, string>; onAsk: (t: string) => void; onNewQuiz: (topic: string) => void }) {
+export function TurnView({ group, names, onAsk, onNewQuiz, onEdit }: { group: Group; names: Map<string, string>; onAsk: (t: string) => void; onNewQuiz: (topic: string) => void; onEdit: (t: string) => void }) {
   if (group.quiz?.meta?.quiz_id) return <QuizCard quizId={group.quiz.meta.quiz_id} onAsk={onAsk} onNewQuiz={onNewQuiz} />;
   const n = group.answers.length;
   return (
@@ -55,6 +55,12 @@ export function TurnView({ group, names, onAsk, onNewQuiz }: { group: Group; nam
       {n > 1 && (
         <div className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2 md:grid md:overflow-visible md:[grid-template-columns:repeat(var(--cols),minmax(0,1fr))]" style={{ ['--cols' as string]: Math.min(n, 4) }}>
           {group.answers.map((a) => <Answer key={a.id} m={a} label={shortName(a.model, names)} boxed />)}
+        </div>
+      )}
+      {group.user?.content && group.answers.some(a => !a.streaming && !a.error && a.content) && (
+        <div className="mx-auto flex w-full max-w-3xl flex-wrap gap-1 pl-11">
+          <button type="button" onClick={() => onEdit(group.user!.content)} className="btn-ghost h-8 !px-2.5 text-xs"><Pencil className="h-3.5 w-3.5"/>Edit prompt</button>
+          <button type="button" onClick={() => onAsk(group.user!.content)} className="btn-ghost h-8 !px-2.5 text-xs"><RotateCcw className="h-3.5 w-3.5"/>Try again</button>
         </div>
       )}
     </motion.div>
