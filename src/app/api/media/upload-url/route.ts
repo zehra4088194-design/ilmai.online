@@ -28,7 +28,7 @@ export const POST = handle(async (req: NextRequest) => {
   const limits = uploadLimits((await getSettings()).max_upload_mb);
   let type;
   try { type = validateDeclaration(mime, size, limits.maxBytes); }
-  catch (e) { throw new HttpError(size > limits.maxBytes || (mime === 'text/plain' && size > limits.maxTextBytes) ? 413 : 400, e instanceof Error ? e.message : 'Invalid file'); }
+  catch (e) { throw new HttpError(size > limits.maxBytes || (type?.kind === 'file' && size > limits.maxTextBytes) ? 413 : 400, e instanceof Error ? e.message : 'Invalid file'); }
 
   const key = `staging/${profile.id}/${randomUUID()}.${type.ext}`;
   const uploadUrl = await signedUploadUrl(key, mime);
