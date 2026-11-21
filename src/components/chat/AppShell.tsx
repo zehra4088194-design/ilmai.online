@@ -3,7 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, Search, Pin, Pencil, Trash2, Settings, ShieldCheck, Menu, X, Image as ImageIcon, Video, GraduationCap, FolderKanban, Library as LibraryIcon, Folder, FolderPlus, FolderInput, FolderOpen } from 'lucide-react';
+import { Plus, Search, Pin, Pencil, Trash2, Settings, ShieldCheck, Menu, X, Image as ImageIcon, Video, GraduationCap, FolderKanban, Library as LibraryIcon, Folder, FolderPlus, FolderInput, FolderOpen, CreditCard } from 'lucide-react';
 import { Logo } from '@/components/ui/Logo';
 import { cn, fmtNum } from '@/lib/utils';
 import type { UserFeature } from '@/lib/features';
@@ -292,6 +292,7 @@ function Sidebar() {
       </div>
 
       <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
+        <Link href="/pricing" className="mb-1 flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"><CreditCard className="h-3.5 w-3.5"/>Pricing & plans</Link>
         <Link href="/settings" className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1.5 py-1.5 hover:bg-muted">
           <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-muted text-xs font-bold text-primary">{(user.name || user.email || 'A').slice(0, 1).toUpperCase()}</span>
           <span className="min-w-0 flex-1">
