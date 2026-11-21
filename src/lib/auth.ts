@@ -24,6 +24,7 @@ export type Profile = {
   /** Only trigger-created signups start with a null dismissal timestamp. */
   pricing_dismissed_at: string | null;
   onboarding_source: 'existing' | 'signup' | 'recovered';
+  preferences: Record<string, unknown>;
 };
 
 export const isAdminProfile = (p: Pick<Profile, 'role' | 'email'>) =>
