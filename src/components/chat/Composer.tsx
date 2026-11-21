@@ -156,7 +156,7 @@ export function Composer({
             className={cn('grid h-9 w-9 place-items-center rounded-full transition hover:bg-muted', dictating ? 'text-danger' : 'text-muted-foreground')}>
             {dictating ? <MicOff className="h-[18px] w-[18px]" /> : <Mic className="h-[18px] w-[18px]" />}
           </button>
-          <button type="button" onClick={onToggleCall} disabled={!onToggleCall || busy || uploading} aria-label={callActive ? 'End voice call' : 'Start voice call'}
+          <button type="button" onClick={onToggleCall} disabled={!onToggleCall || (!callActive && (busy || uploading))} aria-label={callActive ? 'End voice call' : 'Start voice call'}
             title={callActive ? 'End voice call' : 'Voice call'}
             className={cn('grid h-9 w-9 place-items-center rounded-full transition hover:bg-muted', callActive ? 'bg-danger/10 text-danger' : 'text-muted-foreground')}>
             {callActive ? <PhoneOff className="h-[18px] w-[18px]" /> : <PhoneCall className="h-[18px] w-[18px]" />}
