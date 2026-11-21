@@ -92,7 +92,7 @@ export async function runWebsiteBuildInSandbox(
       throw new Error(resultOutput(runtime.stdout, runtime.stderr) || 'The E2B template does not contain Node.js and npm.');
     }
 
-    await sandbox.files.write(
+    const prepare = await sandbox.commands.run('mkdir -p ' + WORKDIR, { cwd: '/home/user', timeoutMs: 10_000 });\n    if (prepare.exitCode !== 0) throw new Error(resultOutput(prepare.stdout, prepare.stderr) || 'Could not create the sandbox working directory.');\n\n    await sandbox.files.write(
       project.files.map((file) => ({
         path: `${WORKDIR}/${file.path}`,
         data: file.content,
