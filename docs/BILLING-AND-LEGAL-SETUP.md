@@ -60,10 +60,13 @@ Complete the following Coolify runtime variables before opening registration and
 
 - `LEGAL_ENTITY_NAME`: the actual legal person or business operating the service.
 - `LEGAL_POSTAL_ADDRESS`: a valid postal/contact address for the operator.
-- `SUPPORT_EMAIL`: a monitored support address.
-- `PRIVACY_CONTACT_EMAIL`: a monitored privacy request address (may be the same as support).
+- `SUPPORT_EMAIL=contact@ilmai.online`: monitored general support and billing address.
+- `FEEDBACK_EMAIL=feedback@ilmai.online`: monitored product feedback and suggestions address.
+- `PRIVACY_CONTACT_EMAIL=contact@ilmai.online`: privacy requests (can use the same monitored contact inbox).
 - `LEGAL_GOVERNING_LAW`: the governing law/jurisdiction selected by the operator after legal review.
 - `LEGAL_DATA_REGIONS`: actual countries/regions used by the Supabase project, Backblaze B2 bucket, email, AI/model, payment and infrastructure providers for this deployment.
+
+Configure `ADMIN_EMAILS=ilmai.store2@gmail.com` to recognise the owner account as an administrator. For transactional mail, set `EMAIL_FROM=Ilm AI <contact@ilmai.online>` and verify the `ilmai.online` domain and sender in Resend before enabling receipts. Create the `contact@ilmai.online` and `feedback@ilmai.online` mailboxes or forwarding aliases, and make sure someone monitors them.
 
 The public policies are available at:
 
