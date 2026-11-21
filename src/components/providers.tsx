@@ -1,37 +1,91 @@
 'use client';
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { ThemeProvider } from 'next-themes';
+import { ThemeProvider, useTheme } from 'next-themes';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CheckCircle2, AlertCircle, Info } from 'lucide-react';
 
-/* ---------- accent palette ---------- */
+export type Appearance = {
+  family: string;
+  mode: 'dark' | 'light' | 'system';
+  accent: string;
+  monochrome: boolean;
+  headingColor: string;
+  headingStyle: 'auto' | 'handwritten' | 'serif' | 'minimal';
+  font: 'sans' | 'serif' | 'mono';
+};
+export const DEFAULT_APPEARANCE: Appearance = {
+  family: 'classic', mode: 'dark', accent: '#22c55e', monochrome: false,
+  headingColor: 'auto', headingStyle: 'auto', font: 'sans',
+};
+export const THEME_FAMILIES = [
+  { id: 'classic', label: 'Ilm Green', swatches: ['#080a09','#22c55e','#111713'] },
+  { id: 'violet', label: 'Violet Focus', swatches: ['#100c1b','#a78bfa','#211831'] },
+  { id: 'rose', label: 'Rose Focus', swatches: ['#170d12','#f472b6','#2a1721'] },
+  { id: 'blue', label: 'Blue Night', swatches: ['#0a101a','#60a5fa','#172336'] },
+  { id: 'paper', label: 'Paper Notes', swatches: ['#f5f0e5','#2563eb','#e7dfcd'] },
+  { id: 'midnight', label: 'Midnight Grain', swatches: ['#101010','#f59e0b','#242424'] },
+  { id: 'forest', label: 'Forest Study', swatches: ['#0d1711','#4ade80','#1a2c20'] },
+  { id: 'sunset', label: 'Sunset Atelier', swatches: ['#19100b','#fb923c','#2a1c13'] },
+  { id: 'copper', label: 'Copper Lab', swatches: ['#17120e','#d97706','#2b2119'] },
+  { id: 'ice', label: 'Ice Glass', swatches: ['#08131c','#22d3ee','#142633'] },
+] as const;
 export const ACCENTS = [
-  { id: 'emerald', label: 'Green', swatch: '#22c55e' },
+  { id: '#22c55e', label: 'Green', swatch: '#22c55e' },
+  { id: '#a78bfa', label: 'Violet', swatch: '#a78bfa' },
+  { id: '#f472b6', label: 'Pink', swatch: '#f472b6' },
+  { id: '#60a5fa', label: 'Blue', swatch: '#60a5fa' },
+  { id: '#f59e0b', label: 'Amber', swatch: '#f59e0b' },
+  { id: '#22d3ee', label: 'Cyan', swatch: '#22d3ee' },
+  { id: '#fb7185', label: 'Coral', swatch: '#fb7185' },
+  { id: '#a3e635', label: 'Lime', swatch: '#a3e635' },
+  { id: '#a1a1aa', label: 'Monochrome', swatch: '#a1a1aa' },
 ] as const;
 
-const AccentCtx = createContext<{ accent: string; setAccent: (a: string) => void }>({ accent: 'emerald', setAccent: () => {} });
+type AppearanceContextValue = { appearance: Appearance; updateAppearance: (patch: Partial<Appearance>) => void; loaded: boolean };
+const AppearanceCtx = createContext<AppearanceContextValue>({ appearance: DEFAULT_APPEARANCE, updateAppearance: () => {}, loaded: false });
+export const useAppearance = () => useContext(AppearanceCtx);
+const AccentCtx = createContext<{ accent: string; setAccent: (a: string) => void }>({ accent: '#22c55e', setAccent: () => {} });
 export const useAccent = () => useContext(AccentCtx);
 
-function AccentProvider({ children }: { children: React.ReactNode }) {
-  const [accent, set] = useState('emerald');
+function hexToHsl(hex: string) {
+  const clean = hex.replace('#','');
+  if (!/^[0-9a-fA-F]{6}$/.test(clean)) return '142 71% 45%';
+  let r=parseInt(clean.slice(0,2),16)/255,g=parseInt(clean.slice(2,4),16)/255,b=parseInt(clean.slice(4,6),16)/255;
+  const max=Math.max(r,g,b),min=Math.min(r,g,b),d=max-min; let h=0,s=0,l=(max+min)/2;
+  if(d){s=d/(1-Math.abs(2*l-1));switch(max){case r:h=((g-b)/d)%6;break;case g:h=(b-r)/d+2;break;default:h=(r-g)/d+4;}h*=60;if(h<0)h+=360;}
+  return `${Math.round(h)} ${Math.round(s*100)}% ${Math.round(l*100)}%`;
+}
+function AppearanceRuntime({ children }: { children: React.ReactNode }) {
+  const { setTheme } = useTheme();
+  const [appearance,setAppearance] = useState<Appearance>(DEFAULT_APPEARANCE);
+  const [loaded,setLoaded] = useState(false);
   useEffect(() => {
-    set('emerald');
-    document.documentElement.dataset.accent = 'emerald';
-    try { localStorage.setItem('ilm-accent', 'emerald'); } catch { /* private mode */ }
+    try {
+      const stored=localStorage.getItem('ilm-appearance');
+      if(stored){const parsed=JSON.parse(stored);setAppearance({...DEFAULT_APPEARANCE,...parsed});}
+    } catch { /* local storage can be unavailable */ }
+    setLoaded(true);
   }, []);
-  const setAccent = (_a: string) => {
-    set('emerald');
-    document.documentElement.dataset.accent = 'emerald';
-    try { localStorage.setItem('ilm-accent', 'emerald'); } catch { /* private mode */ }
-  };
-  return <AccentCtx.Provider value={{ accent, setAccent }}>{children}</AccentCtx.Provider>;
+  useEffect(() => {
+    if(!loaded) return;
+    const root=document.documentElement;
+    root.dataset.themeFamily=appearance.family;
+    root.dataset.headingStyle=appearance.headingStyle;
+    root.dataset.fontStyle=appearance.font;
+    root.dataset.monochrome=appearance.monochrome?'true':'false';
+    root.style.setProperty('--custom-primary',hexToHsl(appearance.monochrome?'#a1a1aa':appearance.accent));
+    root.style.setProperty('--heading-color',appearance.headingColor==='auto'?'hsl(var(--primary))':appearance.headingColor);
+    setTheme(appearance.mode);
+    try{localStorage.setItem('ilm-appearance',JSON.stringify(appearance));localStorage.setItem('ilm-accent',appearance.accent);}catch{/* storage optional */}
+  },[appearance,loaded,setTheme]);
+  const updateAppearance=useCallback((patch:Partial<Appearance>)=>setAppearance(p=>({...p,...patch})),[]);
+  return <AppearanceCtx.Provider value={{appearance,updateAppearance,loaded}}><AccentCtx.Provider value={{accent:appearance.accent,setAccent:(accent)=>updateAppearance({accent})}}>{children}</AccentCtx.Provider></AppearanceCtx.Provider>;
 }
 
 /* ---------- toasts ---------- */
 type Toast = { id: number; msg: string; type: 'ok' | 'err' | 'info' };
 const ToastCtx = createContext<(msg: string, type?: Toast['type']) => void>(() => {});
 export const useToast = () => useContext(ToastCtx);
-
 function ToastProvider({ children }: { children: React.ReactNode }) {
   const [list, setList] = useState<Toast[]>([]);
   const push = useCallback((msg: string, type: Toast['type'] = 'info') => {
@@ -40,31 +94,8 @@ function ToastProvider({ children }: { children: React.ReactNode }) {
     setTimeout(() => setList((l) => l.filter((t) => t.id !== id)), 4200);
   }, []);
   const Icon = { ok: CheckCircle2, err: AlertCircle, info: Info };
-  return (
-    <ToastCtx.Provider value={push}>
-      {children}
-      <div className="pointer-events-none fixed bottom-4 right-4 z-[100] flex w-[min(92vw,22rem)] flex-col gap-2">
-        <AnimatePresence>
-          {list.map((t) => {
-            const I = Icon[t.type];
-            return (
-              <motion.div key={t.id} layout initial={{ opacity: 0, y: 16, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, x: 40 }}
-                className="glass pointer-events-auto flex items-start gap-2.5 rounded-xl px-3.5 py-3 text-sm shadow-soft">
-                <I className={`mt-0.5 h-4 w-4 shrink-0 ${t.type === 'err' ? 'text-danger' : 'text-primary'}`} />
-                <span>{t.msg}</span>
-              </motion.div>
-            );
-          })}
-        </AnimatePresence>
-      </div>
-    </ToastCtx.Provider>
-  );
+  return <ToastCtx.Provider value={push}>{children}<div className="pointer-events-none fixed bottom-4 right-4 z-[100] flex w-[min(92vw,22rem)] flex-col gap-2"><AnimatePresence>{list.map((t) => {const I=Icon[t.type];return <motion.div key={t.id} layout initial={{opacity:0,y:16,scale:0.96}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,x:40}} className="glass pointer-events-auto flex items-start gap-2.5 rounded-xl px-3.5 py-3 text-sm shadow-soft"><I className={`mt-0.5 h-4 w-4 shrink-0 ${t.type==='err'?'text-danger':'text-primary'}`} /><span>{t.msg}</span></motion.div>;})}</AnimatePresence></div></ToastCtx.Provider>;
 }
-
 export function Providers({ children }: { children: React.ReactNode }) {
-  return (
-    <ThemeProvider attribute="class" defaultTheme="dark" forcedTheme="dark" enableSystem={false} disableTransitionOnChange>
-      <AccentProvider><ToastProvider>{children}</ToastProvider></AccentProvider>
-    </ThemeProvider>
-  );
+  return <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange><AppearanceRuntime><ToastProvider>{children}</ToastProvider></AppearanceRuntime></ThemeProvider>;
 }
