@@ -174,7 +174,6 @@ export const POST = handle(async (req: NextRequest) => {
       }
     }
     buildCheck = { ...buildCheck, repairAttempts };
-    result = { ...result, usage: totalUsage } as typeof result;
     const usage = totalUsage;
     const chargedByUsage = (await import('@/lib/credits')).creditsFor(
       usage.cost ?? 0,
