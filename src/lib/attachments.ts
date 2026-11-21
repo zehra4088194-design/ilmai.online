@@ -94,30 +94,31 @@ function extractOffice(bytes: Uint8Array, kind: string) {
 
   if (kind === 'xlsx') {
     const sharedXml = files['xl/sharedStrings.xml'] ? decodeText(files['xl/sharedStrings.xml']) : '';
-    const shared = (sharedXml.match(/<si\\b[\\s\\S]*?<\\/si>/g) ?? []).map(xmlText);
+    if (/<!DOCTYPE|<!ENTITY/i.test(sharedXml)) throw new Error('XML entities are not supported');
+    const shared = (sharedXml.match(/<si\b[\s\S]*?<\/si>/g) ?? []).map(xmlText);
     const rows: string[] = [];
-    for (const name of Object.keys(files).filter((entry) => /^xl\\/worksheets\\/sheet\\d+\\.xml$/.test(entry)).sort()) {
+    for (const name of Object.keys(files).filter((entry) => /^xl\/worksheets\/sheet\d+\.xml$/.test(entry)).sort()) {
       const xml = decodeText(files[name]);
       if (/<!DOCTYPE|<!ENTITY/i.test(xml)) throw new Error('XML entities are not supported');
-      for (const row of xml.match(/<row\\b[\\s\\S]*?<\\/row>/g) ?? []) {
+      for (const row of xml.match(/<row\b[\s\S]*?<\/row>/g) ?? []) {
         const cells: string[] = [];
-        for (const match of row.matchAll(/<c\\b([^>]*)>([\\s\\S]*?)<\\/c>/g)) {
+        for (const match of row.matchAll(/<c\b([^>]*)>([\s\S]*?)<\/c>/g)) {
           const attrs = match[1];
           const body = match[2];
-          const ref = attrs.match(/\\br="([A-Z]+)\\d+"/i)?.[1] ?? '';
+          const ref = attrs.match(/\br="([A-Z]+)\d+"/i)?.[1] ?? '';
           let col = 0;
           for (const ch of ref) col = col * 26 + ch.charCodeAt(0) - 64;
-          const type = attrs.match(/\\bt="([^"]+)"/)?.[1] ?? '';
-          const value = body.match(/<v>([\\s\\S]*?)<\\/v>/)?.[1] ?? '';
+          const type = attrs.match(/\bt="([^"]+)"/)?.[1] ?? '';
+          const value = body.match(/<v>([\s\S]*?)<\/v>/)?.[1] ?? '';
           const cell = type === 's' ? (shared[Number(value)] ?? '') :
             type === 'inlineStr' ? xmlText(body) : value;
           if (col > 0 && col <= 256) cells[col - 1] = cell;
         }
-        rows.push(cells.map((cell) => cell ?? '').join('\\t'));
+        rows.push(cells.map((cell) => cell ?? '').join('\t'));
       }
     }
     if (!rows.some((row) => row.trim())) throw new Error('No readable spreadsheet cells found');
-    return boundedText(rows.join('\\n').trim());
+    return boundedText(rows.join('\n').trim());
   }
 
   let text = '';
