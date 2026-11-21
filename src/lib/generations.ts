@@ -7,7 +7,7 @@ import type { AppSettings } from '@/lib/settings';
 import type { ModelInfo } from '@/lib/models';
 import type { UsageInput } from '@/lib/usage';
 
-type Kind = 'chat' | 'compare' | 'image' | 'video' | 'presentation' | 'test';
+type Kind = 'chat' | 'compare' | 'image' | 'video' | 'presentation' | 'test' | 'website';
 
 export function generationEstimate(messages: unknown[], model: ModelInfo, settings: AppSettings, maxTokens: number) {
   const serialized = JSON.stringify(messages);
