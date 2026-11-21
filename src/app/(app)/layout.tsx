@@ -3,6 +3,7 @@ import { requireUserPage } from '@/lib/auth';
 import { featuresForUser } from '@/lib/features';
 import { getSettings } from '@/lib/settings';
 import { getModes } from '@/lib/modes';
+import { adminClient } from '@/lib/supabase/admin';
 import { AppShell } from '@/components/chat/AppShell';
 
 export const dynamic = 'force-dynamic';
