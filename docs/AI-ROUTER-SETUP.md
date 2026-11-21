@@ -16,7 +16,7 @@ Worker `ilmai-ai-router` is account par deploy ho chuka hai:
 
 Iske `RequestGate` aur `KeyPool` SQLite Durable Objects bhi provision ho chuke hain. `AI_ROUTER_SECRET` Cloudflare Worker mein configured hai. **Abhi `OPENROUTER_API_KEY` add karna baqi hai**, warna inference gateway OpenRouter requests serve nahi kar sakega.
 
-Cloudflare Dashboard → Workers & Pages → `ilmai-ai-router` → Settings → Variables and Secrets → Add → **Secret** se missing key add karo. OpenRouter key wahi use karo jo Coolify main app mein model catalogue/pricing ke liye already configured hai.
+Cloudflare Dashboard → Workers & Pages → `ilmai-ai-router` → Settings → Variables and Secrets mein `AI_ROUTER_SECRET` aur `OPENROUTER_API_KEY` Secret ke taur par configured hain. Groq/Gemini ki 20 numbered keys ko bhi normal Variables ke bajaye **Secrets** mein convert karna baqi hai.
 
 Agar future mein Worker ko dobara deploy karna ho, repo ke `workers/ai-router` folder mein:
 ```bash
@@ -28,20 +28,21 @@ npx wrangler deploy
 
 Worker ka HMAC secret Coolify aur Cloudflare dono jagah identical hona chahiye. Secret values ko GitHub ya chat mein share mat karo.
 
-## 2. Optional provider keys
+## 2. Provider secrets and Wrangler validation
 
-Initial setup ke liye Groq/Gemini API keys required nahi hain.
+Production Worker ke liye ye 20 numbered provider keys Cloudflare mein **Secret** type honi chahiye (normal Variable nahi):
 
-- `GROQ_API_KEY_1`: Auto mode ke smart model chooser ko Groq-powered selection deta hai. Is key ke baghair Auto deterministic candidate priority use karta hai.
-- `GEMINI_API_KEY_1` aur additional numbered Groq/Gemini slots: sirf tab lagao jab future mein approved direct-provider routing enable karni ho.
-- Har provider ke maximum 10 numbered slots supported hain; unconfigured slots ignore hote hain.
+- `GROQ_API_KEY_1`–`GROQ_API_KEY_10`
+- `GEMINI_API_KEY_1`–`GEMINI_API_KEY_10`
 
-Keys add karne ke liye:
-```bash
-npx wrangler secret put GROQ_API_KEY_1
-npx wrangler secret put GEMINI_API_KEY_1
-```
-Har secret add/update par Wrangler Worker ka naya version deploy karta hai.
+Inke saath `AI_ROUTER_SECRET` aur `OPENROUTER_API_KEY` mila kar 22 names `workers/ai-router/wrangler.jsonc` ke `secrets.required` mein declared hain. Iska matlab `wrangler deploy` aur `wrangler versions upload` tabhi succeed karenge jab saare 22 secrets Worker par configured hon. Secret values Wrangler config ya GitHub mein kabhi commit nahi karni.
+
+Current code usage:
+- `GROQ_API_KEY_1` Auto mode ke smart model chooser ko Groq-powered selection deta hai; baqi Groq slots key rotation/pooling ke liye available hain.
+- Worker mein Groq/Gemini direct provider calls ka support maujood hai, lekin current Next.js chat route candidates abhi `provider: 'openrouter'` set karta hai. Is liye keys add karne se Groq/Gemini models apne aap model picker mein appear nahi honge; model catalogue/picker aur provider mapping ka code integration abhi alag se karna hai.
+- Har provider ke maximum 10 numbered slots supported hain.
+
+Dashboard se convert karte waqt har existing plain-text entry ko remove karke usi name/value ke saath **Secret** type mein dobara add karo. Changes save/deploy kar do. Values ko chat ya GitHub mein share nahi karna.
 
 ## 3. Coolify main app variables
 
@@ -71,7 +72,7 @@ Initial live route mein manually selected models OpenRouter se infer honge. Auto
 ## 5. Verification checklist
 
 - [ ] Worker name `ilmai-ai-router` aur Durable Objects deploy successfully.
-- [ ] Worker secrets list mein `AI_ROUTER_SECRET` aur `OPENROUTER_API_KEY` configured hon.
+- [ ] Worker secrets list mein `AI_ROUTER_SECRET`, `OPENROUTER_API_KEY`, `GROQ_API_KEY_1`–`GROQ_API_KEY_10` aur `GEMINI_API_KEY_1`–`GEMINI_API_KEY_10` configured hon.
 - [ ] Coolify par `AI_ROUTER_URL`, matching `AI_ROUTER_SECRET` aur `OPENROUTER_API_KEY` configured hon.
 - [ ] Main app redeploy ho aur signed chat request successful ho.
 - [ ] Admin → Usage mein model, input/output tokens, actual USD cost aur credits usage save ho.
