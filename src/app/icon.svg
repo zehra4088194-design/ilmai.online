@@ -1,1 +1,48 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#34d399"/><stop offset="1" stop-color="#047857"/></linearGradient></defs><rect width="64" height="64" rx="16" fill="url(#g)"/><path d="M32 14c-9 6-13 14-13 22 0 7 5 12 13 14 8-2 13-7 13-14 0-8-4-16-13-22z" fill="#fff" opacity=".95"/><path d="M32 24v26" stroke="#047857" stroke-width="3" stroke-linecap="round"/><path d="M32 36l-7-6M32 42l8-7" stroke="#047857" stroke-width="3" stroke-linecap="round"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">
+  <defs>
+    <linearGradient id="frame" x1="18" y1="18" x2="238" y2="238" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#16BFFF"/><stop offset=".52" stop-color="#5265FF"/><stop offset="1" stop-color="#C026F7"/>
+    </linearGradient>
+    <radialGradient id="bg" cx="0" cy="0" r="1" gradientTransform="matrix(0 220 -220 0 128 20)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#111A38"/><stop offset=".56" stop-color="#080817"/><stop offset="1" stop-color="#03040B"/>
+    </radialGradient>
+    <linearGradient id="cyan" x1="70" y1="62" x2="174" y2="173" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8AFBFF"/><stop offset=".32" stop-color="#15C7FF"/><stop offset=".72" stop-color="#245BFF"/><stop offset="1" stop-color="#563BFF"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="184" y1="70" x2="78" y2="183" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6AEFFF"/><stop offset=".4" stop-color="#2588FF"/><stop offset="1" stop-color="#7545FF"/>
+    </linearGradient>
+    <linearGradient id="pink" x1="188" y1="184" x2="80" y2="78" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#A56BFF"/><stop offset=".48" stop-color="#F02CCB"/><stop offset="1" stop-color="#FF5B9B"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="68" y1="185" x2="174" y2="80" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFB33F"/><stop offset=".42" stop-color="#FF4E83"/><stop offset=".78" stop-color="#D82CFF"/><stop offset="1" stop-color="#793EFF"/>
+    </linearGradient>
+    <filter id="softGlow" x="24" y="24" width="208" height="208" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+    <filter id="ribbonShadow" x="30" y="30" width="196" height="196" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="4" result="blur"/>
+      <feOffset dy="3"/>
+      <feComponentTransfer><feFuncA type="linear" slope=".45"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect x="5" y="5" width="246" height="246" rx="55" fill="url(#bg)"/>
+  <rect x="6.5" y="6.5" width="243" height="243" rx="53.5" stroke="url(#frame)" stroke-width="3" opacity=".7"/>
+  <rect x="8" y="8" width="240" height="240" rx="52" stroke="url(#frame)" stroke-width="1" opacity=".35" filter="url(#softGlow)"/>
+  <g filter="url(#ribbonShadow)" stroke-linecap="round" stroke-linejoin="round" stroke-width="23">
+    <path d="M126 39C91 37 72 60 83 85C93 108 127 119 147 137C169 157 163 183 143 197" stroke="url(#cyan)"/>
+    <path d="M216 126C218 91 195 72 170 83C147 94 136 128 118 148C98 170 72 164 58 145" stroke="url(#blue)"/>
+    <path d="M130 217C165 219 184 196 173 171C162 148 128 137 109 119C87 98 93 72 113 58" stroke="url(#pink)"/>
+    <path d="M40 130C38 165 61 184 86 173C109 162 120 128 138 108C158 86 184 92 198 111" stroke="url(#gold)"/>
+  </g>
+  <g stroke-linecap="round" stroke-width="2.2" opacity=".42">
+    <path d="M126 39C91 37 72 60 83 85C93 108 127 119 147 137" stroke="#D7FFFF"/>
+    <path d="M216 126C218 91 195 72 170 83C147 94 136 128 118 148" stroke="#E0F7FF"/>
+    <path d="M130 217C165 219 184 196 173 171C162 148 128 137 109 119" stroke="#FFE1FF"/>
+    <path d="M40 130C38 165 61 184 86 173C109 162 120 128 138 108" stroke="#FFE5B4"/>
+  </g>
+  <path d="M128 104L136 120L152 128L136 136L128 152L120 136L104 128L120 120L128 104Z" fill="#F7F5FF"/>
+  <path d="M128 112L133 123L144 128L133 133L128 144L123 133L112 128L123 123L128 112Z" fill="#C8B9FF" opacity=".75"/>
+</svg>
