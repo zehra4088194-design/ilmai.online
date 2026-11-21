@@ -4,7 +4,6 @@ import { handle, HttpError, json } from '@/lib/http';
 import { requireUserApi } from '@/lib/auth';
 import { requireFeature } from '@/lib/features';
 import { getSettings } from '@/lib/settings';
-import { getMode } from '@/lib/modes';
 import { utilityChat } from '@/lib/utility-ai';
 import { parseQuiz, quizPrompt, type QuizConfig } from '@/lib/quiz';
 import { adminClient } from '@/lib/supabase/admin';
@@ -52,7 +51,7 @@ export const POST = handle(async (req: NextRequest) => {
   let cost = 0;
   for (let attempt = 0; attempt < 2 && questions.length < Math.max(3, Math.ceil(count * 0.6)); attempt++) {
     try {
-      const r = await utilityChat(quizPrompt({ topic: b.topic, config, audience: profile.audience ?? 'student', grade: profile.grade, context: b.context }),
+      const r = await utilityChat(quizPrompt({ topic: b.topic, config, audience: 'general user', context: b.context }),
         { userId: profile.id, maxTokens: Math.min(6000, 450 * count + 400), temperature: 0.5, timeoutMs: 75_000, tries: 3, startAt: attempt });
       const parsed = parseQuiz(r.text, count);
       if (parsed.length > questions.length) { questions = parsed; used = r.model; cost = r.cost; }
@@ -74,9 +73,8 @@ export const POST = handle(async (req: NextRequest) => {
     const { data: c } = await db.from('conversations').select('id').eq('id', conversationId).eq('user_id', profile.id).maybeSingle();
     if (!c) throw new HttpError(404, 'Conversation not found');
   } else {
-    const mode = await getMode(b.mode);
     const { data: c, error } = await db.from('conversations')
-      .insert({ user_id: profile.id, title: truncate(`Quiz: ${b.topic}`, 60), mode: mode?.slug ?? null }).select('id').single();
+      .insert({ user_id: profile.id, title: truncate(`Quiz: ${b.topic}`, 60), mode: null }).select('id').single();
     if (error) throw error;
     conversationId = c.id as string;
   }
