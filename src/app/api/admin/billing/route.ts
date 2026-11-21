@@ -49,25 +49,36 @@ export const GET=handle(async()=>{
     db.from('payments').select('id,user_id,provider,plan_id,amount,currency,status,created_at,paid_at').order('created_at',{ascending:false}).limit(100),
   ]);
   if(planError) throw planError;if(discountError) throw discountError;if(paymentError) throw paymentError;
-  return json({plans:plans??[],discounts:discounts??[],payments:payments??[]},{headers:{'Cache-Control':'private, no-store'}});
+  return json({
+    plans:plans??[],discounts:discounts??[],payments:payments??[],
+    providers:{
+      paddleConfigured:!!process.env.PADDLE_API_KEY&&!!process.env.PADDLE_WEBHOOK_SECRET&&['sandbox','production'].includes(process.env.PADDLE_ENVIRONMENT??''),
+      payproConfigured:!!process.env.PAYPRO_MERCHANT_NO&&!!process.env.PAYPRO_APP_SECRET&&!!process.env.PAYPRO_API_BASE_URL,
+    },
+  },{headers:{'Cache-Control':'private, no-store'}});
 });
 
 export const PATCH=handle(async(req:NextRequest)=>{
   await requireAdminApi();
   const body=PlanPatch.parse(await req.json());
   const {id,...patch}=body;
-  if(patch.active===true&&id!=='free'&&!('price_amount'in patch||'credits_per_period'in patch)) {
-    const {data,error}=await adminClient().from('billing_plans').select('price_amount,credits_per_period')
-      .eq('id',id).single();
-    if(error) throw error;
-    if(Number(data.price_amount)<=0||Number(data.credits_per_period)<=0)
+  const db=adminClient();
+  const {data:current,error:currentError}=await db.from('billing_plans').select('*').eq('id',id).single();
+  if(currentError) throw currentError;
+  const next={...current,...patch};
+  if(next.active&&id!=='free') {
+    if(Number(next.price_amount)<=0||Number(next.credits_per_period)<=0)
       throw new HttpError(400,'Set a positive price and credit amount before activating a paid plan');
+    const paddleReady=next.currency==='USD'&&!!next.paddle_price_id&&!!process.env.PADDLE_API_KEY&&
+      !!process.env.PADDLE_WEBHOOK_SECRET&&['sandbox','production'].includes(process.env.PADDLE_ENVIRONMENT??'');
+    const payproReady=next.currency==='PKR'&&!!next.paypro_enabled&&!!process.env.PAYPRO_MERCHANT_NO&&
+      !!process.env.PAYPRO_APP_SECRET&&!!process.env.PAYPRO_API_BASE_URL;
+    if(!paddleReady&&!payproReady)
+      throw new HttpError(400,'Configure a matching payment provider before activating this paid plan');
   }
-  const {data,error}=await adminClient().from('billing_plans')
+  const {data,error}=await db.from('billing_plans')
     .update({...patch,updated_at:new Date().toISOString()}).eq('id',id).select('*').single();
   if(error) throw error;
-  if(data.active&&id!=='free'&&(Number(data.price_amount)<=0||Number(data.credits_per_period)<=0))
-    throw new HttpError(400,'Paid plans require a positive price and credits');
   return json({plan:data});
 });
 
