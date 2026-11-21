@@ -22,7 +22,7 @@ export default async function Page() {
             <div className="card p-4"><p className="text-xs text-muted-foreground">Credits left</p><p className="text-2xl font-extrabold">{fmtNum(profile.credits_balance)}</p></div>
             <div className="card p-4"><p className="text-xs text-muted-foreground">Member since</p><p className="text-lg font-bold">{new Date(profile.created_at).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}</p></div>
           </div>
-          <SettingsClient id={profile.id} name={profile.full_name ?? ''} audience={profile.audience ?? 'student'} grade={profile.grade ?? ''} />
+          <SettingsClient id={profile.id} name={profile.full_name ?? ''} />
           <section className="card p-5">
             <h2 className="mb-3 font-bold">Recent activity</h2>
             {(usage ?? []).length === 0 ? <p className="text-sm text-muted-foreground">Nothing yet.</p> : (
