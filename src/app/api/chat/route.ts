@@ -5,7 +5,6 @@ import { requireUserApi } from '@/lib/auth';
 import { requireFeature } from '@/lib/features';
 import { getSettings } from '@/lib/settings';
 import { getModel, getAllTextModels, canUseTier, type ModelInfo } from '@/lib/models';
-import { getMode } from '@/lib/modes';
 import { buildSystemPrompt } from '@/lib/prompt';
 import { buildHistory } from '@/lib/history';
 import type { ChatMessage } from '@/lib/openrouter';
@@ -81,12 +80,11 @@ export const POST = handle(async (req: NextRequest) => {
     .eq('conversation_id', conv.id).lt('created_at', userMsg.created_at)
     .order('created_at', { ascending: false }).limit(turnsToKeep * 6);
   const history: ChatMessage[] = buildHistory(((rows ?? []) as Row[]).reverse(), model.id, turnsToKeep);
-  const mode = await getMode(conv.mode);
   const currentUserContent = attachmentIds.length
     ? await attachmentContent(userMsg.content as string, attachmentIds, profile.id, { vision: model.vision, documents: model.documents })
     : userMsg.content as string;
   const messages: ChatMessage[] = [
-    { role: 'system', content: buildSystemPrompt({ settings, mode, audience: profile.audience ?? 'student', grade: profile.grade }) },
+    { role: 'system', content: buildSystemPrompt({ settings }) },
     ...history,
     { role: 'user', content: currentUserContent },
   ];
