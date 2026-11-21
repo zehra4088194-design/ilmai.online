@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  app:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_PUBLIC_SITE_URL: https://ilmai.online
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: test-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: test-service-role-key
+      OPENROUTER_API_KEY: test-openrouter-key
+      B2_ENDPOINT: https://s3.example.invalid
+      B2_REGION: us-east-1
+      B2_KEY_ID: test-key
+      B2_APPLICATION_KEY: test-secret
+      B2_BUCKET: test-bucket
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  ai-router:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: workers/ai-router/package-lock.json
+      - name: Install Worker dependencies
+        working-directory: workers/ai-router
+        run: npm ci --no-audit --no-fund
+      - name: Typecheck Cloudflare Worker
+        working-directory: workers/ai-router
+        run: npm run typecheck
+      - name: Run Worker security tests
+        working-directory: workers/ai-router
+        run: npm test
+      - name: Build Worker with Wrangler
+        working-directory: workers/ai-router
+        run: npm run build
+      - name: Upload deployable Worker bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: ilmai-ai-router-bundle
+          path: workers/ai-router/dist/
+          if-no-files-found: error
+          retention-days: 2
+      - name: Publish bundle to a temporary deployment branch
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        working-directory: workers/ai-router
+        run: |
+          mkdir -p /tmp/ilmai-router-deploy
+          cp dist/index.js /tmp/ilmai-router-deploy/index.js
+          git checkout --orphan cf-worker-deploy-bundle
+          git rm -rf . >/dev/null 2>&1 || true
+          mkdir -p workers/ai-router/deploy-bundle
+          cp /tmp/ilmai-router-deploy/index.js workers/ai-router/deploy-bundle/index.js
+          git add workers/ai-router/deploy-bundle/index.js
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "Temporary Cloudflare Worker deployment bundle"
+          git push origin HEAD:refs/heads/cf-worker-deploy-bundle --force
+
+  pdf-renderer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install renderer dependency
+        working-directory: workers/pdf-renderer
+        run: npm install --no-audit --no-fund
+      - name: Test renderer security checks
+        working-directory: workers/pdf-renderer
+        env:
+          PDF_RENDERER_SECRET: ci-only-secret
+        run: npm test

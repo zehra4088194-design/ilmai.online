@@ -1,0 +1,2176 @@
+# ILM AI ONLINE — COMPLETE MASTER IMPLEMENTATION PROMPT
+## AI Workspace, Chat, Test Studio, Presentations, Images, Videos, Projects, Payments & Infrastructure
+
+You are acting as the principal software architect, senior full-stack engineer, AI infrastructure engineer, database engineer, UI/UX engineer, security engineer and QA lead.
+
+Your responsibility is to fully complete and production-harden the existing **ilm AI online** application.
+
+---
+
+# 1. PROJECT IDENTITY — STRICT SCOPE
+
+Target repository:
+
+`https://github.com/zehra4088194-design/ilmai.online`
+
+Target branch: `main`
+
+Production domain:
+
+`https://ilmai.online`
+
+**ONLY WORK ON ILMAI.ONLINE.**
+
+Do not modify, deploy over, connect to, delete, rename, migrate or interfere with any unrelated repository, application, database, Supabase project, storage bucket, Coolify resource or domain.
+
+The target repository and its own Supabase project are the only source of truth.
+
+Do not assume credentials from another project belong here.
+
+Before changing anything, inspect:
+
+- `AGENTS.md`
+- `README.md`
+- `docs/ARCHITECTURE.md`
+- `docs/ROADMAP.md`
+- `docs/SETUP.md`
+- `package.json`
+- `.env.example`
+- Existing Docker configuration.
+- Existing Supabase migrations.
+- Existing chat, authentication, credits, models, media, storage and admin implementations.
+
+The existing application uses Next.js 15 App Router, TypeScript, Tailwind, Framer Motion, Supabase Auth/Postgres/RLS, OpenRouter, Backblaze B2 and Docker/Coolify.
+
+---
+
+# 2. CRITICAL RULE — AUDIT BEFORE REBUILDING
+
+The existing application already has substantial functionality.
+
+Do not rebuild working features from scratch.
+
+Audit every existing implementation and make an exact gap analysis.
+
+Existing foundations include:
+
+- Multi-model chat with 1–4 simultaneous models.
+- Streaming AI responses.
+- Conversation history.
+- Student and Teacher modes.
+- Quiz generation and saved attempts.
+- Smart follow-up suggestions.
+- Dynamic OpenRouter text model catalogue.
+- Free, Pro and Elite plan foundations.
+- Credit wallet and usage tracking.
+- Admin model, feature, mode, user, usage and media sections.
+- Supabase Google OAuth.
+- Email/password authentication.
+- Image-generation API and UI foundations.
+- Backblaze B2 storage helpers.
+- Presentation outline generation.
+- Existing upload URL and media APIs.
+
+Known incomplete areas include:
+
+- Cloudflare Worker routing.
+- Auto model selection.
+- Presentation editing and PPTX/PDF export.
+- Real video generation.
+- Complete chat attachment integration.
+- Full Test Studio.
+- Projects and unified Library.
+- Complete plan and discount administration.
+- Paddle and PayPro billing.
+- Resend integration.
+- Complete admin asset management.
+- Rich mathematics rendering.
+
+Preserve existing functionality and database compatibility.
+
+Do not create duplicate implementations.
+
+Do not delete a working feature just because a new implementation seems easier.
+
+No fake buttons, dummy responses, static demo data, placeholder APIs or UI-only features.
+
+---
+
+# 3. COMPLETE APPLICATION NAVIGATION
+
+Create a premium AI workspace inspired by the supplied AI Fiesta screenshot.
+
+Use the existing ilm AI branding, visual identity, typography and green accent system.
+
+The design should feel modern, premium, clean, responsive and consistent.
+
+Desktop:
+
+- Persistent collapsible left sidebar.
+- Main central workspace.
+- User account and credit balance.
+- Model selector.
+- Chat composer.
+- Responsive layout.
+
+Mobile:
+
+- Responsive navigation drawer.
+- Properly optimized chat composer.
+- Usable tables, presentations, forms and generated previews.
+- No horizontal overflow except intentionally scrollable tables.
+
+Required navigation:
+
+1. Chat
+2. Test Studio
+3. Presentations
+4. Projects
+5. Image Studio
+6. Video Studio
+7. Library
+8. Usage
+9. Plans / Upgrade
+10. Settings
+
+Admin navigation must only be visible and accessible to authorized administrators.
+
+All sections must share the same design system.
+
+---
+
+# 4. AUTHENTICATION AND ACCOUNT CREATION
+
+Preserve existing Supabase Auth.
+
+Support:
+
+- Google signup.
+- Google login.
+- Email/password signup.
+- Email/password login.
+- Email verification.
+- Password reset.
+- Secure OAuth callback.
+- Session persistence.
+- Logout.
+
+### Signup information
+
+Keep signup extremely simple.
+
+Email/password signup should ask only:
+
+- Name.
+- Email.
+- Password.
+
+Google signup should automatically use the Google-provided email and name.
+
+If Google does not provide a usable name, ask the user for their name only.
+
+Do not ask for:
+
+- Institution.
+- School.
+- College.
+- Class.
+- Grade.
+- Address.
+- Phone number.
+- Profession.
+- Other unnecessary profile details.
+
+Create the profile automatically.
+
+Initialize the configured welcome credits atomically.
+
+Prevent duplicate profiles and race conditions.
+
+### First-signup pricing popup
+
+After successful first account creation, display a polished pricing modal.
+
+Show:
+
+- Free.
+- Pro.
+- Elite.
+- Current prices.
+- Included credits.
+- Main features.
+- Available discounts.
+- Upgrade action.
+
+The modal must have a close button.
+
+The user can dismiss it and continue using the application.
+
+Do not repeatedly display it on every login.
+
+Persist dismissal in a trusted server-side profile setting.
+
+Existing users must not be treated as new signups.
+
+---
+
+# 5. CHAT WORKSPACE
+
+Preserve and improve existing multi-model chat.
+
+Required:
+
+- Streaming AI responses.
+- Model picker with search.
+- Manual model selection.
+- Auto model selection.
+- Multi-model comparison.
+- Side-by-side responses.
+- Chat history.
+- Create, rename, pin, archive and delete conversations.
+- Copy response.
+- Regenerate response.
+- Stop generation.
+- Continue conversations.
+- Show selected model.
+- Show token usage.
+- Show credit consumption.
+- Show provider errors properly.
+- File attachments.
+- Generated asset attachments.
+- Persistent conversation history.
+
+Users should be able to attach:
+
+- Images.
+- PDFs.
+- TXT.
+- DOCX.
+- PPTX.
+- Other validated formats where provider support exists.
+
+Support:
+
+- File picker.
+- Drag and drop.
+- Attachment preview.
+- Upload progress.
+- Remove before sending.
+- File-size limits.
+- MIME validation.
+- Secure ownership checks.
+
+The attached file's actual content must reach a compatible model or document extraction pipeline.
+
+Displaying a file preview without passing its content to the AI is not acceptable.
+
+Use B2 for large attachments.
+
+Store metadata and references in Supabase.
+
+Generated images, videos, presentations and files must also be attachable to assistant messages.
+
+---
+
+# 6. MATHEMATICS, FORMULAS AND TABLES
+
+This is a high-priority requirement.
+
+AI responses must render proper:
+
+- Markdown headings.
+- Responsive tables.
+- Inline mathematics.
+- Display equations.
+- Fractions.
+- Square roots.
+- Powers and subscripts.
+- Matrices.
+- Determinants.
+- Systems of equations.
+- Piecewise functions.
+- Summations.
+- Integrals.
+- Greek letters.
+- Scientific formulas.
+- Chemistry expressions where supported.
+- Charts.
+- Code blocks.
+
+Use a reliable Markdown + KaTeX implementation.
+
+Recommended:
+
+- `remark-gfm`
+- `remark-math`
+- `rehype-katex`
+- KaTeX CSS.
+
+Support equations such as:
+
+Inline:
+
+`\(E = mc^2\)`
+
+Display:
+
+`$$\begin{bmatrix}a & b\\c & d\end{bmatrix}$$`
+
+Tables must render as actual tables.
+
+Long tables must scroll horizontally on small screens.
+
+Math must be readable in dark and light modes.
+
+Do not render unsafe arbitrary HTML from AI responses.
+
+Ensure streaming output does not break mathematical rendering.
+
+Update the AI system prompts to encourage correct LaTeX and structured answers.
+
+---
+
+# 7. CLOUDFLARE WORKERS — AI ROUTING
+
+All AI provider routing and dispatch must use a dedicated Cloudflare Worker.
+
+Create:
+
+`workers/ai-router/`
+
+Use Cloudflare Workers and Wrangler.
+
+Do not keep the main provider routing workload inside Next.js unnecessarily.
+
+The Worker should support:
+
+- Groq.
+- Gemini.
+- OpenRouter.
+- Text generation.
+- Image generation where supported.
+- Video generation where supported.
+- Streaming.
+- Model capability checks.
+- Key rotation.
+- Provider fallback.
+- Retry/backoff.
+- Timeout handling.
+- Usage metadata.
+- Request cancellation.
+- Health checks.
+
+### Groq key pool
+
+I will configure up to ten keys:
+
+`GROQ_API_KEY_1` through `GROQ_API_KEY_10`
+
+### Gemini key pool
+
+Support:
+
+`GEMINI_API_KEY_1` through `GEMINI_API_KEY_10`
+
+Only configured keys are active.
+
+Use reliable distributed key allocation.
+
+Do not use a simple module-level counter as the global rotation mechanism.
+
+Use Durable Objects or another properly verified shared coordination mechanism.
+
+Handle:
+
+- Concurrent requests.
+- Rate limits.
+- Temporary key cooldown.
+- Provider failures.
+- Retryable errors.
+- Invalid requests.
+- Key health.
+- Redacted logs.
+
+Never reveal provider keys.
+
+### Auto model mode
+
+Add an Auto option in the chat model selector.
+
+Groq should act as the routing/decision engine.
+
+It should determine which available model is best suited for the user's task.
+
+Examples:
+
+- Simple questions → fast economical model.
+- Complex reasoning → stronger reasoning model.
+- Mathematics → suitable reasoning model.
+- Image understanding → compatible vision model.
+- Document analysis → compatible document model.
+- Long writing → suitable quality-focused model.
+
+The Auto system must:
+
+- Check model capabilities.
+- Respect plan entitlements.
+- Respect admin-enabled models.
+- Respect cost and credit policies.
+- Show the actual selected model.
+- Record routing decisions for analytics.
+- Use deterministic fallback if Groq routing fails.
+
+Manual model selection must continue working.
+
+Multi-model comparison must continue working.
+
+### Secure request flow
+
+1. Next.js authenticates the user through Supabase.
+2. Next.js validates plan, limits and credits.
+3. Next.js signs a short-lived internal request.
+4. Cloudflare Worker verifies the request signature and timestamp.
+5. Worker selects the provider and model.
+6. Worker performs key rotation and sends the request.
+7. Worker streams the result.
+8. Next.js safely persists the response.
+9. Actual verified usage is charged atomically.
+
+Implement HMAC authentication, replay protection, request IDs, timestamps, validation and rate limiting.
+
+Never expose the Worker as an unrestricted public AI proxy.
+
+---
+
+# 8. DYNAMIC MODEL CATALOGUE
+
+Use real provider model metadata.
+
+Maintain capability-aware catalogues for:
+
+- Text generation.
+- Vision.
+- Image generation.
+- Video generation.
+
+Admin must control:
+
+- Model enable/disable.
+- Display names.
+- Provider.
+- Default models.
+- Plan eligibility.
+- Feature eligibility.
+- Cost policy.
+- Auto-routing priority.
+- Fallback order.
+
+Never assume a text model can generate images or videos.
+
+Do not hardcode a stale model list in the frontend.
+
+Cache catalogues sensibly.
+
+---
+
+# 9. TEST STUDIO — COMPLETE AI TEST GENERATION SYSTEM
+
+This is a major core feature, not a small quiz widget.
+
+Build a complete, professional Test Studio where any student can create an examination paper from their own material.
+
+**Institution selection must be completely optional.**
+
+A student must be able to use Test Studio without entering or selecting any school, college, academy or institution.
+
+Do not require institution registration.
+
+Do not require an institution ID.
+
+Do not make institutional membership a condition for creating tests.
+
+The personal student workflow must work independently.
+
+## 9.1 Test creation sources
+
+Allow users to create a test from:
+
+1. A written topic.
+2. A detailed prompt.
+3. One or multiple PDFs.
+4. Images of textbook pages.
+5. Images of handwritten notes.
+6. Images of printed notes.
+7. Scanned documents.
+8. Uploaded DOCX/TXT documents.
+9. A combination of topic, prompt, images and PDFs.
+
+Support drag-and-drop and normal upload.
+
+Show selected source files and previews.
+
+Validate file formats, file sizes and ownership.
+
+For PDFs, extract text reliably.
+
+For scanned PDFs and images, use OCR or a suitable vision model.
+
+For handwritten content, use a compatible vision/OCR model and clearly handle unreadable sections.
+
+The system must use the supplied source material as the primary basis for question generation.
+
+Do not silently invent information that is not supported by the supplied source.
+
+When a source is incomplete or unreadable, tell the user.
+
+Allow the user to choose whether general knowledge may supplement the source material.
+
+Default to source-grounded question generation.
+
+## 9.2 Test configuration
+
+After the user selects the source, show a beautiful test configuration panel.
+
+Ask:
+
+- How many MCQs?
+- How many short questions?
+- How many long questions?
+
+These counts must be configurable independently.
+
+For example:
+
+- 20 MCQs.
+- 10 short questions.
+- 5 long questions.
+
+The numbers are examples, not fixed defaults.
+
+Allow zero in any category.
+
+Do not force every test to contain all three question types.
+
+Additional configuration:
+
+- Test title.
+- Subject (optional).
+- Class/grade (optional).
+- Chapter/topic (optional).
+- Language.
+- Difficulty.
+- Total marks.
+- Time duration.
+- Question order.
+- Marks per question.
+- Negative marking where requested.
+- Include answer key.
+- Include explanations.
+- Include marking scheme.
+
+Do not ask for institution information.
+
+If the user does not provide subject, class or grade, generate the test based on the provided topic/material without blocking them.
+
+## 9.3 Question generation
+
+Generate the exact requested number of questions in each category.
+
+### MCQs
+
+Each MCQ should have:
+
+- Clear question statement.
+- Four answer options by default.
+- One correct answer unless the question explicitly supports multiple answers.
+- Correct answer stored separately from the student-facing paper.
+- Plausible distractors.
+- No duplicate questions.
+- No ambiguous options.
+- Source reference where available.
+
+### Short questions
+
+Each short question should:
+
+- Test an important concept.
+- Be concise.
+- Have an appropriate expected answer length.
+- Include marks allocation.
+- Have a marking guide when answer key is enabled.
+
+### Long questions
+
+Each long question should:
+
+- Be conceptually meaningful.
+- Have clear instructions.
+- Match the selected difficulty.
+- Have appropriate marks.
+- Include a structured marking scheme where requested.
+
+### Quality checks
+
+Before presenting a test:
+
+- Verify exact question counts.
+- Check for duplicates.
+- Validate MCQ options.
+- Check that answer keys match their questions.
+- Check marks distribution.
+- Check that source-grounded questions are supported by the source.
+- Remove incomplete or malformed questions.
+- Check language consistency.
+- Validate mathematical notation where relevant.
+
+If the model fails to generate the required number, retry or ask the model to complete the missing questions.
+
+Do not silently show an incomplete test as complete.
+
+## 9.4 Test preview and editing
+
+After generation, show a complete editable preview.
+
+The user should be able to:
+
+- Edit test title.
+- Edit instructions.
+- Edit any question.
+- Edit MCQ options.
+- Change the correct answer.
+- Add a question.
+- Delete a question.
+- Reorder questions.
+- Change marks.
+- Regenerate a question.
+- Regenerate a question category.
+- Regenerate the entire test.
+- Save as a draft.
+- Reopen previous tests.
+
+Show a clear question count and total marks.
+
+The answer key must not accidentally appear in the student-facing test paper.
+
+Provide separate preview modes:
+
+1. Question paper.
+2. Answer key.
+3. Marking scheme.
+
+## 9.5 Beautiful PDF export
+
+The generated test must be exportable as a professionally designed PDF.
+
+PDF quality is extremely important.
+
+Do not simply print a raw webpage.
+
+Create a dedicated PDF layout engine.
+
+Design should feel like a premium examination paper.
+
+Include:
+
+- Clean header.
+- Test title.
+- Subject and topic if provided.
+- Optional class/grade.
+- Date field if requested.
+- Student name field.
+- Roll number field.
+- Time duration.
+- Total marks.
+- Clear instructions.
+- Proper section headings.
+- Consistent question numbering.
+- MCQ options aligned neatly.
+- Adequate writing space for short questions.
+- Larger answer space for long questions.
+- Page numbers.
+- Consistent margins.
+- Professional typography.
+- Good spacing.
+- Proper page breaks.
+
+Support:
+
+- English.
+- Urdu.
+- Other supported languages with suitable fonts.
+
+For Urdu, support right-to-left text and proper font shaping.
+
+Avoid broken Urdu characters and incorrect direction.
+
+Avoid splitting a question awkwardly between pages.
+
+Keep MCQ options together when possible.
+
+Do not put an answer key on the student question paper unless the user explicitly selects that export.
+
+Provide separate download actions:
+
+- Download Question Paper PDF.
+- Download Answer Key PDF.
+- Download Complete Teacher Copy PDF.
+
+The teacher copy may contain answers and marking schemes.
+
+The student paper must not contain answers.
+
+Also allow saving the test and exports to Library or Projects.
+
+## 9.6 Test Studio history
+
+Create a Test Studio history section.
+
+Show:
+
+- Test title.
+- Source material.
+- Creation date.
+- Number of MCQs.
+- Number of short questions.
+- Number of long questions.
+- Total marks.
+- Status.
+- Export availability.
+
+Allow reopening, editing, copying and deleting tests.
+
+A refresh must not lose a generated test.
+
+Persist test data in Supabase.
+
+Store exported PDFs in Backblaze B2.
+
+Store metadata and storage keys in Supabase.
+
+## 9.7 Test Studio pricing and admin control
+
+Test Studio must integrate with the internal credit system.
+
+Admin should control:
+
+- Whether Test Studio is enabled.
+- Which plans can access it.
+- Credit cost per generation.
+- Credit cost per regeneration.
+- File-size limits.
+- Maximum source files.
+- Maximum questions per generation.
+- PDF export availability.
+- Daily/monthly limits.
+
+Do not hardcode prices in the frontend.
+
+Check entitlements server-side.
+
+Charge credits atomically.
+
+Do not charge for a failed generation.
+
+Show the estimated credit cost before generation.
+
+## 9.8 Test Studio security
+
+- Validate uploaded files.
+- Verify file ownership.
+- Restrict access to private B2 files.
+- Prevent IDOR.
+- Do not expose answer keys through public endpoints.
+- Protect saved tests with Supabase RLS.
+- Prevent one student from reading another student's tests.
+- Validate all generation settings server-side.
+- Never trust client-submitted marks or credit amounts.
+
+---
+
+# 10. PRESENTATIONS STUDIO
+
+Complete the existing presentation generation foundation.
+
+Users must be able to:
+
+1. Enter a topic or detailed prompt.
+2. Attach PDFs, images or documents.
+3. Select language.
+4. Select slide count.
+5. Choose presentation style.
+6. Generate a slide outline.
+7. Preview slides.
+8. Edit slide content.
+9. Regenerate individual slides.
+10. Save the deck.
+11. Export PPTX.
+12. Export PDF.
+13. Save to Projects or Library.
+
+Support:
+
+- Title slides.
+- Section slides.
+- Bullet slides.
+- Comparison slides.
+- Charts.
+- Timelines.
+- Images.
+- Quotes.
+- Key takeaways.
+- Closing slides.
+- Speaker notes where supported.
+
+PPTX must be a real editable PowerPoint file.
+
+PDF must be a readable properly laid-out document.
+
+Use existing `pptxgenjs` dependency where appropriate.
+
+Save generated presentation and exports to B2.
+
+Store metadata in Supabase.
+
+Persist progress and presentation history.
+
+---
+
+# 11. IMAGE STUDIO
+
+Complete the existing image-generation foundation.
+
+Users must be able to:
+
+- Enter a prompt.
+- Choose an enabled image model.
+- Use Auto mode.
+- Choose aspect ratio.
+- Choose supported image dimensions.
+- Use negative prompts where supported.
+- Adjust supported generation parameters.
+- Preview results.
+- Regenerate.
+- Download.
+- Save to Library.
+- Add to Projects.
+- Attach to Chat.
+
+Use real model capability metadata.
+
+Do not display unsupported options.
+
+Admin controls model availability and credit pricing.
+
+All generated images go to Backblaze B2.
+
+Store metadata in Supabase.
+
+Do not store base64 image data in Postgres.
+
+## Image templates
+
+Create a professional template library with categories such as:
+
+- Cinematic Photorealism.
+- Product Photography.
+- 3D Render.
+- Anime Illustration.
+- Digital Art.
+- Watercolor.
+- Minimal Vector.
+- Architecture.
+- Landscape.
+- Educational Diagram.
+- Poster Design.
+- Social Media Creative.
+
+Each template should have:
+
+- Admin-uploaded preview image.
+- Template name.
+- Description.
+- Prompt template.
+- Supported model information.
+- Optional aspect ratio.
+- Active/inactive setting.
+
+I will upload the actual template/banner preview images through the admin panel.
+
+Store these admin-uploaded static creative assets in Supabase Storage.
+
+Do not confuse these template previews with user-generated images.
+
+---
+
+# 12. VIDEO STUDIO
+
+Implement real video generation.
+
+The current video route is a placeholder and must be replaced.
+
+Investigate current official provider APIs and supported video models.
+
+Do not invent endpoints or assume every provider supports video.
+
+Support:
+
+- Text-to-video.
+- Image-to-video where supported.
+- Auto model selection.
+- Manual model selection.
+- Supported durations.
+- Supported aspect ratios.
+- Supported resolutions.
+- Audio where supported.
+- Generation status.
+- Preview.
+- Download.
+- Regeneration where supported.
+
+Video generation must use persistent asynchronous jobs.
+
+Job states:
+
+`queued → submitted → processing → downloading → storing → ready`
+
+Also support failure and cancellation states.
+
+Do not hold a normal HTTP request open for the entire video generation.
+
+Allow users to refresh and return to their generation.
+
+Save completed videos to Backblaze B2.
+
+Save metadata and job state in Supabase.
+
+Use short-lived signed download URLs.
+
+Charge credits according to verified successful generation and configured pricing.
+
+Do not charge full successful-generation credits for a provider failure.
+
+---
+
+# 13. PROJECTS
+
+Create a proper Projects workspace.
+
+Users can:
+
+- Create.
+- Rename.
+- Archive.
+- Delete.
+- Search.
+- Open projects.
+- Add chats.
+- Add presentations.
+- Add tests.
+- Add generated images.
+- Add videos.
+- Add reference files.
+- Organize assets.
+
+All projects must belong to their owner.
+
+Use Supabase RLS.
+
+Prevent cross-user access.
+
+Deleting a project must not silently delete B2 assets still used elsewhere.
+
+Use a safe asset-retention policy.
+
+---
+
+# 14. UNIFIED LIBRARY
+
+Create a personal Library.
+
+Show:
+
+- Images.
+- Videos.
+- Presentations.
+- PPTX.
+- PDFs.
+- Test question papers.
+- Test answer keys.
+- Uploaded documents.
+- Saved assets.
+
+Provide:
+
+- Search.
+- Type filters.
+- Date filters.
+- Project filters.
+- Preview.
+- Open.
+- Download.
+- Move to project.
+- Delete.
+
+Use B2 for user-generated files.
+
+Store references and metadata in Supabase.
+
+Authorize every signed URL against the current user's ownership.
+
+---
+
+# 15. USER USAGE AND CREDITS
+
+Create a detailed Usage page.
+
+Show:
+
+- Current plan.
+- Current credit balance.
+- Credits used today.
+- Credits used this month.
+- Input tokens.
+- Output tokens.
+- Total tokens.
+- Model used.
+- Provider used.
+- Feature used.
+- Generation history.
+- Transaction date.
+- Monthly allocation.
+- Reset date.
+
+Keep actual provider tokens separate from internal credits.
+
+Credits are an internal application wallet unit.
+
+Provider tokens are actual model input/output tokens.
+
+Do not treat these as interchangeable.
+
+Prevent:
+
+- Negative balances.
+- Concurrent over-spending.
+- Duplicate charges.
+- Charges for failed generations.
+
+Use atomic Supabase RPCs for credit operations.
+
+---
+
+# 16. PLANS, PRICING AND DISCOUNTS
+
+Create a complete Plans & Pricing admin section.
+
+Plans:
+
+- Free.
+- Pro.
+- Elite.
+
+Admin must be able to configure:
+
+- Plan name.
+- Monthly price.
+- Annual price.
+- Currency.
+- Monthly credits.
+- Daily credits.
+- Active/inactive.
+- Model access.
+- Chat access.
+- Multi-model comparison.
+- Test Studio.
+- Presentations.
+- Image Studio.
+- Video Studio.
+- File upload limits.
+- Project limits.
+- Other entitlements.
+
+Allow dynamic updates without redeployment.
+
+### Discounts
+
+Admin can create:
+
+- Percentage discounts.
+- Fixed discounts.
+- Eligible plans.
+- Billing cycles.
+- Start/end date.
+- Maximum redemptions.
+- Per-user limit.
+- Active/inactive.
+- One-time or recurring discounts.
+
+Validate everything on the server.
+
+Never trust client-submitted prices, credit amounts or discount values.
+
+---
+
+# 17. PAYMENTS
+
+Support two payment providers.
+
+## 17.1 Paddle — card payments
+
+Use Paddle Billing.
+
+Support:
+
+- Monthly subscriptions.
+- Annual subscriptions.
+- One-time plans where configured.
+- Checkout.
+- Payment success.
+- Payment failure.
+- Cancellation.
+- Renewal.
+- Upgrade/downgrade.
+- Expiry.
+- Refund/chargeback reconciliation where supported.
+
+Use sandbox for development.
+
+Verify webhook signatures using official documentation.
+
+Use raw request body for verification.
+
+Never grant credits based on frontend redirect alone.
+
+Use idempotency and transaction IDs.
+
+## 17.2 PayPro — JazzCash
+
+Integrate PayPro for JazzCash.
+
+Read the current official API documentation.
+
+Support:
+
+- Unique trade/order reference.
+- Server-side request signing.
+- Merchant credentials.
+- Callback/notify URL.
+- Pending status.
+- Successful payment.
+- Failed payment.
+- Server-side payment verification.
+- Amount/currency validation.
+- Idempotent payment fulfilment.
+
+Ask for payment-specific details only when JazzCash is selected.
+
+Do not ask for a phone number during normal account signup.
+
+Do not grant credits for pending payments.
+
+Use PKR amounts according to PayPro's current API requirements.
+
+## 17.3 Checkout UI
+
+Show:
+
+- Card payment — Paddle.
+- JazzCash — PayPro.
+
+Display:
+
+- Plan.
+- Billing cycle.
+- Original price.
+- Discount.
+- Final price.
+- Payment method.
+
+Only verified payments may activate subscriptions or credits.
+
+Add user transaction history.
+
+---
+
+# 18. RESEND + SUPABASE AUTH
+
+Use Resend for this application's email system.
+
+Configure Supabase Auth custom SMTP through Resend.
+
+Use for:
+
+- Signup verification.
+- Password reset.
+- Authentication emails.
+- Magic links if enabled.
+
+Use Resend API for transactional emails where appropriate:
+
+- Welcome.
+- Payment confirmation.
+- Subscription changes.
+- Low-credit warning.
+- Security notices.
+
+Do not send duplicate messages for one event.
+
+Use a verified sending domain.
+
+Configure SPF, DKIM and DMARC.
+
+Keep API keys server-side.
+
+Use correct ilmai.online URLs.
+
+---
+
+# 19. STORAGE ARCHITECTURE
+
+There are two distinct storage systems.
+
+## 19.1 Backblaze B2 — user files and generated assets
+
+Use private Backblaze B2 storage for:
+
+- Generated images.
+- Generated videos.
+- Presentation PPTX.
+- Presentation PDFs.
+- Test question paper PDFs.
+- Test answer key PDFs.
+- Uploaded user attachments.
+- Project files.
+- Other user-generated assets.
+
+Use existing `src/lib/storage/b2.ts` and `src/lib/media.ts` helpers.
+
+Store metadata and object keys in Supabase.
+
+Do not store large files or base64 data in Postgres.
+
+Use short-lived signed URLs.
+
+## 19.2 Supabase Storage — admin banners and templates
+
+Use Supabase Storage for admin-uploaded static assets.
+
+Create a dedicated bucket:
+
+`site-banners`
+
+Store:
+
+- Homepage banners.
+- Feature banners.
+- Test Studio banner.
+- Presentation banner.
+- Image Studio banner.
+- Video Studio banner.
+- Template previews.
+- Other static application creatives.
+
+Create an Admin Creative Assets manager.
+
+Support:
+
+- Upload.
+- Replace.
+- Preview.
+- Delete.
+- Alt text.
+- Desktop/mobile variants.
+- Display position.
+- Active/inactive.
+- Display order.
+
+Public read may be enabled for published banner assets.
+
+Only authorized admins can upload, update or delete.
+
+Never put private user-generated files in this public bucket.
+
+---
+
+# 20. ADMIN PANEL
+
+Extend the existing admin panel.
+
+Sections:
+
+- Overview.
+- Users.
+- Plans & Pricing.
+- Discounts.
+- Payments.
+- AI Models.
+- Auto Routing.
+- Provider Health.
+- Features.
+- Test Studio Settings.
+- Usage & Costs.
+- Media.
+- Banners & Creative Assets.
+- Application Settings.
+
+Admin authorization must be enforced server-side.
+
+Do not rely on hiding frontend buttons.
+
+Never allow users to assign themselves admin.
+
+### AI routing administration
+
+Allow configuration of:
+
+- Auto routing.
+- Groq priority.
+- Gemini priority.
+- Fallback models.
+- Feature-specific models.
+- Provider health.
+- Retry limits.
+- Key-slot status.
+
+Never display actual provider keys.
+
+### Test Studio administration
+
+Allow admin to configure:
+
+- Enable/disable.
+- Plan access.
+- Credit cost.
+- Maximum questions.
+- File limits.
+- Supported source formats.
+- PDF export.
+- Daily/monthly limits.
+- Available AI models.
+
+### Banner administration
+
+Allow uploading and managing static app assets in Supabase Storage.
+
+### Financial administration
+
+Show:
+
+- Revenue.
+- Payments.
+- Subscription status.
+- Credits issued.
+- Credits consumed.
+- Provider costs.
+- Failed payments.
+- Discount usage.
+
+---
+
+# 21. DATABASE AND SECURITY
+
+Use additive migrations.
+
+Do not rewrite already-deployed migrations.
+
+Create new migrations for missing structures.
+
+Possible additions:
+
+- Projects.
+- Project assets.
+- Test papers.
+- Test questions.
+- Test generation jobs.
+- Test exports.
+- Plan settings.
+- Discounts.
+- Payments.
+- Subscriptions.
+- Pricing modal state.
+- Additional usage metadata.
+- Video jobs.
+- Banner metadata.
+
+Use proper indexes and constraints.
+
+Enable RLS on every exposed table.
+
+Policies must enforce ownership.
+
+Use trusted server-side operations for sensitive mutations.
+
+Use atomic RPCs for:
+
+- Credit grants.
+- Credit charges.
+- Subscription activation.
+- Payment fulfilment.
+- Discount redemption.
+
+Prevent:
+
+- Cross-user access.
+- IDOR.
+- Duplicate webhook processing.
+- Negative credit balances.
+- Price manipulation.
+- Forged admin privileges.
+- Exposed provider keys.
+- Unrestricted Worker proxy usage.
+- Unsafe uploads.
+- Answer-key leakage.
+- Unauthorized signed URLs.
+
+Validate API requests with Zod.
+
+Do not disable RLS to resolve permission issues.
+
+Never expose Supabase service-role key in browser code.
+
+---
+
+# 22. CLOUDFLARE WORKER DEPLOYMENT
+
+Create a separately deployable Worker.
+
+Include:
+
+- Wrangler configuration.
+- Typed environment bindings.
+- Local development.
+- Secret setup.
+- Deployment documentation.
+- Health endpoint.
+- Provider health endpoint.
+- Tests.
+- Key rotation tests.
+- Streaming tests.
+- Authentication tests.
+
+The Worker must be efficient and support streaming.
+
+Use Durable Objects or another correctly verified shared mechanism for coordination if required.
+
+Document Cloudflare resource requirements.
+
+Do not assume unlimited CPU, requests or storage.
+
+---
+
+# 23. COOLIFY DEPLOYMENT
+
+Use an independent Coolify application for ilmai.online.
+
+Use its own:
+
+- Environment variables.
+- Containers.
+- Domain.
+- Deployment settings.
+- Network.
+- Supabase configuration.
+- B2 configuration.
+
+Domain:
+
+`https://ilmai.online`
+
+Do not stop or modify unrelated Coolify resources.
+
+Make sure all required `NEXT_PUBLIC_` variables are passed as build arguments when required by Next.js.
+
+Keep secrets server-side.
+
+Document all required variables.
+
+---
+
+# 24. PERFORMANCE AND RELIABILITY
+
+Keep the app efficient.
+
+- Stream chat responses.
+- Use asynchronous video jobs.
+- Use direct/signed storage transfers where appropriate.
+- Cache model catalogues.
+- Paginate usage and media.
+- Avoid unnecessary database queries.
+- Prevent duplicate generation requests.
+- Prevent double charging.
+- Use reliable retries.
+- Support safe cancellation.
+- Handle refresh/reconnection.
+- Keep large files out of Next.js memory where possible.
+- Use loading, empty, error and success states.
+
+The application must remain maintainable and usable on modest server resources.
+
+---
+
+# 25. TESTING
+
+Run actual tests.
+
+Required commands:
+
+`npm ci`
+
+`npm run typecheck`
+
+`npm test`
+
+`npm run build`
+
+Add tests for:
+
+### Authentication
+- Email signup.
+- Google signup.
+- OAuth callback.
+- Missing Google name.
+- Pricing modal.
+- Modal dismissal.
+
+### Chat
+- Streaming.
+- Auto routing.
+- Manual routing.
+- Multi-model comparison.
+- Key rotation.
+- Fallback.
+- Attachments.
+- Markdown.
+- KaTeX.
+- Tables.
+
+### Test Studio
+- Topic-based test generation.
+- PDF-based generation.
+- Image-based generation.
+- Handwritten source handling.
+- Multiple source files.
+- Exact MCQ count.
+- Exact short-question count.
+- Exact long-question count.
+- Zero questions in optional categories.
+- Question uniqueness.
+- MCQ validation.
+- Answer-key correctness checks.
+- Marks calculation.
+- Question editing.
+- Regeneration.
+- PDF question paper.
+- Separate answer key PDF.
+- Urdu RTL PDF rendering.
+- Test history.
+- Ownership and RLS.
+- Credit charging.
+- Failed-generation refund/no-charge behavior.
+
+### Presentations
+- Generation.
+- Slide editing.
+- PPTX export.
+- PDF export.
+- Storage.
+
+### Image Studio
+- Model capability validation.
+- Generation.
+- Preview.
+- B2 upload.
+- Download.
+
+### Video Studio
+- Job creation.
+- Status polling.
+- Failure.
+- Retry.
+- B2 upload.
+- Download.
+
+### Projects and Library
+- Ownership.
+- Search.
+- Asset linking.
+- Signed URLs.
+- Deletion rules.
+
+### Payments
+- Paddle sandbox.
+- Paddle webhook signature.
+- PayPro request signing.
+- PayPro confirmation.
+- Idempotency.
+- Duplicate webhook prevention.
+- Credit allocation.
+
+### Admin
+- Authorization.
+- Pricing settings.
+- Discount settings.
+- Model settings.
+- Routing settings.
+- Banner uploads.
+- Test Studio settings.
+
+Do not claim tests passed unless they actually ran.
+
+If credentials are missing, use mocks for automated tests and clearly document the exact external configuration still required.
+
+Never fabricate successful live payment or provider tests.
+
+---
+
+# 26. IMPLEMENTATION PHASES
+
+Work in safe, reviewable phases.
+
+Phase 1 — Repository audit, baseline tests and gap analysis.
+
+Phase 2 — UI navigation, authentication, pricing modal, chat attachments, rich Markdown/math.
+
+Phase 3 — Cloudflare Worker, Groq/Gemini key pools, Auto routing and provider fallback.
+
+Phase 4 — Test Studio complete generation, editing, persistence, PDF export and credit integration.
+
+Phase 5 — Presentation editing, PPTX/PDF export.
+
+Phase 6 — Image Studio completion.
+
+Phase 7 — Real Video Studio asynchronous jobs.
+
+Phase 8 — Projects and Library.
+
+Phase 9 — Plans, pricing, credits, discounts, Paddle and PayPro.
+
+Phase 10 — Resend and Supabase Auth.
+
+Phase 11 — Supabase banner/template asset manager.
+
+Phase 12 — Security review, RLS, migrations, automated tests and production build.
+
+Do not stop at writing a plan.
+
+Implement the actual functionality.
+
+Do not ask me to repeat information already included here.
+
+Do not perform unrelated refactors.
+
+Do not remove existing working functionality.
+
+Do not mark a feature complete while it still contains placeholders.
+
+---
+
+# 27. FINAL HANDOVER
+
+At completion, provide:
+
+1. Exact files added.
+2. Exact files modified.
+3. Existing features preserved.
+4. New features completed.
+5. Test Studio implementation details.
+6. New Supabase migrations.
+7. RLS and security changes.
+8. Required Coolify variables.
+9. Cloudflare Worker secrets.
+10. Worker deployment commands.
+11. Resend SMTP configuration.
+12. Paddle setup.
+13. PayPro setup.
+14. Backblaze B2 setup.
+15. Supabase Storage banner bucket setup.
+16. Local testing commands.
+17. Production deployment instructions.
+18. Actual test results.
+19. Build and typecheck results.
+20. Remaining external credentials or blockers.
+
+The final product must be a real, complete, secure AI workspace.
+
+It must not be a collection of attractive placeholder pages.
+
+Prioritize correctness, security, performance, maintainability, source-grounded AI generation and a polished user experience.
+
+**Final scope reminder: ONLY `ilmai.online`. Do not modify any other project.**
+
+# TEST STUDIO — SEPARATE QUESTION PAPER, ANSWER KEY & TEACHER COPY PDF SYSTEM
+
+Implement the following as an additional, mandatory part of the existing Test Studio in **ilmai.online**.
+
+Do not create a separate application or duplicate Test Studio. Extend its existing generation, storage, database, PDF and export architecture.
+
+## 1. THREE DISTINCT DOCUMENT TYPES
+
+Every generated test must support three independent export options.
+
+### A. Student Question Paper PDF
+
+This is the normal examination paper.
+
+It must contain:
+
+- Test title.
+- Subject and topic, if provided.
+- Class/grade, if provided.
+- Examination date field.
+- Student name field.
+- Roll number field.
+- Time duration.
+- Total marks.
+- General instructions.
+- All MCQs.
+- All short questions.
+- All long questions.
+- Marks allocated to every question.
+- Proper question numbering.
+- Adequate answer-writing space.
+
+**STRICT RULE: NEVER INCLUDE CORRECT ANSWERS, ANSWER INDICATORS, EXPLANATIONS OR MARKING SCHEMES IN THE STUDENT QUESTION PAPER.**
+
+MCQ options must appear without identifying which option is correct.
+
+The student question paper must be generated from a sanitized question-only data structure, not from the complete internal test object.
+
+### B. Separate Answer Key PDF
+
+Provide a dedicated Answer Key PDF.
+
+It must contain:
+
+**MCQ Answer Key**
+- Question number.
+- Correct option letter.
+- Correct option text.
+
+Example:
+
+| Question | Correct option | Answer |
+|---|---|---|
+| 1 | B | Photosynthesis |
+| 2 | D | Chlorophyll |
+
+**Short Question Answer Key**
+- Question number.
+- Suggested model answer.
+- Important marking points.
+- Marks allocated.
+
+**Long Question Answer Key**
+- Question number.
+- Detailed suggested answer.
+- Important headings and key concepts.
+- Expected diagrams or equations where appropriate.
+- Stepwise marking distribution.
+- Total allocated marks.
+
+The answer key should be accurate, organized and useful for teachers.
+
+For source-based tests, answers must be grounded in the uploaded source material.
+
+Clearly identify any answer that cannot be confidently derived from the supplied material.
+
+Do not fabricate answer keys.
+
+### C. Complete Teacher Copy PDF
+
+Provide a third export option called:
+
+**Complete Teacher Copy**
+
+This document combines:
+
+1. Full question paper.
+2. Correct answers for all MCQs.
+3. Short-question model answers.
+4. Long-question model answers.
+5. Marking scheme.
+6. Marks distribution.
+7. Relevant explanations where requested.
+
+Clearly distinguish question-paper pages from answer-key pages using section headings.
+
+Include a visible label:
+
+`TEACHER COPY — CONTAINS ANSWERS`
+
+This label must appear prominently on the teacher-copy document, but not on the normal student paper.
+
+## 2. EXPORT INTERFACE
+
+After a test is generated and the user has reviewed it, provide a dedicated export panel.
+
+Show three separate options:
+
+- Download Question Paper PDF.
+- Download Answer Key PDF.
+- Download Complete Teacher Copy PDF.
+
+Each option should have:
+
+- Document description.
+- Page/document preview where practical.
+- Download action.
+- Loading state.
+- Clear failure message.
+- Successful export feedback.
+
+Do not create three buttons that all download the same file.
+
+Each export must generate the correct document type with the correct content.
+
+The user should also be able to save all three exports to their personal Library or Project.
+
+## 3. ANSWER-KEY DATA ARCHITECTURE
+
+Keep questions and answers structured separately.
+
+Use a stable unique question ID for every generated question.
+
+Each question should have:
+
+- `id`
+- `type`
+- `question`
+- `options`, when applicable
+- `marks`
+- `source_reference`, where available
+- Other required question metadata.
+
+Keep the correct answer in a protected answer-key structure associated with that question ID.
+
+For example, conceptually:
+
+- `test_questions` stores question content.
+- `test_answer_keys` stores correct answers and marking guidance.
+
+Do not rely on question array positions as the only relationship between questions and answers.
+
+Use stable IDs so editing, reordering, deleting and regenerating questions cannot accidentally attach an answer to the wrong question.
+
+### Regeneration and editing
+
+When a user edits or regenerates a question:
+
+- Update its answer key consistently.
+- Invalidate or regenerate an outdated model answer.
+- Keep question IDs and answer-key references consistent.
+- Revalidate all answer mappings before exporting.
+
+If the answer key does not match the latest question version, block the export or regenerate the affected answer.
+
+Never export stale answers.
+
+## 4. STRICT ANSWER PRIVACY
+
+The student question paper and answer key must have separate server-side authorization and serialization paths.
+
+The application must not send the answer-key JSON to an ordinary student browser merely because the student has access to their own question paper.
+
+Apply these rules:
+
+- Question-paper preview returns only question data.
+- Question-paper PDF endpoint receives only the required question-paper data.
+- Answer-key endpoint requires the appropriate authorization.
+- Teacher-copy endpoint requires the appropriate authorization.
+- Ordinary students must never receive hidden answer-key fields through an API response.
+- Do not rely on CSS hiding, disabled buttons or frontend conditions for answer protection.
+- Validate document type and permissions on the server.
+- Prevent users from changing an export request to access another user's answers.
+- Protect all test records and answer keys with Supabase RLS and server-side ownership checks.
+
+If the application does not have a teacher role or verified teacher authorization yet, keep private answer-key and teacher-copy exports restricted to the test owner and authorized admins. Do not invent a teacher role or allow arbitrary users to access someone else's test.
+
+Store authorization decisions server-side.
+
+## 5. PREMIUM PDF DESIGN
+
+The exported PDFs should look like professionally designed examination papers, not ordinary webpage screenshots.
+
+Create a reusable PDF rendering system with a consistent design language.
+
+### Student Question Paper
+
+Include:
+
+- Elegant examination header.
+- Clean title typography.
+- Subject/topic metadata.
+- Time and marks summary.
+- Student information fields.
+- Instructions section.
+- Clearly separated question sections.
+- Consistent numbering.
+- Well-spaced MCQ options.
+- Adequate answer-writing areas.
+- Page numbers.
+- Appropriate margins.
+- Professional footer.
+- Consistent typography.
+
+### Answer Key
+
+Use a different but matching visual style.
+
+Include:
+
+- Clear answer-key title.
+- Test identification.
+- Section-wise answers.
+- Correct MCQ option highlighting.
+- Structured short answers.
+- Detailed long answers.
+- Marks breakdown.
+- Important keywords.
+- Diagrams or formula rendering where required.
+
+### Teacher Copy
+
+Use the same design family.
+
+It must clearly label the entire document as a teacher copy.
+
+Mark answer-key sections prominently.
+
+Avoid mixing question-only pages with answer-key pages without clear section separation.
+
+## 6. URDU AND RIGHT-TO-LEFT PDF RENDERING
+
+This requirement is especially important.
+
+Urdu PDFs must render correctly, including proper Nastaliq typography where appropriate.
+
+Support:
+
+- Urdu script.
+- English.
+- Roman Urdu.
+- Mixed Urdu and English.
+- Arabic-script punctuation.
+- Urdu numerals where selected.
+- Normal mathematical numerals.
+- Mixed mathematical formulas.
+- Scientific notation.
+
+Use a reliable PDF rendering environment with proper Unicode shaping and bidirectional text support.
+
+Prefer a properly configured Chromium/Playwright rendering environment or another verified renderer capable of correct complex-script shaping.
+
+Use suitable fonts such as:
+
+- Noto Nastaliq Urdu.
+- Noto Naskh Arabic where appropriate for fallback.
+- A clean Latin font for English content.
+
+Use locally available and properly licensed font assets.
+
+Do not depend on externally downloaded web fonts at PDF-generation time.
+
+Ensure fonts are fully loaded before PDF rendering.
+
+Wait for document font readiness before exporting.
+
+### RTL layout rules
+
+For Urdu question-paper sections:
+
+- Set `lang="ur"`.
+- Set `dir="rtl"`.
+- Apply correct text alignment.
+- Preserve proper right-to-left reading order.
+- Apply appropriate Unicode bidirectional handling.
+- Keep question numbering clear.
+- Position MCQ option labels consistently.
+- Ensure punctuation appears in the correct visual position.
+- Keep headings and body text aligned appropriately.
+
+### Mixed Urdu and English
+
+A line containing Urdu with English subject names, technical vocabulary or model names must remain readable.
+
+Use appropriate directional isolation for embedded English text.
+
+Do not blindly force the entire document into RTL if it contains English sections.
+
+### Mathematics and formulas
+
+Mathematical expressions must retain their correct left-to-right mathematical order even inside Urdu paragraphs.
+
+Use separate LTR containers for formulas and mathematical expressions.
+
+Preserve fractions, matrices, exponents, equations, symbols and chemical formulas.
+
+### Mandatory visual validation
+
+Do not consider Urdu PDF export complete merely because the PDF file was successfully created.
+
+Generate sample documents containing:
+
+1. Pure Urdu.
+2. Pure English.
+3. Mixed Urdu and English.
+4. Urdu with MCQ options.
+5. Urdu with mathematical formulas.
+6. Urdu with scientific symbols.
+7. Multiple pages with both RTL and LTR content.
+
+Inspect the actual rendered PDF pages.
+
+Check for:
+
+- Missing glyphs.
+- Broken letters.
+- Incorrect letter shaping.
+- Reversed words.
+- Incorrect line ordering.
+- Overlapping text.
+- Incorrect punctuation.
+- Clipped content.
+- Bad page breaks.
+
+Fix all discovered issues.
+
+## 7. PAGE BREAKS AND PRINT QUALITY
+
+Implement intelligent pagination.
+
+Rules:
+
+- Do not split an MCQ question and its options across pages where avoidable.
+- Keep short questions together when possible.
+- Preserve adequate writing space.
+- Avoid cutting long answers or marking rubrics unexpectedly.
+- Prevent headings from being stranded at the bottom of a page.
+- Repeat important section headers where appropriate.
+- Include correct page numbers.
+- Maintain consistent margins.
+- Support portrait page orientation by default.
+- Allow other paper sizes where appropriate.
+
+Support A4 as the default paper size.
+
+If users choose another supported format, adjust pagination and margins correctly.
+
+## 8. PDF STORAGE AND HISTORY
+
+Use Backblaze B2 for all generated PDF files.
+
+Generate unique storage keys.
+
+Store metadata in Supabase, including:
+
+- Test ID.
+- User ID.
+- Document type.
+- Storage key.
+- File size.
+- MIME type.
+- Creation time.
+- Version.
+- Language.
+- Export status.
+
+Document types must be identifiable as:
+
+- `question_paper`
+- `answer_key`
+- `teacher_copy`
+
+Do not store PDF binary data in PostgreSQL.
+
+Use short-lived signed URLs after checking ownership and authorization.
+
+Keep separate export history.
+
+When a test is edited, keep the export version associated with the correct test version.
+
+Do not silently serve an old PDF after the underlying test changes.
+
+## 9. EDITING AND RE-EXPORTING
+
+If the user edits:
+
+- A question.
+- An MCQ option.
+- The correct answer.
+- Marks.
+- Section order.
+- Test title.
+- Instructions.
+
+Mark previous exports as outdated.
+
+Offer the user the ability to regenerate all affected documents.
+
+Never make an old answer-key PDF appear to be the current version.
+
+Before export, verify:
+
+- Question counts.
+- Question IDs.
+- Answer mappings.
+- Total marks.
+- Section totals.
+- Required model answers.
+- Language settings.
+- Export type.
+
+## 10. TESTING
+
+Add automated tests for:
+
+- Question paper excludes every answer-key field.
+- MCQ correct answers appear in the Answer Key.
+- Short answers appear in the Answer Key.
+- Long answers and marking schemes appear in the Answer Key.
+- Teacher Copy contains both questions and answers.
+- Student export never leaks answers.
+- Question IDs continue mapping correctly after reordering.
+- Regenerated questions invalidate outdated answers.
+- Editing marks updates totals.
+- Separate PDF endpoints return the correct document types.
+- Unauthorized answer-key requests fail.
+- Cross-user test access fails.
+- Supabase RLS protects answer records.
+- B2 storage references belong to the correct owner.
+- Urdu shaping works in the actual rendered PDF.
+- English and mixed-language sections render correctly.
+- Formulas remain readable.
+- Multipage PDF pagination is correct.
+
+Use actual test documents and inspect exported pages.
+
+Do not mark the feature complete if any export option is still a placeholder or if the Urdu PDF is visually broken.
+
+## 11. FINAL ACCEPTANCE CRITERIA
+
+The feature is complete only when all of these conditions are satisfied:
+
+1. A user can generate a test.
+2. The user can preview and edit questions.
+3. The user can export a question-only PDF.
+4. The user can separately export the Answer Key PDF.
+5. The user can export a Complete Teacher Copy PDF.
+6. The student paper never contains answers.
+7. Answer mappings remain correct after editing and reordering.
+8. Urdu and English PDFs render properly.
+9. Mathematical expressions remain readable.
+10. All files are stored in Backblaze B2.
+11. Supabase stores the correct document metadata.
+12. Access control prevents unauthorized answer-key exposure.
+13. The generated files can be reopened and downloaded later.
+14. Automated tests pass.
+
+Implement this as part of the existing Test Studio.
+
+Do not duplicate the application's authentication, billing, PDF storage or credit systems.
+
+Do not modify unrelated projects or deployments.
+
+Target repository remains strictly:
+
+`https://github.com/zehra4088194-design/ilmai.online`
