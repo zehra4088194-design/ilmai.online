@@ -53,6 +53,7 @@ npm install && npm run dev
 3. **Build Pack = Dockerfile**, **Port = 3000**.
 4. Domain attach karte waqt apna production domain configure karo; DNS record ko apne Coolify server par point karo.
 5. **Environment Variables**: `.env.example` ki values daalo. `NEXT_PUBLIC_*` wali values ko **Build Variable** bhi tick karo.
+   - `EXCHANGE_RATE_API_KEY` ko server-side runtime secret ke taur par add karo. Ye old ilmAI app ka existing ExchangeRate-API key reuse kar sakta hai; agar available na ho to ExchangeRate-API ka Free plan key banao. Isay `NEXT_PUBLIC_*` ya Build Variable mat banana.
 6. Deploy. Health check: `/api/health`.
 
 ### Daily free credits cron (required)
@@ -74,7 +75,8 @@ npm install && npm run dev
    - Frequency: run shortly after **00:00 UTC** each day. Check the Coolify server timezone with `date` in the app container: use `5 0 * * *` when its timezone is UTC; use `5 5 * * *` when its timezone is Asia/Karachi (PKT).
    - Timeout: `60` seconds; leave Container empty for the single main app container.
 4. Click **Execute Now** once and inspect Scheduled Tasks → Executions. It should return HTTP 200 with JSON containing `topped_up`. A 401 means `CRON_SECRET` is missing or mismatched.
-5. This endpoint is UTC-day idempotent, so run it once daily. Coolify evaluates task schedules in the deployment server's configured timezone.
+5. This endpoint is UTC-day idempotent, so run it once daily. Coolify evaluates task schedules in the deployment server's configured timezone. The same daily call also refreshes the saved USD/PKR rate from ExchangeRate-API; its JSON response includes an `exchangeRate` status. If it says `not_configured`, add `EXCHANGE_RATE_API_KEY`; if it says `fallback`, the previous saved rate is kept and the free-credit top-up still completes.
+6. To refresh manually, open Admin → Plans & discounts → USD / PKR reference rate → **Refresh rate now**. Choose **Automatic daily rate** for the scheduled updates, or **Manual rate** to keep an admin-entered amount while still recording fetched reference rates.
 
 ## 7. Test Studio PDF renderer (required for PDF downloads)
 1. Coolify mein isi repository ka doosra resource banao.
