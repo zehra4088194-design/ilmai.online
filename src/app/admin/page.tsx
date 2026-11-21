@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Users, UserPlus, Zap, MessageSquare, Hash, DollarSign, Coins, AlertTriangle, Timer, HardDrive, Database, CircleHelp, Target, Trophy, Lightbulb } from 'lucide-react';
+import { Database } from 'lucide-react';
 import { adminClient } from '@/lib/supabase/admin';
 import { PageHead } from '@/components/admin/AdminShell';
 import { StatCard } from '@/components/admin/StatCard';
@@ -65,35 +65,35 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
       </PageHead>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-        <StatCard i={0} Icon={Users} label="Total users" value={fmtNum(o.users_total)} hint={`${Object.entries(o.plans).map(([k, v]) => `${v} ${k}`).join(' · ') || '—'}`} />
-        <StatCard i={1} Icon={UserPlus} label="New users" value={fmtNum(o.users_new)} hint={`in ${days} days`} />
-        <StatCard i={2} Icon={Zap} label="Active today" value={fmtNum(o.users_active_today)} hint={`${fmtNum(o.users_active_period)} active in period`} />
-        <StatCard i={3} Icon={MessageSquare} label="Requests" value={fmtNum(o.requests_period)} hint={`${fmtNum(o.conversations_total)} chats · ${fmtNum(o.messages_total)} msgs total`} />
-        <StatCard i={4} Icon={Hash} label="Tokens" value={fmtNum(o.tokens_period)} />
-        <StatCard i={5} Icon={DollarSign} label="Provider cost" value={fmtUsd(o.cost_period)} hint="what OpenRouter charged" />
-        <StatCard i={6} Icon={Coins} label="Credits used" value={fmtNum(o.credits_period)} />
-        <StatCard i={7} Icon={AlertTriangle} label="Errors" value={fmtNum(o.errors_period)} hint={o.requests_period ? `${((o.errors_period / o.requests_period) * 100).toFixed(1)}% of requests` : undefined} />
-        <StatCard i={8} Icon={Timer} label="Avg latency" value={`${((o.avg_latency_ms ?? 0) / 1000).toFixed(1)}s`} />
-        <StatCard i={9} Icon={HardDrive} label="Media stored" value={fmtNum(o.media_total)} hint={`${mb} MB in B2`} />
+        <StatCard i={0} icon="users" label="Total users" value={fmtNum(o.users_total)} hint={`${Object.entries(o.plans).map(([k, v]) => `${v} ${k}`).join(' · ') || '—'}`} />
+        <StatCard i={1} icon="userPlus" label="New users" value={fmtNum(o.users_new)} hint={`in ${days} days`} />
+        <StatCard i={2} icon="zap" label="Active today" value={fmtNum(o.users_active_today)} hint={`${fmtNum(o.users_active_period)} active in period`} />
+        <StatCard i={3} icon="messageSquare" label="Requests" value={fmtNum(o.requests_period)} hint={`${fmtNum(o.conversations_total)} chats · ${fmtNum(o.messages_total)} msgs total`} />
+        <StatCard i={4} icon="hash" label="Tokens" value={fmtNum(o.tokens_period)} />
+        <StatCard i={5} icon="dollarSign" label="Provider cost" value={fmtUsd(o.cost_period)} hint="what OpenRouter charged" />
+        <StatCard i={6} icon="coins" label="Credits used" value={fmtNum(o.credits_period)} />
+        <StatCard i={7} icon="alertTriangle" label="Errors" value={fmtNum(o.errors_period)} hint={o.requests_period ? `${((o.errors_period / o.requests_period) * 100).toFixed(1)}% of requests` : undefined} />
+        <StatCard i={8} icon="timer" label="Avg latency" value={`${((o.avg_latency_ms ?? 0) / 1000).toFixed(1)}s`} />
+        <StatCard i={9} icon="hardDrive" label="Media stored" value={fmtNum(o.media_total)} hint={`${mb} MB in B2`} />
       </div>
 
       <h2 className="mb-3 mt-8 text-sm font-bold uppercase tracking-wider text-muted-foreground">Learning</h2>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <StatCard i={0} Icon={CircleHelp} label="Quizzes created" value={fmtNum(qz.count ?? 0)} />
-        <StatCard i={1} Icon={Target} label="Quiz attempts" value={fmtNum(attempts.length)} />
-        <StatCard i={2} Icon={Trophy} label="Average score" value={`${avgScore}%`} />
-        <StatCard i={3} Icon={Lightbulb} label="Suggestions served" value={fmtNum(sg.count ?? 0)} hint="free models" />
+        <StatCard i={0} icon="circleHelp" label="Quizzes created" value={fmtNum(qz.count ?? 0)} />
+        <StatCard i={1} icon="target" label="Quiz attempts" value={fmtNum(attempts.length)} />
+        <StatCard i={2} icon="trophy" label="Average score" value={`${avgScore}%`} />
+        <StatCard i={3} icon="lightbulb" label="Suggestions served" value={fmtNum(sg.count ?? 0)} hint="free models" />
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <section className="card p-5"><h2 className="mb-3 font-bold">Requests per day</h2><AreaChart data={fill(days, o.by_day, 'requests')} /></section>
-        <section className="card p-5"><h2 className="mb-3 font-bold">Cost per day (USD)</h2><BarChart data={fill(days, o.by_day, 'cost')} format={(n) => fmtUsd(n)} /></section>
+        <section className="card p-5"><h2 className="mb-3 font-bold">Cost per day (USD)</h2><BarChart data={fill(days, o.by_day, 'cost')} format="usd" /></section>
         <section className="card p-5"><h2 className="mb-3 font-bold">New sign-ups</h2><BarChart data={fill(days, o.signups_by_day, 'signups')} /></section>
         <section className="card p-5"><h2 className="mb-3 font-bold">Daily active users</h2><AreaChart data={fill(days, o.by_day, 'users')} /></section>
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        <section className="card p-5 lg:col-span-2"><h2 className="mb-4 font-bold">Top models</h2><BarList rows={o.by_model.map((m) => ({ label: m.model, value: m.requests, sub: fmtUsd(m.cost) }))} format={fmtNum} /></section>
+        <section className="card p-5 lg:col-span-2"><h2 className="mb-4 font-bold">Top models</h2><BarList rows={o.by_model.map((m) => ({ label: m.model, value: m.requests, sub: fmtUsd(m.cost) }))} format="number" /></section>
         <section className="card p-5"><h2 className="mb-4 font-bold">By feature</h2><BarList rows={o.by_kind.map((k) => ({ label: k.kind, value: k.requests, sub: fmtUsd(k.cost) }))} format={fmtNum} /></section>
       </div>
 
