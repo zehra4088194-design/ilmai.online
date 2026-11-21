@@ -34,7 +34,7 @@ export default async function PricingPage() {
     credits_per_period:0,period_days:30,active:true,display_features:['Core chat access subject to usage limits'],
     sort_order:0,paddle_price_id:null,paypro_enabled:false,
   } as Plan];
-  const paddleConfigured=!!process.env.PADDLE_API_KEY&&!!process.env.PADDLE_WEBHOOK_SECRET&&['sandbox','production'].includes(process.env.PADDLE_ENVIRONMENT??'');
+  const paddleConfigured=!!process.env.PADDLE_API_KEY&&!!process.env.PADDLE_WEBHOOK_SECRET&&!!process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN&&['sandbox','production'].includes(process.env.PADDLE_ENVIRONMENT??'')&&process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT===process.env.PADDLE_ENVIRONMENT;
   const payproConfigured=!!process.env.PAYPRO_MERCHANT_NO&&!!process.env.PAYPRO_APP_SECRET&&!!process.env.PAYPRO_API_BASE_URL;
 
   return <main className="min-h-dvh bg-background">
