@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   ArrowUp, Square, Plus, Paperclip, WandSparkles, Mic, MicOff, PhoneCall, PhoneOff,
-  GraduationCap, Globe, ChevronDown, Loader2, X,
+  GraduationCap, Globe, ChevronDown, Loader2,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
