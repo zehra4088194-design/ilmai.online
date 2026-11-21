@@ -8,42 +8,25 @@ Ilm AI ka approved production design:
 
 Browser kabhi bhi OpenRouter, Groq ya Gemini ko direct call nahi karta. Provider keys sirf server-side secrets mein rehti hain.
 
-## 1. Cloudflare Worker deploy karo
+## 1. Cloudflare Worker deployment status
 
-1. Cloudflare Dashboard → **Workers & Pages** → **Create Worker**.
-2. Worker ka naam bilkul `ilmai-ai-router` rakho aur starter Hello World Worker ek baar deploy kar do. Ye initial Worker resource create karta hai, taa-ke Wrangler us par secrets attach kar sake.
-3. Apne computer par repository clone/open karo aur terminal mein:
-   ```bash
-   cd workers/ai-router
-   npm ci
-   npm run typecheck
-   npm test
-   npx wrangler login
-   ```
-4. Ek naya random HMAC secret generate karo. Windows PowerShell mein:
-   ```powershell
-   $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
-   $bytes = New-Object byte[] 32
-   $rng.GetBytes($bytes)
-   $rng.Dispose()
-   ([BitConverter]::ToString($bytes)).Replace("-", "").ToLower()
-   ```
-   Is value ko secure password manager mein temporarily save kar lo. Chat ya GitHub par share nahi karna.
-5. Wrangler ke interactive prompts se required secrets set karo:
-   ```bash
-   npx wrangler secret put AI_ROUTER_SECRET
-   npx wrangler secret put OPENROUTER_API_KEY
-   ```
-   Dono secrets required hain. OpenRouter key wahi account key hogi jo model catalogue ke liye Coolify mein bhi set hogi.
-6. Worker code deploy karo:
-   ```bash
-   npx wrangler deploy
-   npx wrangler secret list
-   ```
-   Secret list sirf names/status dikhane ke liye use karo — secret values nahi.
-7. Deploy output mein Worker ka actual URL milega. Aam tor par format:
-   `https://ilmai-ai-router.<your-account-subdomain>.workers.dev`
-   Apna real URL copy karo. Is Ilm AI account ke liye deployed URL ab `https://ilmai-ai-router.ilmai.workers.dev` hai.
+Worker `ilmai-ai-router` is account par deploy ho chuka hai:
+
+`https://ilmai-ai-router.ilmai.workers.dev`
+
+Iske `RequestGate` aur `KeyPool` SQLite Durable Objects bhi provision ho chuke hain. `AI_ROUTER_SECRET` Cloudflare Worker mein configured hai. **Abhi `OPENROUTER_API_KEY` add karna baqi hai**, warna inference gateway OpenRouter requests serve nahi kar sakega.
+
+Cloudflare Dashboard → Workers & Pages → `ilmai-ai-router` → Settings → Variables and Secrets → Add → **Secret** se missing key add karo. OpenRouter key wahi use karo jo Coolify main app mein model catalogue/pricing ke liye already configured hai.
+
+Agar future mein Worker ko dobara deploy karna ho, repo ke `workers/ai-router` folder mein:
+```bash
+npm ci
+npm run typecheck
+npm test
+npx wrangler deploy
+```
+
+Worker ka HMAC secret Coolify aur Cloudflare dono jagah identical hona chahiye. Secret values ko GitHub ya chat mein share mat karo.
 
 ## 2. Optional provider keys
 
@@ -66,7 +49,7 @@ Coolify → main Ilm AI app → Environment Variables mein:
 
 | Variable | Value kahan se aayegi |
 |---|---|
-| `AI_ROUTER_URL` | Wrangler deploy output ka Worker base URL; endpoint path add nahi karna |
+| `AI_ROUTER_URL` | `https://ilmai-ai-router.ilmai.workers.dev` (base URL only; endpoint path add nahi karna) |
 | `AI_ROUTER_SECRET` | Wahi random HMAC secret jo Worker par `AI_ROUTER_SECRET` ke naam se set kiya |
 | `OPENROUTER_API_KEY` | OpenRouter dashboard ki API key; catalogue aur prices fetch karne ke liye |
 
