@@ -35,12 +35,17 @@ export const POST=handle(async(req:NextRequest)=>{
     throw new HttpError(503,detail.slice(0,300)||'Could not query PayPro payment status','paypro_query_failed');
   }
   const result=await response.json().catch(()=>({})) as {
+    code?:string;success?:boolean|string;msg?:string;
     data?:{status?:string;tradeNo?:string;platFormTradeNo?:string;amount?:string;message?:string};
   };
+  if(result.code!=='0000'||!(result.success===true||result.success==='true')) {
+    throw new HttpError(502,result.msg??'PayPro could not verify payment status','paypro_query_invalid');
+  }
   const data=result.data;
   if(!data?.status||data.tradeNo!==payment.trade_no) throw new HttpError(502,'PayPro returned an invalid payment status');
   if(data.status==='0000') {
     const amount=Number(data.amount);
+    if(!Number.isFinite(amount)) throw new HttpError(502,'PayPro returned an invalid paid amount');
     const settlement=await completePayment({
       paymentId,providerReference:data.platFormTradeNo??payment.provider_reference??'',
       amount,currency:'PKR',
