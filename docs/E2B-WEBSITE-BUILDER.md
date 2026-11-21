@@ -24,4 +24,4 @@ The UI reports one of three outcomes: **passed**, **failed**, or **unavailable**
 
 ## Runtime requirement
 
-The server must run Node.js 22.19 or newer, as required by the pinned E2B SDK. The app's regular CI lockfile is refreshed and committed by its GitHub Actions workflow when the dependency is added or updated.
+The server and build environment must run Node.js 22.19 or newer, as required by the pinned E2B SDK. The E2B dependency is pinned to version 2.64.0 in package.json and package-lock.json.
