@@ -123,8 +123,10 @@ export function AttachmentPicker({ value, onChange, disabled = false, onUploadin
             req.upload.onprogress = (event) => {
               if (mounted.current) setProgress({ name, percent: event.lengthComputable ? Math.min(99, Math.round(event.loaded / event.total * 100)) : 0, stage: 'Uploading' });
             };
-            req.onload = () => req.status >= 200 && req.status < 300 ? resolve() : reject(new Error('Storage upload failed'));
-            req.onerror = () => reject(new Error('Storage upload failed; check your connection'));
+            req.onload = () => req.status >= 200 && req.status < 300
+              ? resolve()
+              : reject(new Error(`Backblaze B2 rejected the upload (HTTP ${req.status}). Check the bucket CORS rule and Read/Write application key permissions.`));
+            req.onerror = () => reject(new Error(`Could not reach Backblaze B2. Check your connection and confirm bucket CORS allows ${window.location.origin} with s3_put.`));
             req.ontimeout = () => reject(new Error('Upload timed out'));
             req.onabort = () => reject(new Error('Upload cancelled'));
             req.send(file);
