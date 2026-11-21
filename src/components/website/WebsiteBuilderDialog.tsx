@@ -101,11 +101,12 @@ export function WebsiteBuilderDialog({ open, onClose, models, preferredModel }: 
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;
-      anchor.download = (result.project.projectName || 'website').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '.zip';
+      const slug = (result.project.projectName || 'website').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'website-project';
+      anchor.download = slug + '.zip';
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
-      URL.revokeObjectURL(url);
+      window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
     } catch {
       toast('Could not package the website files into a ZIP.', 'err');
     }
