@@ -16,42 +16,20 @@ export type OrModel = {
   description?: string;
   context_length?: number;
   created?: number;
-  pricing?: { prompt?: string; completion?: string; image?: string };
+  pricing?: { prompt?: string; completion?: string; image?: string; request?: string; input_cache_read?: string; input_cache_write?: string };
   architecture?: { input_modalities?: string[]; output_modalities?: string[]; modality?: string };
 };
 
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string | unknown[] };
 
-/** Full public model catalogue (cached 1h). */
+/**
+ * Catalogue-only OpenRouter access. All chat, image and video inference must go
+ * through the signed Cloudflare AI Router (src/lib/ai-router.ts).
+ */
 export async function fetchOrModels(): Promise<OrModel[]> {
+  if (!env.openrouterKey) throw new Error('OPENROUTER_API_KEY is not configured for model catalogue discovery');
   const res = await fetch(`${OR_BASE}/models`, { headers: headers(), next: { revalidate: 3600, tags: ['or-models'] } });
   if (!res.ok) throw new Error(`OpenRouter /models failed: ${res.status}`);
   const j = (await res.json()) as { data: OrModel[] };
   return j.data ?? [];
-}
-
-/** Streaming chat completion – returns the raw upstream Response (SSE). */
-export async function orStream(body: Record<string, unknown>, signal?: AbortSignal) {
-  return fetch(`${OR_BASE}/chat/completions`, {
-    method: 'POST',
-    headers: headers(),
-    signal,
-    body: JSON.stringify({ ...body, stream: true, usage: { include: true } }),
-  });
-}
-
-/** Non-streaming chat completion. */
-export async function orChat(body: Record<string, unknown>, signal?: AbortSignal) {
-  const res = await fetch(`${OR_BASE}/chat/completions`, {
-    method: 'POST',
-    headers: headers(),
-    signal,
-    body: JSON.stringify({ ...body, stream: false, usage: { include: true } }),
-  });
-  const j = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(j?.error?.message ?? `OpenRouter error ${res.status}`);
-  return j as {
-    choices: { message: { content: string | null; images?: { image_url: { url: string } }[] } }[];
-    usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number };
-  };
 }
