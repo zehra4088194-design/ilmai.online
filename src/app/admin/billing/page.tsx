@@ -15,6 +15,6 @@ export default async function Page(){
   ]);
   return <>
     <PageHead title="Plans & discounts" sub="Configure paid tiers, credit grants, Paddle product IDs, PayPro availability and discount codes."/>
-    <BillingAdmin initial={{plans:plans??[],discounts:discounts??[],payments:payments??[],providers:{paddleConfigured:!!process.env.PADDLE_API_KEY&&!!process.env.PADDLE_WEBHOOK_SECRET&&['sandbox','production'].includes(process.env.PADDLE_ENVIRONMENT??''),payproConfigured:!!process.env.PAYPRO_MERCHANT_NO&&!!process.env.PAYPRO_APP_SECRET&&!!process.env.PAYPRO_API_BASE_URL}}}/>
+    <BillingAdmin initial={{plans:plans??[],discounts:discounts??[],payments:payments??[],providers:{paddleConfigured:!!process.env.PADDLE_API_KEY&&!!process.env.PADDLE_WEBHOOK_SECRET&&!!process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN&&['sandbox','production'].includes(process.env.PADDLE_ENVIRONMENT??'')&&process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT===process.env.PADDLE_ENVIRONMENT,payproConfigured:!!process.env.PAYPRO_MERCHANT_NO&&!!process.env.PAYPRO_APP_SECRET&&!!process.env.PAYPRO_API_BASE_URL}}}/>
   </>;
 }
