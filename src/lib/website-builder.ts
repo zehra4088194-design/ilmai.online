@@ -13,7 +13,7 @@ const ProjectSchema = z.object({
 });
 
 const MAX_TOTAL_BYTES = 650_000;
-const RESERVED_NAMES = new Set(['.env', '.npmrc', '.yarnrc', '.pnp.cjs']);
+const RESERVED_NAMES = new Set(['.env', '.npmrc', '.yarnrc', '.pnp.cjs', 'package-lock.json', 'npm-shrinkwrap.json', 'pnpm-lock.yaml', 'yarn.lock', 'bun.lock', 'bun.lockb']);
 
 function safePath(raw: string) {
   const path = raw.trim().replace(/\\/g, '/');
@@ -21,7 +21,9 @@ function safePath(raw: string) {
     throw new Error('The generated project contains an invalid file path');
   const parts = path.split('/');
   if (parts.some((part) => !part || part === '.' || part === '..')) throw new Error('The generated project contains an unsafe path');
-  if (parts.some((part) => RESERVED_NAMES.has(part.toLowerCase()) || /^\.env($|\.)/i.test(part) || /\.(pem|key|p12|pfx)$/i.test(part)))
+  if (parts.some((part) => ['node_modules', '.git'].includes(part.toLowerCase()) || RESERVED_NAMES.has(part.toLowerCase())))
+    throw new Error('The generated project attempted to include a reserved lockfile or dependency directory');
+  if (parts.some((part) => /^\.env($|\.)/i.test(part) || /\.(pem|key|p12|pfx)$/i.test(part)))
     throw new Error('The generated project attempted to include a secret or private-key file');
   return parts.join('/');
 }
@@ -31,7 +33,11 @@ function validatePackageJson(content: string) {
   try { pkg = JSON.parse(content) as Record<string, unknown>; }
   catch { throw new Error('Generated package.json is not valid JSON'); }
 
-  const dependencyGroups = ['dependencies', 'devDependencies', 'optionalDependencies'];
+  if (pkg.overrides !== undefined || pkg.workspaces !== undefined) {
+    throw new Error('Generated package.json cannot define npm overrides or workspaces');
+  }
+
+  const dependencyGroups = ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies'];
   const dependencies: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
   for (const group of dependencyGroups) {
     const value = pkg[group];
