@@ -1,39 +1,44 @@
-'use client';
+ 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { LogOut, Save, Loader2 } from 'lucide-react';
+import { LogOut, Save, Loader2, RotateCcw, Palette, Sun, Moon, Monitor, Type, Paintbrush2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/providers';
+import { ACCENTS, DEFAULT_APPEARANCE, THEME_FAMILIES, useAppearance, type Appearance } from '@/components/providers';
 
-export function SettingsClient({ id, name: initial }: { id: string; name: string }) {
-  const [name, setName] = useState(initial);
-  const [busy, setBusy] = useState(false);
-  const router = useRouter();
-  const toast = useToast();
-
-  async function save() {
+export function SettingsClient({ id, name: initial, preferences }: { id: string; name: string; preferences: Record<string, unknown> }) {
+  const [name,setName]=useState(initial);
+  const [busy,setBusy]=useState(false);
+  const {appearance,updateAppearance}=useAppearance();
+  const router=useRouter();const toast=useToast();
+  const saved=(preferences?.appearance&&typeof preferences.appearance==='object'?preferences.appearance:{}) as Partial<Appearance>;
+  async function save(){
     setBusy(true);
-    const { error } = await createClient().from('profiles').update({ full_name: name }).eq('id', id);
+    const {error}=await createClient().from('profiles').update({full_name:name,preferences:{...preferences,appearance}}).eq('id',id);
     setBusy(false);
-    error ? toast(error.message, 'err') : toast('Saved', 'ok');
-    router.refresh();
+    if(error){toast('Could not save settings: '+error.message,'err');return;}
+    toast('Profile and appearance saved','ok');router.refresh();
   }
-  async function signOut() {
-    await createClient().auth.signOut();
-    router.replace('/login');
-    router.refresh();
-  }
-
-  return (
-    <div className="space-y-6">
-      <section className="card space-y-3 p-5">
-        <h2 className="font-bold">Profile</h2>
-        <label className="block space-y-1 text-sm font-medium">Display name
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
-        </label>
-        <button className="btn-primary" onClick={save} disabled={busy}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}Save</button>
-      </section>
-      <section className="card p-5"><button className="btn-outline text-danger" onClick={signOut}><LogOut className="h-4 w-4" />Sign out</button></section>
-    </div>
-  );
+  async function signOut(){await createClient().auth.signOut();router.replace('/login');router.refresh();}
+  function reset(){updateAppearance(DEFAULT_APPEARANCE);toast('Appearance reset to Ilm Green defaults. Save to sync it to your account.','info');}
+  const modes=[{value:'light',label:'Light',Icon:Sun},{value:'dark',label:'Dark',Icon:Moon},{value:'system',label:'System',Icon:Monitor}] as const;
+  const headings=[{value:'auto',label:'Theme colour'},{value:'#8b5cf6',label:'Violet'},{value:'#e11d48',label:'Rose'},{value:'#d97706',label:'Amber'},{value:'#059669',label:'Emerald'},{value:'#0284c7',label:'Sky'},{value:'#c026d3',label:'Fuchsia'}];
+  return <div className="space-y-6">
+    <section className="card space-y-3 p-5"><h2 className="font-bold">Profile</h2>
+      <label className="block space-y-1 text-sm font-medium">Display name<input className="input" value={name} onChange={e=>setName(e.target.value)} placeholder="Your name"/></label>
+      <button className="btn-primary" onClick={save} disabled={busy}>{busy?<Loader2 className="h-4 w-4 animate-spin"/>:<Save className="h-4 w-4"/>}Save profile & appearance</button>
+    </section>
+    <section className="card space-y-5 p-5">
+      <div className="flex items-center justify-between gap-3"><div><h2 className="font-bold">Appearance</h2><p className="mt-1 text-sm text-muted-foreground">Choose how Ilm AI looks. Changes preview immediately.</p></div><Palette className="h-5 w-5 text-primary"/></div>
+      <div><p className="mb-2 text-sm font-semibold">Theme mode</p><div className="grid grid-cols-3 gap-2">{modes.map(({value,label,Icon})=><button key={value} onClick={()=>updateAppearance({mode:value})} aria-pressed={appearance.mode===value} className={`flex items-center justify-center gap-2 rounded-xl border p-2.5 text-sm ${appearance.mode===value?'border-primary bg-accent text-accent-foreground':'border-border hover:bg-muted'}`}><Icon className="h-4 w-4"/>{label}</button>)}</div></div>
+      <div><p className="mb-2 text-sm font-semibold">Theme collection</p><div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{THEME_FAMILIES.map(t=><button key={t.id} onClick={()=>updateAppearance({family:t.id})} aria-pressed={appearance.family===t.id} className={`rounded-xl border p-2.5 text-left transition hover:-translate-y-0.5 ${appearance.family===t.id?'border-primary ring-1 ring-primary/40':'border-border'}`}><div className="mb-2 flex h-8 overflow-hidden rounded-lg">{t.swatches.map((color,i)=><span key={i} className="flex-1" style={{background:color}}/>)}</div><span className="text-xs font-semibold">{t.label}</span>{appearance.family===t.id&&<span className="ml-1 text-primary">✓</span>}</button>)}</div></div>
+      <div><p className="mb-2 text-sm font-semibold">Accent colour</p><div className="flex flex-wrap items-center gap-2">{ACCENTS.map(a=><button key={a.id} type="button" onClick={()=>updateAppearance({accent:a.id,monochrome:a.id==='#a1a1aa'})} title={a.label} aria-label={a.label} aria-pressed={appearance.accent===a.id} className={`h-8 w-8 rounded-full border border-white/20 ${appearance.accent===a.id?'ring-2 ring-primary ring-offset-2 ring-offset-background':''}`} style={{background:a.swatch}}/>)}<label className="flex h-9 items-center gap-2 rounded-full border border-border px-2 text-xs"><span>Custom</span><input type="color" aria-label="Custom accent colour" value={appearance.accent} onChange={e=>updateAppearance({accent:e.target.value,monochrome:false})} className="h-5 w-5 cursor-pointer rounded border-0 bg-transparent p-0"/></label></div><button type="button" onClick={()=>updateAppearance({monochrome:!appearance.monochrome})} className={`mt-2 rounded-lg border px-3 py-2 text-xs ${appearance.monochrome?'border-primary bg-accent':'border-border'}`}>{appearance.monochrome?'✓ Monochrome enabled':'Use black, white & grey only'}</button></div>
+      <div><p className="mb-2 text-sm font-semibold">AI answer headings</p><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{(['auto','handwritten','serif','minimal'] as const).map(style=><button key={style} onClick={()=>updateAppearance({headingStyle:style})} aria-pressed={appearance.headingStyle===style} className={`rounded-xl border p-2 text-sm ${appearance.headingStyle===style?'border-primary bg-accent':'border-border hover:bg-muted'}`}>{style==='auto'?'Automatic':style==='handwritten'?'Handwritten':style==='serif'?'Elegant serif':'Minimal'}</button>)}</div><p className="mt-2 text-xs text-muted-foreground">Applies to Markdown headings in assistant responses.</p></div>
+      <div><p className="mb-2 text-sm font-semibold">Heading colour</p><div className="flex flex-wrap gap-2">{headings.map(h=><button key={h.value} onClick={()=>updateAppearance({headingColor:h.value})} title={h.label} aria-label={h.label} aria-pressed={appearance.headingColor===h.value} className={`h-8 w-8 rounded-full border ${appearance.headingColor===h.value?'ring-2 ring-primary ring-offset-2 ring-offset-background':''}`} style={{background:h.value==='auto'?'linear-gradient(135deg,#22c55e,#60a5fa)':h.value}}/>)}<label className="flex h-8 items-center gap-1 rounded-full border border-border px-2 text-xs">Custom<input type="color" value={appearance.headingColor==='auto'?'#22c55e':appearance.headingColor} onChange={e=>updateAppearance({headingColor:e.target.value})} className="h-5 w-5 cursor-pointer border-0 bg-transparent p-0"/></label></div></div>
+      <div><p className="mb-2 text-sm font-semibold">Font style</p><div className="grid grid-cols-3 gap-2">{([{value:'sans',label:'Clean sans',preview:'Aa'}, {value:'serif',label:'Elegant serif',preview:'Aa'}, {value:'mono',label:'Mono',preview:'Aa'}] as const).map(f=><button key={f.value} onClick={()=>updateAppearance({font:f.value})} aria-pressed={appearance.font===f.value} className={`rounded-xl border p-2.5 ${appearance.font===f.value?'border-primary bg-accent':'border-border'}`}><span className={`block text-xl ${f.value==='serif'?'font-serif':f.value==='mono'?'font-mono':''}`}>{f.preview}</span><span className="text-xs">{f.label}</span></button>)}</div></div>
+      <div className="rounded-xl border border-border bg-muted/40 p-3"><div className="flex items-center gap-2 text-sm font-semibold"><Paintbrush2 className="h-4 w-4 text-primary"/>Live preview</div><h3 className="mt-3 text-lg font-bold" style={{color:appearance.headingColor==='auto'?'hsl(var(--primary))':appearance.headingColor}}>Beautiful headings for your answers</h3><p className="text-sm text-muted-foreground">Paragraph text · links · <span className="text-primary font-semibold">accent buttons</span></p><button className="btn-primary mt-2">Example action</button></div>
+      <div className="flex flex-wrap gap-2"><button className="btn-primary" onClick={save} disabled={busy}>{busy?<Loader2 className="h-4 w-4 animate-spin"/>:<Save className="h-4 w-4"/>}Save to account</button><button className="btn-outline" onClick={reset}><RotateCcw className="h-4 w-4"/>Reset defaults</button></div><p className="text-xs text-muted-foreground">Your preview is saved on this browser automatically. “Save to account” syncs it to your profile so it follows you on other devices.</p>
+    </section>
+    <section className="card p-5"><button className="btn-outline text-danger" onClick={signOut}><LogOut className="h-4 w-4"/>Sign out</button></section>
+  </div>;
 }
