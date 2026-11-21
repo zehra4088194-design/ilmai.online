@@ -64,7 +64,9 @@ function extractOffice(bytes: Uint8Array, kind: string) {
   const sizes = new Map<string, number>();
   const wanted = (name: string) => name === '[Content_Types].xml' || (kind === 'docx'
     ? name === 'word/document.xml'
-    : name === 'ppt/presentation.xml' || /^ppt\/slides\/slide\d+\.xml$/.test(name));
+    : kind === 'pptx'
+      ? name === 'ppt/presentation.xml' || /^ppt\/slides\/slide\d+\.xml$/.test(name)
+      : name === 'xl/workbook.xml' || name === 'xl/sharedStrings.xml' || /^xl\/worksheets\/sheet\d+\.xml$/.test(name));
   // The filter runs BEFORE inflation/allocation, including on entries we will not extract.
   const files = unzipSync(bytes, { filter: (file) => {
     entries++;
@@ -80,19 +82,50 @@ function extractOffice(bytes: Uint8Array, kind: string) {
     sizes.set(file.name, file.originalSize);
     return wanted(file.name);
   } });
-  const main = kind === 'docx' ? 'word/document.xml' : 'ppt/presentation.xml';
+  const main = kind === 'docx' ? 'word/document.xml' : kind === 'pptx' ? 'ppt/presentation.xml' : 'xl/workbook.xml';
   if (!files['[Content_Types].xml'] || !files[main]) throw new Error('File is not the declared Office document type');
   const contentTypes = decodeText(files['[Content_Types].xml']);
   const expectedType = kind === 'docx'
     ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml'
-    : 'application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml';
+    : kind === 'pptx'
+      ? 'application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml'
+      : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml';
   if (!contentTypes.includes(expectedType) || /macroEnabled/i.test(contentTypes)) throw new Error('File is not the declared Office document type');
+
+  if (kind === 'xlsx') {
+    const sharedXml = files['xl/sharedStrings.xml'] ? decodeText(files['xl/sharedStrings.xml']) : '';
+    const shared = (sharedXml.match(/<si\\b[\\s\\S]*?<\\/si>/g) ?? []).map(xmlText);
+    const rows: string[] = [];
+    for (const name of Object.keys(files).filter((entry) => /^xl\\/worksheets\\/sheet\\d+\\.xml$/.test(entry)).sort()) {
+      const xml = decodeText(files[name]);
+      if (/<!DOCTYPE|<!ENTITY/i.test(xml)) throw new Error('XML entities are not supported');
+      for (const row of xml.match(/<row\\b[\\s\\S]*?<\\/row>/g) ?? []) {
+        const cells: string[] = [];
+        for (const match of row.matchAll(/<c\\b([^>]*)>([\\s\\S]*?)<\\/c>/g)) {
+          const attrs = match[1];
+          const body = match[2];
+          const ref = attrs.match(/\\br="([A-Z]+)\\d+"/i)?.[1] ?? '';
+          let col = 0;
+          for (const ch of ref) col = col * 26 + ch.charCodeAt(0) - 64;
+          const type = attrs.match(/\\bt="([^"]+)"/)?.[1] ?? '';
+          const value = body.match(/<v>([\\s\\S]*?)<\\/v>/)?.[1] ?? '';
+          const cell = type === 's' ? (shared[Number(value)] ?? '') :
+            type === 'inlineStr' ? xmlText(body) : value;
+          if (col > 0 && col <= 256) cells[col - 1] = cell;
+        }
+        rows.push(cells.map((cell) => cell ?? '').join('\\t'));
+      }
+    }
+    if (!rows.some((row) => row.trim())) throw new Error('No readable spreadsheet cells found');
+    return boundedText(rows.join('\\n').trim());
+  }
+
   let text = '';
   for (const name of Object.keys(files).sort((a, b) => a.localeCompare(b, 'en', { numeric: true }))) {
     if (files[name].length !== sizes.get(name)) throw new Error('Incomplete Office archive entry');
     const xml = decodeText(files[name]);
     if (/<!DOCTYPE|<!ENTITY/i.test(xml)) throw new Error('XML entities are not supported');
-    if (name === '[Content_Types].xml' || (kind === 'pptx' && name === main)) continue;
+    if (name === '[Content_Types].xml' || name === main) continue;
     // Only document text runs, not relationships, arbitrary embedded files or user-controlled URLs.
     const runs = xml.match(/<(?:w|a):t(?:\s[^>]*)?>[\s\S]*?<\/(?:w|a):t>/g) ?? [];
     for (const run of runs) {
@@ -113,7 +146,7 @@ export function verifyAttachment(bytes: Uint8Array, mime: string, size: number, 
   try {
     const type = validateAttachmentBytes(bytes, mime, size, maxBytes);
     if (mime === 'text/plain') return boundedText(decodeText(bytes));
-    if (type.kind === 'docx' || type.kind === 'pptx') return extractOffice(bytes, type.kind);
+    if (type.kind === 'docx' || type.kind === 'pptx' || type.kind === 'xlsx') return extractOffice(bytes, type.kind);
   } catch (e) {
     throw new HttpError(400, e instanceof Error ? e.message : 'Invalid attachment', 'invalid_attachment');
   }
