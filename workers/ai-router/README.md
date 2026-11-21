@@ -8,33 +8,28 @@ The Worker is the **only provider-inference gateway** for the Next.js applicatio
 
 Run from the repository root, or use the equivalent commands from `workers/ai-router`:
 
-1. Install and verify the Worker:
+1. Create the Worker shell once in Cloudflare Dashboard → Workers & Pages → Create Worker. Name it exactly `ilmai-ai-router` and deploy the starter Hello World script. This bootstrap is needed before Wrangler can attach secrets to the Worker.
+2. In a terminal, install and verify the code:
    ```bash
    cd workers/ai-router
    npm ci
    npm run typecheck
    npm test
    npx wrangler login
-   npx wrangler deploy
    ```
-2. Set the Worker secrets. The OpenRouter key here is required for user-facing inference; it is separate from the copy configured in Coolify:
+3. Set both required Worker secrets using Wrangler's interactive prompts:
    ```bash
    npx wrangler secret put AI_ROUTER_SECRET
    npx wrangler secret put OPENROUTER_API_KEY
    ```
-   Use Wrangler's interactive prompt. Never put secret values in source control, `.env.example`, Worker vars, or browser-side `NEXT_PUBLIC_*` values.
-3. Optional: add Groq key slots for the Groq-assisted Auto selector. Add Gemini/Groq slots only when enabling those direct routes:
-   ```bash
-   npx wrangler secret put GROQ_API_KEY_1
-   npx wrangler secret put GEMINI_API_KEY_1
-   ```
-   Additional numbered slots (up to 10 per provider) are supported. Unconfigured slots are ignored. Without a Groq routing key, Auto mode falls back to deterministic candidate priority; normal manually selected models still work through OpenRouter.
-4. Deploy the final version after setting secrets and inspect configured secret names (not values):
+   `AI_ROUTER_SECRET` must be a newly generated random secret. `OPENROUTER_API_KEY` is the OpenRouter key used by this Worker for inference; the same OpenRouter key is also configured separately in Coolify for catalogue discovery. Never put secret values in source control, `.env.example`, Worker vars, or browser-side `NEXT_PUBLIC_*` values.
+4. Deploy the repository's Worker code and inspect configured secret names (not values):
    ```bash
    npx wrangler deploy
    npx wrangler secret list
    ```
 5. Wrangler prints the deployed Worker URL, normally `https://ilmai-ai-router.<account-subdomain>.workers.dev`. Copy the actual URL; do not use the example hostname.
+6. Optional: add `GROQ_API_KEY_1` to enable the Groq-assisted Auto model selector. Add `GEMINI_API_KEY_1` or additional numbered provider slots (up to 10 per provider) only if enabling those direct provider routes. Without a Groq routing key, Auto mode falls back to deterministic candidate priority; manually selected models continue through OpenRouter.
 
 SQLite-backed Durable Objects are required for request replay/rate protection and key pools. Review Cloudflare plan limits and enable spend alerts before production usage.
 
