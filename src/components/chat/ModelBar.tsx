@@ -25,10 +25,13 @@ export function ModelBar({
   const [q,setQ]=useState('');
   const [chip,setChip]=useState<'all'|'free'|'vision'>('all');
   const [provider,setProvider]=useState('all');
+  const [visibleLimit,setVisibleLimit]=useState(100);
   const ref=useRef<HTMLDivElement>(null);
   const byId=useMemo(()=>new Map(models.map((model)=>[model.id,model])),[models]);
   const providers=useMemo(()=>['all',...Array.from(new Set(models.map((model)=>model.provider))).sort((a,b)=>a.localeCompare(b))],[models]);
   const actualCompareLimit=Math.max(1,max);
+
+  useEffect(()=>{setVisibleLimit(100);},[q,chip,provider]);
 
   useEffect(()=>{
     const onPointer=(event:MouseEvent)=>{
@@ -112,7 +115,7 @@ export function ModelBar({
             {compareMode&&selected.length>=actualCompareLimit&&<p className="mb-2 rounded-lg bg-primary/10 px-3 py-2 text-xs text-primary">You selected the maximum of {actualCompareLimit} models. Remove one above to add another.</p>}
             <div className="max-h-[min(24rem,56vh)] space-y-0.5 overflow-y-auto">
               {list.length===0&&<p className="py-8 text-center text-sm text-muted-foreground">No models match this search. Try another provider or search term.</p>}
-              {list.map((model)=>{
+              {list.slice(0,visibleLimit).map((model)=>{
                 const active=selected.includes(model.id);
                 const atLimit=compareMode&&selected.length>=actualCompareLimit&&!active;
                 const locked=model.locked||atLimit;
@@ -131,9 +134,12 @@ export function ModelBar({
                 );
               })}
             </div>
-            <div className="mt-2 flex items-center justify-between border-t border-border pt-2 text-[10px] text-muted-foreground">
-              <span>Showing {list.length.toLocaleString()} matching models · locked models need an upgrade</span>
-              <button type="button" onClick={()=>setOpen(false)} className="rounded-lg px-2 py-1 font-semibold hover:bg-muted hover:text-foreground">Done</button>
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2 text-[10px] text-muted-foreground">
+              <span>Showing {Math.min(visibleLimit,list.length).toLocaleString()} of {list.length.toLocaleString()} matching models · locked models need an upgrade</span>
+              <div className="flex items-center gap-1">
+                {list.length>visibleLimit&&<button type="button" onClick={()=>setVisibleLimit(limit=>limit+100)} className="rounded-lg px-2 py-1 font-semibold text-primary hover:bg-accent">Show 100 more</button>}
+                <button type="button" onClick={()=>setOpen(false)} className="rounded-lg px-2 py-1 font-semibold hover:bg-muted hover:text-foreground">Done</button>
+              </div>
             </div>
           </motion.div>
         )}
