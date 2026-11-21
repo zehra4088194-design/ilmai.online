@@ -43,6 +43,8 @@ export const POST = handle(async (req: NextRequest) => {
   const model = await getModel(body.model);
 
   if (!model || (!model.enabled && !isAdmin)) throw new HttpError(400, 'The selected website code model is unavailable', 'model_unavailable');
+  if (!/deepseek|qwen|yi-|glm|zhipu|kimi|moonshot|minimax|stepfun|internlm|baichuan|doubao|hunyuan/i.test(model.id + ' ' + model.name))
+    throw new HttpError(400, 'Choose a supported DeepSeek, Qwen or other listed Chinese code model for website generation', 'code_model_required');
   if (!model.outputModalities.includes('text')) throw new HttpError(400, 'Choose a text/code model for website generation');
   if (!isAdmin && !canUseTier(profile.plan, model.tier))
     throw new HttpError(403, 'This model needs the ' + model.tier + ' plan', 'plan_required');
