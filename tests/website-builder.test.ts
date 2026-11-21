@@ -99,4 +99,32 @@ describe('website project validation', () => {
     expect(() => validateWebsiteProject(project)).not.toThrow();
   });
 
+  it('rejects remote peer dependencies and npm override/workspace rules', () => {
+    const peer = goodProject();
+    peer.files[0].content = JSON.stringify({
+      scripts: { dev: 'next dev', build: 'next build', start: 'next start' },
+      dependencies: { next: '15.5.9', react: '19.0.0', 'react-dom': '19.0.0' },
+      peerDependencies: { 'untrusted-peer': 'git+https://github.com/evil/pkg.git' },
+    });
+    expect(() => validateWebsiteProject(peer)).toThrow(/only pinned npm registry versions/i);
+
+    for (const field of ['overrides', 'workspaces']) {
+      const project = goodProject();
+      project.files[0].content = JSON.stringify({
+        scripts: { dev: 'next dev', build: 'next build', start: 'next start' },
+        dependencies: { next: '15.5.9', react: '19.0.0', 'react-dom': '19.0.0' },
+        [field]: {},
+      });
+      expect(() => validateWebsiteProject(project)).toThrow(/cannot define npm overrides or workspaces/i);
+    }
+  });
+
+  it('rejects generated package manager lockfiles', () => {
+    for (const path of ['package-lock.json', 'npm-shrinkwrap.json', 'pnpm-lock.yaml', 'yarn.lock']) {
+      const project = goodProject();
+      project.files.push({ path, content: '{}' });
+      expect(() => validateWebsiteProject(project)).toThrow(/reserved lockfile/i);
+    }
+  });
+
 });
