@@ -11,8 +11,27 @@ export const ATTACHMENT_TYPES: Record<string, { kind: string; ext: string }> = {
   'image/png': { kind: 'image', ext: 'png' },
   'image/jpeg': { kind: 'image', ext: 'jpg' },
   'image/webp': { kind: 'image', ext: 'webp' },
+  'image/gif': { kind: 'image', ext: 'gif' },
   'application/pdf': { kind: 'pdf', ext: 'pdf' },
   'text/plain': { kind: 'file', ext: 'txt' },
+  'text/markdown': { kind: 'file', ext: 'md' },
+  'text/csv': { kind: 'file', ext: 'csv' },
+  'application/json': { kind: 'file', ext: 'json' },
+  'application/xml': { kind: 'file', ext: 'xml' },
+  'text/xml': { kind: 'file', ext: 'xml' },
+  'text/html': { kind: 'file', ext: 'html' },
+  'text/css': { kind: 'file', ext: 'css' },
+  'text/javascript': { kind: 'file', ext: 'js' },
+  'application/javascript': { kind: 'file', ext: 'js' },
+  'application/typescript': { kind: 'file', ext: 'ts' },
+  'text/x-python': { kind: 'file', ext: 'py' },
+  'text/x-sql': { kind: 'file', ext: 'sql' },
+  'text/x-java-source': { kind: 'file', ext: 'java' },
+  'text/x-c': { kind: 'file', ext: 'c' },
+  'text/x-c++src': { kind: 'file', ext: 'cpp' },
+  'text/yaml': { kind: 'file', ext: 'yaml' },
+  'application/yaml': { kind: 'file', ext: 'yaml' },
+  'application/rtf': { kind: 'file', ext: 'rtf' },
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': { kind: 'docx', ext: 'docx' },
   'application/vnd.openxmlformats-officedocument.presentationml.presentation': { kind: 'pptx', ext: 'pptx' },
 };
@@ -39,7 +58,7 @@ export function sanitizeFilename(name: string, fallback = 'attachment') {
 export function validateDeclaration(mime: string, size: number, maxBytes = MAX_ATTACHMENT_BYTES) {
   const type = attachmentType(mime);
   if (!type) throw new Error('Only PNG, JPEG, WebP, PDF, TXT, DOCX and PPTX files are supported');
-  const limit = Math.min(maxBytes, MAX_ATTACHMENT_BYTES, mime === 'text/plain' ? MAX_TEXT_BYTES : Infinity);
+  const limit = Math.min(maxBytes, MAX_ATTACHMENT_BYTES, type.kind === 'file' ? MAX_TEXT_BYTES : Infinity);
   if (!Number.isSafeInteger(size) || size <= 0) throw new Error('The file must not be empty');
   if (size > limit) throw new Error(`File exceeds the ${Math.round(limit / 1024)} KB limit`);
   return type;
