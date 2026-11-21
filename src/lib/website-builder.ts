@@ -46,7 +46,7 @@ function validatePackageJson(content: string) {
     const value = pkg[group];
     if (value === undefined) continue;
     if (!value || typeof value !== 'object' || Array.isArray(value)) {
-      throw new Error(\`Generated package.json has an invalid \${group} field\`);
+      throw new Error('Generated package.json has an invalid ' + group + ' field');
     }
     Object.assign(dependencies, value);
   }
