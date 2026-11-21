@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, ToggleRight, Cpu, Users, Activity, HardDrive, Puzzle, Settings2, ArrowLeft, Images, Menu, X, ShieldCheck, GraduationCap, Coins } from 'lucide-react';
 import { Logo } from '@/components/ui/Logo';
-import { ThemeToggle } from '@/components/ui/ThemeControls';
 import { cn } from '@/lib/utils';
 
 const NAV = [
@@ -26,7 +25,7 @@ export function AdminShell({ email, children }: { email: string; children: React
   const [open, setOpen] = useState(false);
   const nav = (
     <div className="flex h-full flex-col gap-1 p-3.5">
-      <div className="mb-3 flex items-center justify-between px-1"><Logo href="/admin" /><ThemeToggle /></div>
+      <div className="mb-3 flex items-center px-1"><Logo href="/admin" /></div>
       <p className="mb-1 flex items-center gap-1.5 px-2 text-[11px] font-bold uppercase tracking-wider text-primary"><ShieldCheck className="h-3.5 w-3.5" />Admin panel</p>
       {NAV.map(({ href, label, Icon }) => {
         const active = href === '/admin' ? pathname === '/admin' : pathname.startsWith(href);
