@@ -9,7 +9,8 @@ import { cn, fmtNum } from '@/lib/utils';
 import type { UserFeature } from '@/lib/features';
 import { useAppearance, DEFAULT_APPEARANCE, type Appearance, useToast } from '@/components/providers';
 
-export type Conv = { id: string; title: string; model: string | null; mode: string | null; pinned: boolean; folder_id: string | null; updated_at: string };\nexport type ChatFolder = { id: string; name: string; color: string; created_at: string; updated_at: string };
+export type Conv = { id: string; title: string; model: string | null; mode: string | null; pinned: boolean; folder_id: string | null; updated_at: string };
+export type ChatFolder = { id: string; name: string; color: string; created_at: string; updated_at: string };
 export type ShellUser = { id: string; name: string; email: string; plan: string; credits: number; isAdmin: boolean; appearance?: Partial<Appearance> | null };
 
 type Ctx = {
@@ -35,7 +36,8 @@ export function AppShell({ user, features, announcement, banner, children }: {
   const [open, setOpen] = useState(false);
   const { updateAppearance, loaded: appearanceLoaded } = useAppearance();
   const [credits, setCredits] = useState(user.credits);
-  const [conversations, setConversations] = useState<Conv[]>([]);\n  const [folders, setFolders] = useState<ChatFolder[]>([]);
+  const [conversations, setConversations] = useState<Conv[]>([]);
+  const [folders, setFolders] = useState<ChatFolder[]>([]);
   const pathname = usePathname();
 
   const refreshConversations = useCallback(async () => {
@@ -97,7 +99,10 @@ function Sidebar() {
   const { user, credits, features, conversations, folders, refreshFolders, refreshConversations } = useApp();
   const router = useRouter();
   const pathname = usePathname();
-  const [q, setQ] = useState('');\n  const [activeFolderId, setActiveFolderId] = useState<string | null>('all');\n  const [moveChatId, setMoveChatId] = useState<string | null>(null);\n  const toast = useToast();
+  const [q, setQ] = useState('');
+  const [activeFolderId, setActiveFolderId] = useState<string | null>('all');
+  const [moveChatId, setMoveChatId] = useState<string | null>(null);
+  const toast = useToast();
 
   const activeId = pathname.startsWith('/chat/') ? pathname.split('/')[2] : null;
   const list = conversations.filter((c) =>
