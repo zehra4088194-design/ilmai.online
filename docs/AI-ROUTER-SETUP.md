@@ -14,9 +14,9 @@ Worker `ilmai-ai-router` is account par deploy ho chuka hai:
 
 `https://ilmai-ai-router.ilmai.workers.dev`
 
-Iske `RequestGate` aur `KeyPool` SQLite Durable Objects provision ho chuke hain. `AI_ROUTER_SECRET` aur `OPENROUTER_API_KEY` dono Cloudflare Worker mein Secret ke taur par configured hain. Groq/Gemini ki 20 numbered keys ko abhi normal Variables se Secret type mein convert karna baqi hai.
+Iske `RequestGate` aur `KeyPool` SQLite Durable Objects provision ho chuke hain. Live Cloudflare check ke mutabiq tamam 20 numbered Groq/Gemini key names maujood hain. In mein se 5 provider keys aur dono base keys Secret type mein hain; baqi 15 provider keys abhi plain-text Variables hain. Unki values ko is check mein read ya change nahi kiya gaya.
 
-Cloudflare Dashboard → Workers & Pages → `ilmai-ai-router` → Settings → Variables and Secrets mein `AI_ROUTER_SECRET` aur `OPENROUTER_API_KEY` Secret ke taur par configured hain. Groq/Gemini ki 20 numbered keys ko bhi normal Variables ke bajaye **Secrets** mein convert karna baqi hai.
+Coolify main app ke variables abhi user ne configure nahi kiye: `AI_ROUTER_URL`, matching `AI_ROUTER_SECRET`, aur `OPENROUTER_API_KEY` add karna aur app redeploy karna baqi hai. Daily-credit cron ke liye `CRON_SECRET` aur Coolify Scheduled Task bhi alag se configure karne hain.
 
 Agar future mein Worker ko dobara deploy karna ho, repo ke `workers/ai-router` folder mein:
 ```bash
@@ -28,21 +28,25 @@ npx wrangler deploy
 
 Worker ka HMAC secret Coolify aur Cloudflare dono jagah identical hona chahiye. Secret values ko GitHub ya chat mein share mat karo.
 
-## 2. Provider secrets and Wrangler validation
+## 2. Provider bindings and Wrangler validation
 
-Production Worker ke liye ye 20 numbered provider keys Cloudflare mein **Secret** type honi chahiye (normal Variable nahi):
+Live Cloudflare check mein ye 20 numbered names present hain:
 
 - `GROQ_API_KEY_1`–`GROQ_API_KEY_10`
 - `GEMINI_API_KEY_1`–`GEMINI_API_KEY_10`
 
-Inke saath `AI_ROUTER_SECRET` aur `OPENROUTER_API_KEY` mila kar 22 names `workers/ai-router/wrangler.jsonc` ke `secrets.required` mein declared hain. Iska matlab `wrangler deploy` aur `wrangler versions upload` tabhi succeed karenge jab saare 22 secrets Worker par configured hon. Secret values Wrangler config ya GitHub mein kabhi commit nahi karni.
+Current live types:
+- Secret: `GROQ_API_KEY_1`, `GROQ_API_KEY_2`, `GEMINI_API_KEY_1`, `GEMINI_API_KEY_2`, `GEMINI_API_KEY_10`.
+- Plain-text Variable: `GROQ_API_KEY_3`–`GROQ_API_KEY_10`, `GEMINI_API_KEY_3`–`GEMINI_API_KEY_9`.
+
+`workers/ai-router/wrangler.jsonc` mein `keep_vars: true` set hai, taake future Wrangler deploy dashboard ke existing variables ko overwrite na kare. `secrets.required` filhal sirf 7 confirmed Secrets declare karta hai: `AI_ROUTER_SECRET`, `OPENROUTER_API_KEY`, `GROQ_API_KEY_1`, `GROQ_API_KEY_2`, `GEMINI_API_KEY_1`, `GEMINI_API_KEY_2`, `GEMINI_API_KEY_10`. Jab baqi 15 keys Secret type mein convert ho jayen, unke names bhi `secrets.required` mein add karne hain.
+
+Sensitive API keys ke liye plain-text Variable ke bajaye **Secret** type use karo. Existing entry ko same name aur same value ke saath Secret ke taur par dobara add karo; values GitHub ya chat mein share mat karo.
 
 Current code usage:
 - `GROQ_API_KEY_1` Auto mode ke smart model chooser ko Groq-powered selection deta hai; baqi Groq slots key rotation/pooling ke liye available hain.
 - Worker mein Groq/Gemini direct provider calls ka support maujood hai, lekin current Next.js chat route candidates abhi `provider: 'openrouter'` set karta hai. Is liye keys add karne se Groq/Gemini models apne aap model picker mein appear nahi honge; model catalogue/picker aur provider mapping ka code integration abhi alag se karna hai.
 - Har provider ke maximum 10 numbered slots supported hain.
-
-Dashboard se convert karte waqt har existing plain-text entry ko remove karke usi name/value ke saath **Secret** type mein dobara add karo. Changes save/deploy kar do. Values ko chat ya GitHub mein share nahi karna.
 
 ## 3. Coolify main app variables
 
@@ -72,8 +76,8 @@ Initial live route mein manually selected models OpenRouter se infer honge. Auto
 ## 5. Verification checklist
 
 - [ ] Worker name `ilmai-ai-router` aur Durable Objects deploy successfully.
-- [ ] Worker secrets list mein `AI_ROUTER_SECRET`, `OPENROUTER_API_KEY`, `GROQ_API_KEY_1`–`GROQ_API_KEY_10` aur `GEMINI_API_KEY_1`–`GEMINI_API_KEY_10` configured hon.
-- [ ] Coolify par `AI_ROUTER_URL`, matching `AI_ROUTER_SECRET` aur `OPENROUTER_API_KEY` configured hon.
+- [x] Live Worker par `AI_ROUTER_SECRET`, `OPENROUTER_API_KEY` aur tamam 20 numbered provider key names present hain; abhi 15 provider entries plain-text Variables hain.
+- [ ] Coolify par `AI_ROUTER_URL`, matching `AI_ROUTER_SECRET` aur `OPENROUTER_API_KEY` configured hon; phir main app redeploy ho.
 - [ ] Main app redeploy ho aur signed chat request successful ho.
 - [ ] Admin → Usage mein model, input/output tokens, actual USD cost aur credits usage save ho.
 - [ ] Worker Cloudflare dashboard mein errors, CPU/time limits aur spend alerts monitor hon.
