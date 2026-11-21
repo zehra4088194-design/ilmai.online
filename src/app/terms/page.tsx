@@ -4,7 +4,7 @@ export const metadata={title:'Terms of Service | Ilm AI',description:'Terms for 
 const blocks:LegalBlock[]=[
 {heading:'Acceptance and service operator',paragraphs:[
 'These Terms apply to your access to ilmai.online and the Ilm AI services, including chat, model comparison, file and library features, educational tools, image/video or document generation, website building, credits and paid plans. By creating an account or using the service, you agree to these Terms and the Privacy Policy.',
-'The legal name and address of the service operator are shown above. If those details are not yet configured, the operator must complete them before production sales begin.'
+'These Terms explain the basic rules for using Ilm AI, protecting your account, submitting content and purchasing access to paid features. Please also read the Privacy Policy, Refunds & Cancellation Policy and Acceptable Use Policy so you understand how the service works.'
 ]},
 {heading:'Accounts and eligibility',bullets:[
 'Provide accurate account information, keep your sign-in credentials confidential and promptly tell us if you suspect unauthorised access.',
@@ -39,11 +39,11 @@ const blocks:LegalBlock[]=[
 {heading:'Third-party services and availability',paragraphs:[
 'AI models, payment providers, email, file storage and infrastructure services are provided by third parties and may have their own terms. Features may be changed, limited or temporarily unavailable. We may update the service for security, reliability, legal or product reasons.'
 ]},
-{heading:'Liability and governing law',paragraphs:[
-'To the extent permitted by applicable law, the service is provided on an “as available” basis and we do not warrant uninterrupted access, error-free output or that the service will meet every requirement. Nothing in these Terms excludes a right or liability that cannot legally be excluded. The governing law and dispute forum must be completed in the operator details above before launch; mandatory consumer rights in your place of residence continue to apply where required.'
+{heading:'Service availability and legal rights',paragraphs:[
+'We work to keep Ilm AI useful and available, but access may occasionally be interrupted by maintenance, provider outages, security updates or technical issues. AI outputs can also contain mistakes and should be reviewed before you rely on them. To the extent permitted by applicable law, Ilm AI is provided on an “as available” basis. Nothing in these Terms limits any consumer protection or other right that cannot lawfully be excluded.'
 ]},
 {heading:'Changes and contact',paragraphs:[
-'We may revise these Terms when the service or applicable requirements change. Continued use after the revised Terms take effect means you accept the updated Terms, to the extent permitted by law. Contact the support address shown above for questions.'
+'We may revise these Terms as Ilm AI adds features, updates its providers or responds to changes in applicable requirements. The latest version will appear on this page with its updated date. For questions about these Terms, email contact@ilmai.online.'
 ]}
 ];
 export default function Page(){return <LegalPage title="Terms of Service" description="Please read these terms before creating an account, using AI features or purchasing credits and plans." blocks={blocks}/>;}

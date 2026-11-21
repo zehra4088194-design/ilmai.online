@@ -27,12 +27,12 @@ const blocks:LegalBlock[]=[
 'Payment providers process payment credentials and may collect billing, tax, identity or payment-method information directly. Ilm AI receives transaction and status information needed to grant credits, manage plan access, issue receipts and reconcile payments.'
 ]},
 {heading:'Where information is stored and international transfers',paragraphs:[
-'Information may be processed or stored in the countries and regions used by the cloud, AI, email, file-storage and payment providers configured for this deployment. The actual regions depend on the operator’s provider accounts, project settings and product configuration; they must not be assumed from the fact that the service is operated from Pakistan.',
-'The operator must complete the “Data hosting regions” field above with the actual locations and provider arrangements before accepting production users. Some providers may process information outside your country. Where required, the operator should use appropriate contractual and technical safeguards for those transfers.'
+'Ilm AI relies on cloud, AI, email, file-storage and payment providers to deliver different parts of the service. Depending on the feature and provider selected, information may be processed in more than one country. Each provider is responsible for the infrastructure and locations covered by its own service, and its privacy notice explains its processing practices.',
+'We aim to share only the information needed to complete the feature you request and to use providers with appropriate security and privacy controls. If you have a question about a particular model or service provider, contact us at contact@ilmai.online before submitting information you consider confidential.'
 ]},
 {heading:'Retention and deletion',paragraphs:[
 'Account information, saved content, uploaded assets and usage records are retained while needed to provide the service, maintain security and support your account. Some billing, transaction, fraud-prevention and audit records may be retained for longer where required for accounting, dispute handling, legal compliance or legitimate security needs.',
-'You may request access, correction or deletion of personal information by contacting the privacy email shown above. Account deletion may not immediately remove records that must be retained for legal, payment, security or backup purposes. The operator should describe any applicable retention period when responding to a request.'
+'You may request access, correction or deletion of personal information by emailing contact@ilmai.online. Account deletion may not immediately remove records that must be retained for legal, payment, security or backup purposes. We will explain any relevant retention limits that apply to the information involved when responding to a request.'
 ]},
 {heading:'Security',paragraphs:[
 'Ilm AI uses access controls and technical safeguards intended to protect accounts, service credentials and stored information. No website, transmission or cloud service can be guaranteed completely secure. Use a strong unique password, keep account credentials private and avoid submitting passwords, payment-card details, sensitive identity numbers or confidential third-party information to AI prompts.'
@@ -46,10 +46,10 @@ const blocks:LegalBlock[]=[
 {heading:'Your choices and privacy requests',bullets:[
 'You can choose which AI model or tool to use and whether to submit a particular prompt or file.',
 'You can avoid saving sensitive material in conversations and remove content where the product provides that control.',
-'You may request access, correction, deletion or clarification by using the privacy contact shown above. Include the account email and enough detail to identify the request, but do not send passwords or full payment credentials.'
+'You may request access, correction, deletion or clarification by emailing contact@ilmai.online. Include the account email and enough detail to identify the request, but do not send passwords or full payment credentials.'
 ]},
 {heading:'Changes and contact',paragraphs:[
-'We may update this notice when the service, providers or legal requirements change. The latest version will be published at this URL with its updated date. For privacy questions, use the privacy contact listed at the top of this page.'
+'We may update this notice when the service, providers or legal requirements change. The latest version will be published at this URL with its updated date. For privacy questions or requests, email contact@ilmai.online. We may ask you to verify account ownership before providing account-specific information or making changes.'
 ]}
 ];
 export default function Page(){return <LegalPage title="Privacy Policy" description="This notice explains what information Ilm AI processes, why it is used, which service providers may receive it, and how to make a privacy request." blocks={blocks}/>;}

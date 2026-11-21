@@ -11,7 +11,7 @@ const blocks:LegalBlock[]=[
 'Do not approve a wallet request unless the merchant, amount and purchase details match the plan you selected.'
 ]},
 {heading:'Refund requests',paragraphs:[
-'If you believe you were charged incorrectly, paid more than once, selected the wrong plan, did not receive the purchased access or experienced a material service issue, contact the support email listed above as soon as possible. Include your Ilm AI account email, plan, approximate payment date, payment provider and transaction reference. Do not send your card number, card security code, wallet PIN or password.',
+'If you believe you were charged incorrectly, paid more than once, selected the wrong plan, did not receive the purchased access or experienced a material service issue, email contact@ilmai.online as soon as possible. Include your Ilm AI account email, plan, approximate payment date, payment provider and transaction reference. Do not send your card number, card security code, wallet PIN or password.',
 'Refunds are reviewed against the payment status, provider records, credits already granted or consumed, service access, the nature of the issue and applicable law. Where a refund is approved, it will normally be submitted through the original payment provider and returned using that provider’s available process. Processing times depend on the provider and payment method.',
 'Unused credits or a period with no usage do not automatically guarantee a refund. This does not limit any refund or cancellation right that applicable consumer law gives you. Fraudulent, unauthorised or duplicate charges will be investigated with the relevant provider.'
 ]},
@@ -27,7 +27,7 @@ const blocks:LegalBlock[]=[
 'Please contact support first when practical so we can review the payment and resolve a genuine service or billing issue. You may also contact your bank, card issuer or wallet provider in accordance with their dispute procedures. We may suspend access to a disputed purchase while the provider investigates, where permitted by law.'
 ]},
 {heading:'Contact and legal rights',paragraphs:[
-'Send refund and cancellation requests to the support email listed at the top of this page. We may ask for reasonable details to locate the transaction and verify account ownership. Nothing in this policy takes away mandatory statutory rights or any dispute resolution option available under applicable law.'
+'Send refund and cancellation requests to contact@ilmai.online. Include the transaction reference and enough information for us to locate the payment; never send passwords, card security codes or wallet PINs. Nothing in this policy takes away mandatory consumer rights or a dispute resolution option available under applicable law.'
 ]}
 ];
 export default function Page(){return <LegalPage title="Refunds & Cancellation Policy" description="Understand payment verification, wallet purchases, subscription cancellation and how to request a refund." blocks={blocks}/>;}

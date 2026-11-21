@@ -21,7 +21,7 @@ const blocks:LegalBlock[]=[
 'You can clear cookies and local storage through your browser settings. Clearing essential authentication cookies may sign you out; clearing local storage may reset your appearance preferences. Browser controls differ by browser and device.'
 ]},
 {heading:'Changes and contact',paragraphs:[
-'We may update this notice if we add or remove technologies or providers. For questions about cookies or browser storage, contact the support email listed at the top of this page.'
+'We may update this notice if we add or remove technologies or providers. For questions about cookies or browser storage, email contact@ilmai.online.'
 ]}
 ];
 export default function Page(){return <LegalPage title="Cookies & Browser Storage Notice" description="This notice explains the essential cookies and browser storage that help Ilm AI work." blocks={blocks}/>;}

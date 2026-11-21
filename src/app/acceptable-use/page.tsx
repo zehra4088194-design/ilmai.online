@@ -23,7 +23,7 @@ const blocks:LegalBlock[]=[
 ]},
 {heading:'Enforcement and reports',paragraphs:[
 'We may investigate credible reports, restrict a feature, suspend an account or remove access to content where reasonably necessary to protect the service, users, providers or the public, or to comply with law. We aim to take proportionate action and provide a support contact where it is safe and lawful to do so.',
-'To report suspected misuse, provide the relevant account or conversation details through the support contact listed above. Do not send illegal content as an attachment to a report.'
+'To report suspected misuse, email contact@ilmai.online and provide the relevant account or conversation details. Do not send illegal content as an attachment to a report.'
 ]},
 {heading:'Updates',paragraphs:[
 'This policy may be updated as new tools and risks emerge. Continued use of Ilm AI is subject to the current version.'
