@@ -103,7 +103,14 @@ export function ChatView() {
       void sendRef.current?.(transcript);
     };
     speech.onerror = (event) => {
-      if (event.error !== 'no-speech' && event.error !== 'aborted') toast('Voice call microphone error: ' + (event.error ?? 'check permissions'), 'err');
+      if (['not-allowed', 'service-not-allowed', 'audio-capture'].includes(event.error ?? '')) {
+        callPausedRef.current = true;
+        callActiveRef.current = false;
+        setCallActive(false);
+        toast('Voice call stopped. Check microphone permission and make sure no other app is using the microphone.', 'err');
+      } else if (event.error !== 'no-speech' && event.error !== 'aborted') {
+        toast('Voice call microphone error: ' + (event.error ?? 'check permissions'), 'err');
+      }
     };
     speech.onend = () => {
       if (callActiveRef.current && !callPausedRef.current && !busyRef.current) {
