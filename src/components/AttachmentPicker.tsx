@@ -110,7 +110,8 @@ export function AttachmentPicker({ value, onChange, disabled = false, onUploadin
           const type = limits.types.find((t) => t.mime === file.type) ??
             limits.types.find((t) => t.ext === ext || (t.ext === 'jpg' && ext === 'jpeg'));
           if (!type) throw new Error('Unsupported file type');
-          const limit = type.kind === 'file' && type.ext !== 'xlsx' ? limits.maxTextBytes : limits.maxBytes;
+          const isOffice = ['docx', 'pptx', 'xlsx'].includes(type.ext);
+          const limit = isOffice ? limits.maxOfficeBytes : type.kind === 'file' ? limits.maxTextBytes : limits.maxBytes;
           if (!file.size || file.size > limit) throw new Error(`File must be between 1 byte and ${Math.round(limit / 1024)} KB`);
           setProgress({ name, percent: 0, stage: 'Preparing' });
           const ticket = await request<{ assetId: string; uploadUrl: string }>('/api/media/upload-url', 'POST', { name, mime: type.mime, size: file.size });
