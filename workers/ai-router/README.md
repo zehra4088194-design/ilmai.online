@@ -29,7 +29,7 @@ Run from the repository root, or use the equivalent commands from `workers/ai-ro
    npx wrangler secret list
    ```
 5. Wrangler prints the deployed Worker URL, normally `https://ilmai-ai-router.<account-subdomain>.workers.dev`. Copy the actual URL; do not use the example hostname.
-6. Optional: add `GROQ_API_KEY_1` to enable the Groq-assisted Auto model selector. Add `GEMINI_API_KEY_1` or additional numbered provider slots (up to 10 per provider) only if enabling those direct provider routes. Without a Groq routing key, Auto mode falls back to deterministic candidate priority; manually selected models continue through OpenRouter.
+6. Optional secrets are added from Cloudflare Dashboard → Workers & Pages → `ilmai-ai-router` → Settings → Variables and Secrets → Add → Secret. Use names `GROQ_API_KEY_1` through `GROQ_API_KEY_10`, and `GEMINI_API_KEY_1` through `GEMINI_API_KEY_10`. The Worker KeyPool can rotate multiple slots and cool down keys on rate-limit/auth/server errors. **Current application limitation:** Next.js chat currently labels every candidate `provider: 'openrouter'`; a Groq key is used only by Auto to choose among OpenRouter candidates, and Gemini keys are not yet selected by the chat UI. Direct Groq/Gemini model discovery and picker routing need a separate Next.js integration before those keys drive user inference.
 
 SQLite-backed Durable Objects are required for request replay/rate protection and key pools. Review Cloudflare plan limits and enable spend alerts before production usage.
 
