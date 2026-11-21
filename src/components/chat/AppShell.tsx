@@ -249,7 +249,7 @@ function Sidebar() {
               <button type="button" onClick={()=>setActiveFolderId(folder.id)} className={cn('flex min-w-0 flex-1 items-center gap-2 px-2.5 text-left text-xs',activeFolderId===folder.id?'text-foreground':'text-muted-foreground')}>
                 <Folder className="h-3.5 w-3.5 shrink-0" style={{color:folder.color}}/><span className="truncate">{folder.name}</span><span className="ml-auto text-[10px] opacity-70">{folderCount(folder.id)}</span>
               </button>
-              <div className="mr-1 hidden items-center group-hover/folder:flex">
+              <div className="mr-1 flex items-center md:opacity-0 md:group-hover/folder:opacity-100 md:group-focus-within/folder:opacity-100">
                 <button type="button" onClick={()=>cycleFolderColor(folder)} className="rounded p-1 text-muted-foreground hover:text-primary" title="Change folder colour" aria-label="Change folder colour"><span className="block h-2.5 w-2.5 rounded-full" style={{background:folder.color}}/></button>
                 <button type="button" onClick={()=>renameFolder(folder)} className="rounded p-1 text-muted-foreground hover:text-primary" title="Rename folder" aria-label="Rename folder"><Pencil className="h-3 w-3"/></button>
                 <button type="button" onClick={()=>deleteFolder(folder)} className="rounded p-1 text-muted-foreground hover:text-danger" title="Delete folder" aria-label="Delete folder"><Trash2 className="h-3 w-3"/></button>
@@ -273,7 +273,7 @@ function Sidebar() {
               <Link href={'/chat/' + c.id} className="block truncate px-2.5 py-2 pr-24 text-xs" dir="auto">
                 {c.pinned && <Pin className="mr-1 inline h-3 w-3 text-primary" />}{c.title}
               </Link>
-              <div className="absolute right-1 top-1 hidden items-center gap-0.5 group-hover:flex">
+              <div className="absolute right-1 top-1 flex items-center gap-0.5 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
                 <button className="rounded-md p-1.5 hover:bg-background" onClick={() => act(c.id, 'pin', c)} aria-label="Pin chat" title="Pin chat"><Pin className="h-3 w-3" /></button>
                 <button className="rounded-md p-1.5 hover:bg-background" onClick={() => act(c.id, 'rename', c)} aria-label="Rename chat" title="Rename chat"><Pencil className="h-3 w-3" /></button>
                 <button className="rounded-md p-1.5 hover:bg-background" onClick={() => setMoveChatId(moveChatId===c.id?null:c.id)} aria-label="Move chat to folder" title="Move chat to folder"><FolderInput className="h-3 w-3"/></button>
