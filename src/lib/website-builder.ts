@@ -41,7 +41,7 @@ function validatePackageJson(content: string) {
   }
 
   const dependencyGroups = ['dependencies', 'devDependencies', 'optionalDependencies'];
-  const dependencies: Record<string, unknown> = {};
+  const dependencies: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
   for (const group of dependencyGroups) {
     const value = pkg[group];
     if (value === undefined) continue;
