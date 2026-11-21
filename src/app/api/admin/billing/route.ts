@@ -52,7 +52,7 @@ export const GET=handle(async()=>{
   return json({
     plans:plans??[],discounts:discounts??[],payments:payments??[],
     providers:{
-      paddleConfigured:!!process.env.PADDLE_API_KEY&&!!process.env.PADDLE_WEBHOOK_SECRET&&['sandbox','production'].includes(process.env.PADDLE_ENVIRONMENT??''),
+      paddleConfigured:!!process.env.PADDLE_API_KEY&&!!process.env.PADDLE_WEBHOOK_SECRET&&!!process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN&&['sandbox','production'].includes(process.env.PADDLE_ENVIRONMENT??'')&&process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT===process.env.PADDLE_ENVIRONMENT,
       payproConfigured:!!process.env.PAYPRO_MERCHANT_NO&&!!process.env.PAYPRO_APP_SECRET&&!!process.env.PAYPRO_API_BASE_URL,
     },
   },{headers:{'Cache-Control':'private, no-store'}});
