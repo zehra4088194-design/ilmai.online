@@ -38,7 +38,14 @@ ENV SUPABASE_SERVICE_ROLE_KEY="" \
     B2_REGION="" \
     B2_KEY_ID="" \
     B2_APPLICATION_KEY="" \
-    B2_BUCKET=""
+    B2_BUCKET="" \
+    PADDLE_API_KEY="" \
+    PADDLE_WEBHOOK_SECRET="" \
+    PADDLE_ENVIRONMENT="" \
+    PAYPRO_MERCHANT_NO="" \
+    PAYPRO_APP_SECRET="" \
+    PAYPRO_API_BASE_URL="" \
+    PAYPRO_NOTIFY_URL=""
 RUN addgroup -S nodejs && adduser -S nextjs -G nodejs
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
