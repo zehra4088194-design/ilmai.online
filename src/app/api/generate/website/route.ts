@@ -8,11 +8,12 @@ import { getModel, canUseTier } from '@/lib/models';
 import { aiRouterChat } from '@/lib/ai-router';
 import { extractJson } from '@/lib/json-extract';
 import { validateWebsiteProject } from '@/lib/website-builder';
+import { runWebsiteBuildInSandbox } from '@/lib/website-sandbox';
 import { generationEstimate, reserveGeneration, settleGeneration, releaseGeneration } from '@/lib/generations';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 300;
+export const maxDuration = 600;
 
 const Body = z.object({
   requestId: z.string().uuid(),
@@ -40,6 +41,9 @@ export const POST = handle(async (req: NextRequest) => {
   const { profile, isAdmin } = await requireUserApi();
   await requireFeature('text_chat', profile.plan, isAdmin);
   const body = Body.parse(await req.json());
+  if (!process.env.E2B_API_KEY?.trim()) {
+    throw new HttpError(503, 'Website Builder needs E2B Cloud. Add E2B_API_KEY as a server-only environment variable in Coolify, then redeploy.', 'e2b_not_configured');
+  }
   const settings = await getSettings();
   const model = await getModel(body.model);
 
@@ -111,6 +115,9 @@ export const POST = handle(async (req: NextRequest) => {
       throw new HttpError(502, error instanceof Error ? error.message : 'The generated project did not pass validation', 'website_validation_failed');
     }
 
+    // Execute the generated source only inside a short-lived, network-restricted E2B microVM.
+    const buildCheck = await runWebsiteBuildInSandbox(project, body.requestId);
+
     const usage = result.usage ?? {};
     const chargedByUsage = (await import('@/lib/credits')).creditsFor(
       usage.cost ?? 0,
@@ -130,7 +137,7 @@ export const POST = handle(async (req: NextRequest) => {
         creditsUsed: charge,
         latencyMs: Date.now() - started,
       },
-      result: { projectName: project.projectName, summary: project.summary, filesCount: project.files.length },
+      result: { projectName: project.projectName, summary: project.summary, filesCount: project.files.length, buildStatus: buildCheck.status, buildPhase: buildCheck.phase },
     });
     settled = true;
 
@@ -138,6 +145,7 @@ export const POST = handle(async (req: NextRequest) => {
       project,
       model: result.routedModel,
       creditsCharged: settlement.charged ?? charge,
+      buildCheck,
       createdAt: new Date().toISOString(),
     }, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) {
