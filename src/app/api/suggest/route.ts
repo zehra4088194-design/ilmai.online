@@ -12,7 +12,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const Body = z.object({ user: z.string().min(1).max(4000), assistant: z.string().min(1).max(20000), mode: z.string().max(60).nullable().optional() });
+const Body = z.object({ user: z.string().min(1).max(4000), assistant: z.string().min(1).max(20000) });
 const lastCall = new Map<string, number>(); // tiny per-instance cooldown; the daily cap below is the real limiter
 
 /**
@@ -42,7 +42,7 @@ Last question: ${b.user.slice(0, 600)}
 Assistant's answer (may be truncated): ${b.assistant.slice(0, 1500)}
 
 Suggest 3 different follow-up messages the user might send next: (1) go deeper, (2) ask for an example or practice question, (3) a closely related topic.
-Each at most 12 words, written from the learner's point of view, in the same language and script as the last question.`,
+Each at most 12 words, written from the user's point of view, in the same language and script as the last question.`,
         },
       ],
       { userId: profile.id, maxTokens: 220, temperature: 0.8, timeoutMs: 20_000, tries: 3 },
