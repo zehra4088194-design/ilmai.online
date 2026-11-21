@@ -25,7 +25,7 @@ export function ChatView() {
 
   const { user, features, featureOn, refreshConversations, refreshMe, openSidebar } = useApp();
   const toast = useToast();
-  const { models, selected, toggle, maxParallel, loading: modelsLoading } = useModels();
+  const { models, selected, toggle, maxParallel, multi: compareAvailable, compareMode, setCompareMode, loading: modelsLoading } = useModels();
 
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
@@ -343,7 +343,7 @@ export function ChatView() {
           features={features} onQuiz={quizOn ? () => setQuizDlg({}) : undefined}
           modelSlot={<>
             <button type="button" onClick={openSidebar} className="btn-ghost h-8 w-8 shrink-0 !p-0 lg:hidden" aria-label="Open menu"><Menu className="h-4 w-4" /></button>
-            {modelsLoading ? <div className="h-7 w-48 animate-pulse rounded-full bg-muted" /> : <ModelBar models={models} selected={selected} onToggle={toggle} max={maxParallel} disabled={busy} />}
+            {modelsLoading ? <div className="h-7 w-48 animate-pulse rounded-full bg-muted" /> : <ModelBar models={models} selected={selected} onToggle={toggle} max={maxParallel} compareAvailable={compareAvailable} compareMode={compareMode} onCompareModeChange={setCompareMode} disabled={busy} />}
           </>}
           thinking={thinking} onThinkingChange={setThinking} onEnhance={enhancePrompt} enhancing={enhancing}
           onBuildWebsite={() => setWebsiteBuilderOpen(true)} callActive={callActive} callStatus={callStatus} onToggleCall={toggleVoiceCall}
