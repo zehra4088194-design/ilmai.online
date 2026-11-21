@@ -29,10 +29,11 @@ Suggestions aur quizzes **free models** se chalte hain (user ke credits nahi kat
 - Free models aate-jate rehte hain. App automatically live catalogue se best free models chunti hai aur ek fail ho to agla try karti hai. Chaho to `/admin/settings → Free models` mein apni list pin kar do (comma separated).
 
 ## 3. Cloudflare AI Router (required for all AI inference)
-1. Open `docs/AI-ROUTER-SETUP.md` and deploy the `workers/ai-router` Worker named `ilmai-ai-router`.
-2. Set Cloudflare Worker secrets `AI_ROUTER_SECRET` and `OPENROUTER_API_KEY` with Wrangler. Optional Groq keys enable the smarter Auto model chooser.
-3. In Coolify, set `AI_ROUTER_URL` to the deployed Worker base URL and `AI_ROUTER_SECRET` to the exact same HMAC secret. Keep `OPENROUTER_API_KEY` in Coolify too; it is used only for model catalogue/pricing discovery there.
-4. Redeploy the main Next.js app. All chat and AI generation traffic must pass through Cloudflare Worker; do not configure direct provider keys in the browser.
+1. Worker `ilmai-ai-router` is deployed at `https://ilmai-ai-router.ilmai.workers.dev`; its `RequestGate` and `KeyPool` SQLite Durable Objects are provisioned.
+2. Cloudflare Worker secrets: `AI_ROUTER_SECRET` is already configured. **`OPENROUTER_API_KEY` is still required**: add the same OpenRouter key used in Coolify as a Worker Secret.
+3. In Coolify, set `AI_ROUTER_URL=https://ilmai-ai-router.ilmai.workers.dev`, set `AI_ROUTER_SECRET` to the exact same value as the Worker's secret, and keep `OPENROUTER_API_KEY` for model catalogue/pricing discovery. Redeploy the main app after adding variables.
+4. Optional Cloudflare Worker secrets: `GROQ_API_KEY_1` ... `GROQ_API_KEY_10` and `GEMINI_API_KEY_1` ... `GEMINI_API_KEY_10`. At present Groq is used by Auto to choose among OpenRouter catalogue candidates. The app's current model catalogue/chat route still submits inference as OpenRouter, so adding Gemini keys alone does not add Gemini models to the picker or switch inference to Gemini. Direct Groq/Gemini model catalogue and picker integration remains a separate code task.
+5. Never put provider keys or router secrets in browser-side `NEXT_PUBLIC_*` variables. Full deployment notes: `docs/AI-ROUTER-SETUP.md`.
 
 ## 4. Backblaze B2
 1. Buckets → Create bucket `ilmai-media`, **Private**.
@@ -50,13 +51,30 @@ npm install && npm run dev
 1. Purana `ilm-ai-production` **Stop** (Delete nahi) – RAM free ho jayegi. Auto Deploy band rakho.
 2. Coolify → **New Resource → Public/Private Repository** → `https://github.com/zehra4088194-design/ilmai.online`, branch `main`.
 3. **Build Pack = Dockerfile**, **Port = 3000**.
-4. **Domains**: `https://ilmai.online` (ya koi subdomain jab tak purana app band hai; DNS A record → VM IP `217.142.188.213`).
-5. **Environment Variables**: `.env.example` ki saari values daalo. `NEXT_PUBLIC_*` wali ko **Build Variable** bhi tick karo (build ke waqt chahiye).
-6. **Advanced → Resource limits**: memory ~1 GB, CPU 1 (VM chhoti hai).
-7. Deploy. Health check: `/api/health`.
-8. **Daily free credits**: Coolify → app → **Scheduled Tasks** → har roz:
-   `wget -qO- --header="Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/daily-credits`
-   (ya koi bhi external cron jo `https://ilmai.online/api/cron/daily-credits` ko Bearer header ke saath call kare).
+4. Domain attach karte waqt apna production domain configure karo; DNS record ko apne Coolify server par point karo.
+5. **Environment Variables**: `.env.example` ki values daalo. `NEXT_PUBLIC_*` wali values ko **Build Variable** bhi tick karo.
+6. Deploy. Health check: `/api/health`.
+
+### Daily free credits cron (required)
+1. PowerShell mein 32-byte random secret generate karo:
+   ```powershell
+   $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+   $bytes = New-Object byte[] 32
+   $rng.GetBytes($bytes)
+   $rng.Dispose()
+   ([BitConverter]::ToString($bytes)).Replace("-", "").ToLower()
+   ```
+2. Is value ko Coolify main app ke `CRON_SECRET` environment variable mein save karo aur app redeploy karo. Secret ko kisi aur ke saath share mat karo.
+3. Main app → **Scheduled Tasks** → **Add**:
+   - Name: `Daily free credits`
+   - Command (Run in shell ON):
+     ```bash
+     node -e "fetch('http://127.0.0.1:3000/api/cron/daily-credits',{headers:{authorization:'Bearer '+process.env.CRON_SECRET}}).then(async r=>{const t=await r.text();console.log(r.status,t);if(!r.ok)process.exit(1)}).catch(e=>{console.error(e);process.exit(1)})"
+     ```
+   - Frequency: run shortly after **00:00 UTC** each day. Check the Coolify server timezone with `date` in the app container: use `5 0 * * *` when its timezone is UTC; use `5 5 * * *` when its timezone is Asia/Karachi (PKT).
+   - Timeout: `60` seconds; leave Container empty for the single main app container.
+4. Click **Execute Now** once and inspect Scheduled Tasks → Executions. It should return HTTP 200 with JSON containing `topped_up`. A 401 means `CRON_SECRET` is missing or mismatched.
+5. This endpoint is UTC-day idempotent, so run it once daily. Coolify evaluates task schedules in the deployment server's configured timezone.
 
 ## 7. Test Studio PDF renderer (required for PDF downloads)
 1. Coolify mein isi repository ka doosra resource banao.
