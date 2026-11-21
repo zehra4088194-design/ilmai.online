@@ -30,7 +30,7 @@ jobs:
           node-version: 22
           cache: npm
       - name: Resolve and commit the root npm lockfile
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        if: github.event_name == 'push'
         run: |
           npm install --package-lock-only --ignore-scripts --no-audit --no-fund
           if ! git diff --quiet -- package-lock.json; then
