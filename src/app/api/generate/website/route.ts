@@ -43,7 +43,7 @@ export const POST = handle(async (req: NextRequest) => {
   await requireFeature('text_chat', profile.plan, isAdmin);
   const body = Body.parse(await req.json());
   if (!process.env.E2B_API_KEY?.trim()) {
-    throw new HttpError(503, 'Website Builder needs E2B Cloud. Add E2B_API_KEY as a server-only environment variable in Coolify, then redeploy.', 'e2b_not_configured');
+    throw new HttpError(503, 'Website Builder needs E2B Cloud. Build the Node 22 sandbox template with npm run build:website-sandbox, then add E2B_API_KEY and E2B_WEBSITE_TEMPLATE as server-only Coolify variables and redeploy.', 'e2b_not_configured');
   }
   const settings = await getSettings();
   const model = await getModel(body.model);
@@ -187,7 +187,7 @@ export const POST = handle(async (req: NextRequest) => {
     const usage = totalUsage;
     const chargedByUsage = (await import('@/lib/credits')).creditsFor(
       usage.cost ?? 0,
-      (usage.prompt_tokens ?? 0) + (usage.completion_tokens ?? MAX_TOKENS),
+      (usage.prompt_tokens ?? 0) + (usage.completion_tokens ?? MAX_TOKENS * (repairAttempts + 1)),
       settings,
     );
     const charge = Math.min(maxCredits, chargedByUsage);
