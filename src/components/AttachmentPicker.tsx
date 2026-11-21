@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { FileText, ImageIcon, Paperclip, X } from 'lucide-react';
 import { api } from '@/lib/client-api';
 import { sanitizeFilename, type Attachment, type UploadLimits } from '@/lib/attachment-validation';
@@ -43,10 +43,13 @@ export function AttachmentLinks({ value, onRemove, disabled, previews = {} }: {
   </div>;
 }
 
-export function AttachmentPicker({ value, onChange, disabled = false, onUploadingChange }: {
+export function AttachmentPicker({ value, onChange, disabled = false, onUploadingChange, renderTrigger, compact = false }: {
   value: Attachment[]; onChange: (files: Attachment[]) => void; disabled?: boolean;
   /** Optional so hosts can lock their submit action during upload/finalization. */
   onUploadingChange?: (uploading: boolean) => void;
+  /** Optional compact trigger for composer menus; uploads and validation stay in this component. */
+  renderTrigger?: (open: () => void, disabled: boolean) => ReactNode;
+  compact?: boolean;
 }) {
   const [limits, setLimits] = useState<UploadLimits | null>(null);
   const [error, setError] = useState('');
@@ -143,18 +146,20 @@ export function AttachmentPicker({ value, onChange, disabled = false, onUploadin
     }
   }
 
-  return <div className={`rounded-2xl p-2 ${dragging ? 'bg-primary/10 ring-1 ring-primary' : ''}`}
+  return <div className={`${compact ? '' : 'rounded-2xl p-2'} ${dragging ? 'bg-primary/10 ring-1 ring-primary' : ''}`
     onDragOver={(e) => { e.preventDefault(); if (!disabled && !active.current) setDragging(true); }}
     onDragLeave={() => setDragging(false)} onDrop={(e) => { e.preventDefault(); setDragging(false); void upload(Array.from(e.dataTransfer.files)); }}>
-    {value.length > 0 && <div className="mb-2"><AttachmentLinks value={value} previews={previews} disabled={disabled || !!progress} onRemove={(id) => onChange(value.filter((f) => f.asset_id !== id))} /></div>}
+    {!compact && value.length > 0 && <div className="mb-2"><AttachmentLinks value={value} previews={previews} disabled={disabled || !!progress} onRemove={(id) => onChange(value.filter((f) => f.asset_id !== id))} /></div>}
     <input ref={input} type="file" multiple className="hidden" aria-label="Choose attachments" disabled={disabled || !!progress || !limits}
       accept={limits?.types.map((t) => `.${t.ext},${t.mime}`).join(',')}
       onChange={(e) => { void upload(Array.from(e.target.files ?? [])); e.target.value = ''; }} />
-    <div className="flex flex-wrap items-center gap-2">
-      <button type="button" className="btn-ghost gap-1.5 px-2 text-xs" disabled={disabled || !!progress || !limits || value.length >= (limits?.maxFiles ?? 0)} onClick={() => input.current?.click()}>
-        <Paperclip className="h-4 w-4" />Attach files
-      </button>
-      <span className="text-[11px] text-muted-foreground">{limits ? `or drop here · up to ${limits.maxFiles} files, ${Math.round(limits.maxBytes / 1024 / 1024)} MB each (TXT ${Math.round(limits.maxTextBytes / 1024)} KB)` : 'Loading upload limits…'}</span>
+    <div className={compact ? '' : 'flex flex-wrap items-center gap-2'}>
+      {renderTrigger
+        ? renderTrigger(() => input.current?.click(), disabled || !!progress || !limits || value.length >= (limits?.maxFiles ?? 0))
+        : <button type="button" className="btn-ghost gap-1.5 px-2 text-xs" disabled={disabled || !!progress || !limits || value.length >= (limits?.maxFiles ?? 0)} onClick={() => input.current?.click()}>
+            <Paperclip className="h-4 w-4" />Attach files
+          </button>}
+      {!compact && <span className="text-[11px] text-muted-foreground">{limits ? `or drop here · up to ${limits.maxFiles} files, ${Math.round(limits.maxBytes / 1024 / 1024)} MB each` : 'Loading upload limits…'}</span>}
     </div>
     {progress && <div role="status" className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
       <span className="min-w-0 truncate" dir="auto">{progress.stage} {progress.name}</span>
