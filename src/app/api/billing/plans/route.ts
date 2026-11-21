@@ -13,7 +13,7 @@ export const GET = handle(async () => {
   return json({
     plans:(data??[]).map((plan)=>({
       ...plan,
-      paddleAvailable:!!plan.paddle_price_id && plan.currency==='USD' && !!process.env.PADDLE_API_KEY && !!process.env.PADDLE_WEBHOOK_SECRET && ['sandbox','production'].includes(process.env.PADDLE_ENVIRONMENT??''),
+      paddleAvailable:!!plan.paddle_price_id && plan.currency==='USD' && !!process.env.PADDLE_API_KEY && !!process.env.PADDLE_WEBHOOK_SECRET && !!process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN && ['sandbox','production'].includes(process.env.PADDLE_ENVIRONMENT??'') && process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT===process.env.PADDLE_ENVIRONMENT,
       payproAvailable:!!plan.paypro_enabled && plan.currency==='PKR' && !!process.env.PAYPRO_MERCHANT_NO && !!process.env.PAYPRO_APP_SECRET && !!process.env.PAYPRO_API_BASE_URL,
     })),
   },{headers:{'Cache-Control':'private, no-store'}});
