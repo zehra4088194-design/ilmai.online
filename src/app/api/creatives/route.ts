@@ -1,9 +1,10 @@
+import type { NextRequest } from 'next/server';
 import { handle, json } from '@/lib/http';
 import { adminClient } from '@/lib/supabase/admin';
 
 export const dynamic='force-dynamic';
 
-export const GET=handle(async(req)=>{
+export const GET=handle(async(req: NextRequest)=>{
   const location=new URL(req.url).searchParams.get('location');
   const allowed=['banner','image_template','video_template'];
   const db=adminClient();
