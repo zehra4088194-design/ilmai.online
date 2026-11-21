@@ -5,7 +5,7 @@ import { handle, HttpError, json } from '@/lib/http';
 import { requireUserApi } from '@/lib/auth';
 import { requireFeature } from '@/lib/features';
 import { getAllTextModels, canUseTier } from '@/lib/models';
-import { orChat } from '@/lib/openrouter';
+import { aiRouterChat } from '@/lib/ai-router';
 import { adminClient } from '@/lib/supabase/admin';
 import { AttachmentIds, attachmentContent, validateAttachments, type Attachment } from '@/lib/attachments';
 import {
@@ -128,7 +128,8 @@ export const POST = handle(async (req: NextRequest, { params }: Ctx) => {
     const content = sourceIds.length
       ? await attachmentContent(userPrompt, sourceIds, profile.id, { vision: model.vision, documents: model.documents })
       : userPrompt;
-    const result = await orChat({
+    const result = await aiRouterChat({
+      userId: profile.id,
       model: model.id,
       response_format: { type: 'json_object' },
       messages: [
@@ -192,7 +193,7 @@ export const POST = handle(async (req: NextRequest, { params }: Ctx) => {
       p_request: reservationId,
       p_charge: charge,
       p_usage: {
-        model: model.id, provider: model.provider,
+        model: result.routedModel, provider: result.provider,
         prompt_tokens: usage.prompt_tokens ?? 0,
         completion_tokens: usage.completion_tokens ?? 0,
         cost_usd: usage.cost ?? 0,
