@@ -2,7 +2,6 @@ import { Wrench } from 'lucide-react';
 import { requireUserPage } from '@/lib/auth';
 import { featuresForUser } from '@/lib/features';
 import { getSettings } from '@/lib/settings';
-import { getModes } from '@/lib/modes';
 import { adminClient } from '@/lib/supabase/admin';
 import { AppShell } from '@/components/chat/AppShell';
 
@@ -10,8 +9,8 @@ export const dynamic = 'force-dynamic';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { profile, isAdmin } = await requireUserPage();
-  const [features, settings, modes, bannerResult] = await Promise.all([
-    featuresForUser(profile.plan, isAdmin), getSettings(), getModes(),
+  const [features, settings, bannerResult] = await Promise.all([
+    featuresForUser(profile.plan, isAdmin), getSettings(),
     adminClient().from('site_creatives').select('title,alt_text,storage_path')
       .eq('location','banner').eq('is_active',true).order('sort_order').limit(1).maybeSingle(),
   ]);
@@ -35,9 +34,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <AppShell
-      user={{ id: profile.id, name: profile.full_name ?? '', email: profile.email ?? '', plan: profile.plan, credits: profile.credits_balance, isAdmin, audience: profile.audience ?? 'student' }}
+      user={{ id: profile.id, name: profile.full_name ?? '', email: profile.email ?? '', plan: profile.plan, credits: profile.credits_balance, isAdmin }}
       features={features}
-      modes={modes}
       announcement={settings.announcement}
       banner={banner}
     >
