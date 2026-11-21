@@ -84,9 +84,14 @@ export async function refreshUsdPkrRate(): Promise<UsdPkrRate> {
   const apiKey = process.env.EXCHANGE_RATE_API_KEY?.trim();
   if (!apiKey) throw new Error('EXCHANGE_RATE_API_KEY is not configured in Coolify.');
 
+  // Use Bearer auth so the API key is not exposed in request URLs or URL access logs.
   const response = await fetch(
-    'https://v6.exchangerate-api.com/v6/' + encodeURIComponent(apiKey) + '/pair/USD/PKR',
-    { cache: 'no-store', signal: AbortSignal.timeout(20_000) }
+    'https://v6.exchangerate-api.com/v6/pair/USD/PKR',
+    {
+      cache: 'no-store',
+      headers: { Authorization: 'Bearer ' + apiKey },
+      signal: AbortSignal.timeout(20_000),
+    }
   );
   if (!response.ok) throw new Error('ExchangeRate-API returned HTTP ' + response.status);
   const data = await response.json() as ExchangeRateApiResponse;
