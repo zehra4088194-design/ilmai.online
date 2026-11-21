@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { LogOut, Save, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { AppearancePicker } from '@/components/ui/ThemeControls';
 import { useToast } from '@/components/providers';
 
 export function SettingsClient({ id, name: initial }: { id: string; name: string }) {
@@ -34,7 +33,6 @@ export function SettingsClient({ id, name: initial }: { id: string; name: string
         </label>
         <button className="btn-primary" onClick={save} disabled={busy}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}Save</button>
       </section>
-      <section className="card space-y-3 p-5"><h2 className="font-bold">Accent colour</h2><AppearancePicker /></section>
       <section className="card p-5"><button className="btn-outline text-danger" onClick={signOut}><LogOut className="h-4 w-4" />Sign out</button></section>
     </div>
   );
