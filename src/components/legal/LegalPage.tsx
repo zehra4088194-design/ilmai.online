@@ -14,7 +14,8 @@ const LINKS=[
 
 export function LegalPage({title,description,blocks}:{title:string;description:string;blocks:LegalBlock[]}) {
   const operator=process.env.LEGAL_ENTITY_NAME?.trim()??'';
-  const support=process.env.SUPPORT_EMAIL?.trim()??'';
+  const support=process.env.SUPPORT_EMAIL?.trim()||'contact@ilmai.online';
+  const feedback=process.env.FEEDBACK_EMAIL?.trim()||'feedback@ilmai.online';
   const privacy=process.env.PRIVACY_CONTACT_EMAIL?.trim()||support;
   const address=process.env.LEGAL_POSTAL_ADDRESS?.trim()??'';
   const governingLaw=process.env.LEGAL_GOVERNING_LAW?.trim()??'';
@@ -42,12 +43,13 @@ export function LegalPage({title,description,blocks}:{title:string;description:s
         <dl className="mt-3 grid gap-2 sm:grid-cols-[150px_1fr]">
           <dt className="text-muted-foreground">Operator</dt><dd>{operator||'Not yet configured'}</dd>
           <dt className="text-muted-foreground">Postal address</dt><dd className="whitespace-pre-line">{address||'Not yet configured'}</dd>
-          <dt className="text-muted-foreground">Support</dt><dd>{support||'Not yet configured'}</dd>
-          <dt className="text-muted-foreground">Privacy enquiries</dt><dd>{privacy||'Not yet configured'}</dd>
+          <dt className="text-muted-foreground">Support</dt><dd><a className="hover:text-primary hover:underline" href={'mailto:'+support}>{support}</a></dd>
+          <dt className="text-muted-foreground">Feedback</dt><dd><a className="hover:text-primary hover:underline" href={'mailto:'+feedback}>{feedback}</a></dd>
+          <dt className="text-muted-foreground">Privacy enquiries</dt><dd><a className="hover:text-primary hover:underline" href={'mailto:'+privacy}>{privacy}</a></dd>
           <dt className="text-muted-foreground">Governing law</dt><dd>{governingLaw||'Not yet configured'}</dd>
           <dt className="text-muted-foreground">Data hosting regions</dt><dd>{regions||'Not yet confirmed by the operator'}</dd>
         </dl>
-        {support&&<p className="mt-3"><a className="font-semibold text-primary hover:underline" href={'mailto:'+support}>Email support</a></p>}
+        <div className="mt-3 flex flex-wrap gap-4"><a className="font-semibold text-primary hover:underline" href={'mailto:'+support}>Email support</a><a className="font-semibold text-primary hover:underline" href={'mailto:'+feedback}>Send feedback</a></div>
       </section>
 
       <div className="mt-8 space-y-8">
