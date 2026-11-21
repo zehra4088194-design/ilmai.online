@@ -94,7 +94,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
 
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
         <section className="card p-5 lg:col-span-2"><h2 className="mb-4 font-bold">Top models</h2><BarList rows={o.by_model.map((m) => ({ label: m.model, value: m.requests, sub: fmtUsd(m.cost) }))} format="number" /></section>
-        <section className="card p-5"><h2 className="mb-4 font-bold">By feature</h2><BarList rows={o.by_kind.map((k) => ({ label: k.kind, value: k.requests, sub: fmtUsd(k.cost) }))} format={fmtNum} /></section>
+        <section className="card p-5"><h2 className="mb-4 font-bold">By feature</h2><BarList rows={o.by_kind.map((k) => ({ label: k.kind, value: k.requests, sub: fmtUsd(k.cost) }))} format="number" /></section>
       </div>
 
       <section className="card mt-4 overflow-hidden">
