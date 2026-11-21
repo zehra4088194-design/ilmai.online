@@ -4,7 +4,7 @@ import { PageHead } from '@/components/admin/AdminShell';
 import { fmtDate, fmtNum, fmtUsd, cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
-const KINDS = ['all', 'chat', 'compare', 'image', 'video', 'presentation', 'test'];
+const KINDS = ['all', 'chat', 'compare', 'image', 'video', 'presentation', 'test', 'prompt_enhance', 'website'];
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ kind?: string; status?: string }> }) {
   const sp = await searchParams;
