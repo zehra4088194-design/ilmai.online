@@ -8,10 +8,10 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# NEXT_PUBLIC_* values are inlined into the browser bundle at BUILD time.
-ARG NEXT_PUBLIC_SUPABASE_URL
-ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
-ARG NEXT_PUBLIC_SITE_URL
+# Coolify build variables: NEXT_PUBLIC_* values are inlined into the browser bundle.
+ARG NEXT_PUBLIC_SUPABASE_URL=
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY=
+ARG NEXT_PUBLIC_SITE_URL=
 ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL \
     NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY \
     NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL \
@@ -22,6 +22,23 @@ RUN npm run build
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0 NEXT_TELEMETRY_DISABLED=1
+# Blank placeholders only. Set actual values in Coolify (never bake secrets into image).
+ENV SUPABASE_SERVICE_ROLE_KEY="" \
+    OPENROUTER_API_KEY="" \
+    ADMIN_EMAILS="" \
+    CRON_SECRET="" \
+    AI_ROUTER_URL="" \
+    AI_ROUTER_SECRET="" \
+    E2B_API_KEY="" \
+    PDF_RENDERER_URL="" \
+    PDF_RENDERER_SECRET="" \
+    RESEND_API_KEY="" \
+    EMAIL_FROM="" \
+    B2_ENDPOINT="" \
+    B2_REGION="" \
+    B2_KEY_ID="" \
+    B2_APPLICATION_KEY="" \
+    B2_BUCKET=""
 RUN addgroup -S nodejs && adduser -S nextjs -G nodejs
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
