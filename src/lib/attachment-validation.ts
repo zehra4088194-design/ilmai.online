@@ -45,7 +45,7 @@ export function uploadLimits(maxMb: number) {
   const configured = Number.isFinite(maxMb) && maxMb > 0 ? Math.floor(maxMb * 1024 * 1024) : MAX_ATTACHMENT_BYTES;
   const maxBytes = Math.min(configured, MAX_ATTACHMENT_BYTES);
   return {
-    maxFiles: MAX_ATTACHMENTS, maxBytes, maxTextBytes: Math.min(maxBytes, MAX_TEXT_BYTES),
+    maxFiles: MAX_ATTACHMENTS, maxBytes, maxTextBytes: Math.min(maxBytes, MAX_TEXT_BYTES), maxOfficeBytes: Math.min(maxBytes, OFFICE_LIMITS.fileBytes),
     types: Object.entries(ATTACHMENT_TYPES).map(([mime, type]) => ({ mime, ...type })),
   };
 }
