@@ -16,7 +16,8 @@ type WebsiteProject = {
   files: { path: string; content: string }[];
   nextSteps: string[];
 };
-type WebsiteResponse = { project: WebsiteProject; model: string; creditsCharged: number; createdAt: string };
+type WebsiteBuildCheck = { status: 'passed' | 'failed' | 'unavailable'; phase: 'sandbox' | 'runtime' | 'dependencies' | 'production'; durationMs: number; summary: string; details?: string };
+type WebsiteResponse = { project: WebsiteProject; model: string; creditsCharged: number; buildCheck: WebsiteBuildCheck; createdAt: string };
 
 const PAGE_OPTIONS = ['Home', 'About', 'Services', 'Products', 'Pricing', 'Portfolio', 'Gallery', 'Blog', 'FAQ', 'Contact'];
 const FEATURE_OPTIONS = ['Contact form', 'WhatsApp call-to-action', 'Product search', 'Shopping cart UI', 'Testimonials', 'FAQ accordion', 'Newsletter signup', 'Dashboard UI', 'Booking form', 'Search and filters'];
@@ -220,7 +221,7 @@ export function WebsiteBuilderDialog({ open, onClose, models, preferredModel }: 
                   </div>
                   <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
                     <p className="mb-1 flex items-center gap-2 font-semibold text-foreground"><Sparkles className="h-4 w-4 text-primary" />What will be included</p>
-                    Complete source files, Next.js setup, README, launch checklist and suggested next steps. Project code will be validated before it is packaged.
+                    Complete source files, Next.js setup, README and launch checklist. The generated project will be installed and production-build checked inside a temporary isolated E2B cloud sandbox.
                   </div>
                 </div>
               )}
@@ -233,6 +234,15 @@ export function WebsiteBuilderDialog({ open, onClose, models, preferredModel }: 
                     <p className="mt-1 text-sm text-muted-foreground">{result.project.summary}</p>
                     <p className="mt-2 text-xs text-muted-foreground">{result.project.files.length} files · Model: {result.model} · {result.creditsCharged} credits</p>
                   </div>
+                  <div className={'rounded-2xl border p-4 ' + (result.buildCheck.status === 'passed' ? 'border-primary/25 bg-primary/5' : 'border-warning/30 bg-warning/5')}>
+                    <p className="flex items-center gap-2 text-sm font-semibold">
+                      {result.buildCheck.status === 'passed' ? <Check className="h-4 w-4 text-primary" /> : <Code2 className="h-4 w-4 text-warning" />}
+                      {result.buildCheck.status === 'passed' ? 'E2B production build passed' : result.buildCheck.status === 'failed' ? 'Production build needs fixes' : 'Build verification unavailable'}
+                    </p>
+                    <p className="mt-1.5 text-sm text-muted-foreground">{result.buildCheck.summary}</p>
+                    {result.buildCheck.durationMs > 0 && <p className="mt-1 text-[11px] text-muted-foreground">Sandbox time: {(result.buildCheck.durationMs / 1000).toFixed(1)}s · Phase: {result.buildCheck.phase}</p>}
+                    {result.buildCheck.details && <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-black/40 p-3 font-mono text-[10px] leading-5 text-muted-foreground">{result.buildCheck.details}</pre>}
+                  </div>
                   <button type="button" onClick={downloadZip} className="btn-primary flex h-12 w-full justify-center"><Download className="h-4 w-4" />Download complete website ZIP</button>
                   <div className="rounded-xl border border-border p-3">
                     <p className="mb-2 flex items-center gap-2 text-sm font-semibold"><FileArchive className="h-4 w-4 text-primary" />Generated files</p>
@@ -244,7 +254,7 @@ export function WebsiteBuilderDialog({ open, onClose, models, preferredModel }: 
                     <p className="mb-2 flex items-center gap-2 text-sm font-semibold"><ClipboardCheck className="h-4 w-4 text-primary" />Next steps</p>
                     <ol className="list-inside list-decimal space-y-1.5 text-xs text-muted-foreground">{result.project.nextSteps.map((item, index) => <li key={index}>{item}</li>)}</ol>
                   </div>
-                  <p className="text-[11px] text-muted-foreground">The generated code has passed structural and path checks. Run its build and test the forms, links, integrations and responsive layout before publishing.</p>
+                  <p className="text-[11px] text-muted-foreground">A passed E2B check confirms the production build completed in an isolated environment; it does not replace visual review or functional testing. Review the forms, links, integrations and responsive layout before publishing.</p>
                 </div>
               )}
             </div>
@@ -257,7 +267,7 @@ export function WebsiteBuilderDialog({ open, onClose, models, preferredModel }: 
                     <button type="button" onClick={() => setStep((current) => current + 1)} disabled={!validStep} className="btn-primary">Continue<ArrowRight className="h-4 w-4" /></button>
                   ) : (
                     <button type="button" onClick={generate} disabled={busy || !modelId} className="btn-primary">
-                      {busy ? <><Loader2 className="h-4 w-4 animate-spin" />Building files…</> : <><Code2 className="h-4 w-4" />Generate Website</>}
+                      {busy ? <><Loader2 className="h-4 w-4 animate-spin" />Generating & testing…</> : <><Code2 className="h-4 w-4" />Generate Website</>}
                     </button>
                   )}
                 </>

