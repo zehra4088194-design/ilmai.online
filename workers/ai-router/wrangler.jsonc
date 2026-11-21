@@ -3,33 +3,38 @@
   "name": "ilmai-ai-router",
   "main": "src/index.ts",
   "compatibility_date": "2026-11-20",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "upload_source_maps": true,
-  "observability": { "enabled": true, "head_sampling_rate": 0.1 },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 0.1
+  },
   "secrets": {
     "required": [
-          "AI_ROUTER_SECRET",
-          "OPENROUTER_API_KEY",
-          "GROQ_API_KEY_1",
-          "GROQ_API_KEY_2",
-          "GROQ_API_KEY_3",
-          "GROQ_API_KEY_4",
-          "GROQ_API_KEY_5",
-          "GROQ_API_KEY_6",
-          "GROQ_API_KEY_7",
-          "GROQ_API_KEY_8",
-          "GROQ_API_KEY_9",
-          "GROQ_API_KEY_10",
-          "GEMINI_API_KEY_1",
-          "GEMINI_API_KEY_2",
-          "GEMINI_API_KEY_3",
-          "GEMINI_API_KEY_4",
-          "GEMINI_API_KEY_5",
-          "GEMINI_API_KEY_6",
-          "GEMINI_API_KEY_7",
-          "GEMINI_API_KEY_8",
-          "GEMINI_API_KEY_9",
-          "GEMINI_API_KEY_10"
+      "AI_ROUTER_SECRET",
+      "OPENROUTER_API_KEY",
+      "GROQ_API_KEY_1",
+      "GROQ_API_KEY_2",
+      "GROQ_API_KEY_3",
+      "GROQ_API_KEY_4",
+      "GROQ_API_KEY_5",
+      "GROQ_API_KEY_6",
+      "GROQ_API_KEY_7",
+      "GROQ_API_KEY_8",
+      "GROQ_API_KEY_9",
+      "GROQ_API_KEY_10",
+      "GEMINI_API_KEY_1",
+      "GEMINI_API_KEY_2",
+      "GEMINI_API_KEY_3",
+      "GEMINI_API_KEY_4",
+      "GEMINI_API_KEY_5",
+      "GEMINI_API_KEY_6",
+      "GEMINI_API_KEY_7",
+      "GEMINI_API_KEY_8",
+      "GEMINI_API_KEY_9",
+      "GEMINI_API_KEY_10"
     ]
   },
   "vars": {
@@ -42,11 +47,23 @@
   },
   "durable_objects": {
     "bindings": [
-      { "name": "REQUEST_GATES", "class_name": "RequestGate" },
-      { "name": "KEY_POOLS", "class_name": "KeyPool" }
+      {
+        "name": "REQUEST_GATES",
+        "class_name": "RequestGate"
+      },
+      {
+        "name": "KEY_POOLS",
+        "class_name": "KeyPool"
+      }
     ]
   },
   "migrations": [
-    { "tag": "v1", "new_sqlite_classes": ["RequestGate", "KeyPool"] }
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "RequestGate",
+        "KeyPool"
+      ]
+    }
   ]
 }
