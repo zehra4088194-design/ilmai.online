@@ -20,7 +20,7 @@ src/
       admin/*   cron/daily-credits
   components/ {chat, quiz, admin, tools, landing, ui}
   lib/
-    auth · features · settings · modes · models · openrouter · credits · usage · media · storage/b2
+    auth · features · settings · modes · models · ai-router · openrouter (catalogue only) · credits · usage · media · storage/b2
     prompt.ts       system prompt = global prompt + active mode + user context (student/teacher, grade)
     history.ts      pure fn: rows → messages for one model (multi-model aware)  [unit-tested]
     utility-ai.ts   "free model" helper with fall-through chain (suggestions, quizzes)
@@ -31,8 +31,9 @@ supabase/migrations/0001_init.sql  0002_modes_quiz_suggestions.sql
 ## Multi-model chat flow (AI-Fiesta style)
 1. Browser stores the user message first: `POST /api/conversations {firstMessage, mode}` (new chat) or `POST /api/conversations/:id/messages`. → `userMessageId`.
 2. Browser calls `POST /api/chat {conversationId, userMessageId, model, multi}` **once per selected model, in parallel**. Each response streams into its own column.
-3. Server: auth → maintenance → feature flags (`text_chat`, + `compare_models` if multi) → model enabled & tier ≤ plan → credits > 0 → loads history *before* that message with `buildHistory()` (each model sees its own earlier answers) → system prompt via `buildSystemPrompt()` → OpenRouter stream.
-4. On finish: saves the assistant message with `meta.turn = userMessageId`, charges credits (`ceil(cost_usd × credits_per_usd)`), logs `usage_events`.
+3. Coolify server: auth → maintenance → feature flags (`text_chat`, + `compare_models` if multi) → model enabled & tier ≤ plan → credits > 0 → loads history *before* that message with `buildHistory()` (each model sees its own earlier answers) → system prompt via `buildSystemPrompt()`.
+4. Coolify signs the request with HMAC-SHA256 and sends it to the Cloudflare AI Router. The Worker verifies timestamp/nonce/signature, applies per-user rate limits, then proxies the selected model to OpenRouter. Auto mode may use its configured Groq key for model selection; inference remains OpenRouter unless a server-approved candidate explicitly names another provider. No silent model substitution is made for a manually selected model.
+5. The stream returns through Worker → Coolify → browser. On finish, Coolify saves the assistant message with `meta.turn = userMessageId`, charges credits from OpenRouter-reported actual cost (`ceil(cost_usd × credits_per_usd)`), and logs `usage_events`.
 5. UI groups messages into turns (`groupMessages`): 1 answer = normal chat, >1 = columns (swipe on mobile).
 
 ## Modes (Student / Teacher "plugins")
@@ -47,3 +48,13 @@ Suggestions and quizzes use free OpenRouter models (auto-picked from the live ca
 ## Security model
 RLS on every table; the browser can only update `full_name, avatar_url, preferred_model, language, last_seen_at, audience, grade` on `profiles` (column grants). All privileged work uses the service-role key on the server. Admin = `profiles.role='admin'` or `ADMIN_EMAILS`. B2 bucket private + signed URLs. Quiz scores computed server-side.
 Known gaps: per-IP rate limiting, sign-up abuse protection, moderation, KaTeX maths rendering.
+
+
+## Runtime responsibility split
+
+- **Coolify / Next.js:** user authentication, plan and feature checks, wallet reservations/deductions, conversation history, prompts, database writes and usage logs.
+- **Cloudflare AI Router Worker:** the only inference gateway for chat, utility AI (suggestions/quizzes/prompt enhancement), image/video requests, presentations and test generation. It verifies signed HMAC requests, rate-limits by user, routes and streams provider responses.
+- **OpenRouter:** source of the live model catalogue and per-token base prices (fetched server-side by Coolify), and the primary inference gateway called by the Worker. The OpenRouter key is therefore configured twice: in Coolify for catalogue access and as a Worker secret for inference.
+- **Supabase:** Auth and Postgres data store; it is not a model inference proxy.
+
+The app must fail closed when `AI_ROUTER_URL` or `AI_ROUTER_SECRET` is absent. Do not add a direct provider inference fallback in Next.js; keep all provider credentials server-side and keep inference behind the Worker. See [AI Router deployment](AI-ROUTER-SETUP.md).
