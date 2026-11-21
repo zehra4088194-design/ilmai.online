@@ -43,7 +43,7 @@ Browser kabhi bhi OpenRouter, Groq ya Gemini ko direct call nahi karta. Provider
    Secret list sirf names/status dikhane ke liye use karo — secret values nahi.
 7. Deploy output mein Worker ka actual URL milega. Aam tor par format:
    `https://ilmai-ai-router.<your-account-subdomain>.workers.dev`
-   Apna real URL copy karo. Ye sample URL actual account domain nahi hai.
+   Apna real URL copy karo. Is Ilm AI account ke liye deployed URL ab `https://ilmai-ai-router.ilmai.workers.dev` hai.
 
 ## 2. Optional provider keys
 
