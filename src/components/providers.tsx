@@ -14,7 +14,7 @@ export type Appearance = {
   font: 'sans' | 'serif' | 'mono';
 };
 export const DEFAULT_APPEARANCE: Appearance = {
-  family: 'classic', mode: 'dark', accent: '#22c55e', monochrome: false,
+  family: 'classic', mode: 'system', accent: '#22c55e', monochrome: false,
   headingColor: 'auto', headingStyle: 'auto', font: 'sans',
 };
 export const THEME_FAMILIES = [
@@ -98,5 +98,5 @@ function ToastProvider({ children }: { children: React.ReactNode }) {
   return <ToastCtx.Provider value={push}>{children}<div className="pointer-events-none fixed bottom-4 right-4 z-[100] flex w-[min(92vw,22rem)] flex-col gap-2"><AnimatePresence>{list.map((t) => {const I=Icon[t.type];return <motion.div key={t.id} layout initial={{opacity:0,y:16,scale:0.96}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,x:40}} className="glass pointer-events-auto flex items-start gap-2.5 rounded-xl px-3.5 py-3 text-sm shadow-soft"><I className={`mt-0.5 h-4 w-4 shrink-0 ${t.type==='err'?'text-danger':'text-primary'}`} /><span>{t.msg}</span></motion.div>;})}</AnimatePresence></div></ToastCtx.Provider>;
 }
 export function Providers({ children }: { children: React.ReactNode }) {
-  return <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange><AppearanceRuntime><ToastProvider>{children}</ToastProvider></AppearanceRuntime></ThemeProvider>;
+  return <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange><AppearanceRuntime><ToastProvider>{children}</ToastProvider></AppearanceRuntime></ThemeProvider>;
 }
