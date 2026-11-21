@@ -45,7 +45,8 @@ PayPro is the PKR wallet route in this integration.
 2. Configure the notification callback in PayPro as `https://ilmai.online/api/webhooks/paypro`.
 3. Put `PAYPRO_MERCHANT_NO`, `PAYPRO_APP_SECRET`, `PAYPRO_API_BASE_URL` and `PAYPRO_NOTIFY_URL` in Coolify runtime environment variables.
 4. In Admin, set the plan currency to PKR, enable PayPro for that plan and activate it. The amount must be a whole number and at least PKR 100.
-5. Test both JazzCash and Easypaisa with a PayPro test/merchant-approved wallet before taking live payments.
+5. PayPro's Pakistan collection API expects a whole-rupee amount of at least PKR 100 and a Pakistani mobile number in `03XXXXXXXXX` or `3XXXXXXXXX` format. Its documentation recommends using a Gmail address for the payer email. Test both JazzCash and Easypaisa with a PayPro test/merchant-approved wallet before taking live payments.
+6. PayPro's onboarding documentation notes that test API IP allowlisting may be required. Give PayPro the app server's outbound IP and have them confirm it is allowlisted before running sandbox tests.
 
 The PayPro wallet request may initially return a processing status. Ilm AI does not grant credits until the signed callback or an authenticated status query confirms a successful transaction. The current integration treats PayPro purchases as fixed-term payments; it does not automatically debit a wallet again at renewal.
 
