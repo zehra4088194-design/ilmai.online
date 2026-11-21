@@ -21,19 +21,25 @@ Suggestions aur quizzes **free models** se chalte hain (user ke credits nahi kat
 - Free models par rate limit / daily limit hoti hai (OpenRouter docs mein current limits dekho; credits add karne se limit barh sakti hai) aur ye limit **tumhare saare users mein share** hoti hai. Isliye app mein per-user daily caps hain (`/admin/settings`).
 - Free models aate-jate rehte hain. App automatically live catalogue se best free models chunti hai aur ek fail ho to agla try karti hai. Chaho to `/admin/settings → Free models` mein apni list pin kar do (comma separated).
 
-## 3. Backblaze B2
+## 3. Cloudflare AI Router (required for all AI inference)
+1. Open `docs/AI-ROUTER-SETUP.md` and deploy the `workers/ai-router` Worker named `ilmai-ai-router`.
+2. Set Cloudflare Worker secrets `AI_ROUTER_SECRET` and `OPENROUTER_API_KEY` with Wrangler. Optional Groq keys enable the smarter Auto model chooser.
+3. In Coolify, set `AI_ROUTER_URL` to the deployed Worker base URL and `AI_ROUTER_SECRET` to the exact same HMAC secret. Keep `OPENROUTER_API_KEY` in Coolify too; it is used only for model catalogue/pricing discovery there.
+4. Redeploy the main Next.js app. All chat and AI generation traffic must pass through Cloudflare Worker; do not configure direct provider keys in the browser.
+
+## 4. Backblaze B2
 1. Buckets → Create bucket `ilmai-media`, **Private**.
 2. App Keys → Add key (sirf us bucket ke liye, Read & Write) → `keyID` = `B2_KEY_ID`, `applicationKey` = `B2_APPLICATION_KEY` (sirf ek baar dikhti hai).
 3. Bucket detail mein **Endpoint** dikhega (e.g. `s3.us-west-004.backblazeb2.com`) → `B2_ENDPOINT=https://s3.us-west-004.backblazeb2.com`, `B2_REGION=us-west-004`.
 4. Browser se direct upload (file upload feature) ke liye CORS: Bucket Settings → CORS Rules → "custom" → `s3_put, s3_get, s3_head`, origin `https://ilmai.online`, headers `*`.
 
-## 4. Local chalana
+## 5. Local chalana
 ```bash
 cp .env.example .env.local   # values bharo
 npm install && npm run dev
 ```
 
-## 5. Coolify pe deploy (purane app ko delete kiye baghair)
+## 6. Coolify pe deploy (purane app ko delete kiye baghair)
 1. Purana `ilm-ai-production` **Stop** (Delete nahi) – RAM free ho jayegi. Auto Deploy band rakho.
 2. Coolify → **New Resource → Public/Private Repository** → `https://github.com/zehra4088194-design/ilmai.online`, branch `main`.
 3. **Build Pack = Dockerfile**, **Port = 3000**.
@@ -45,7 +51,7 @@ npm install && npm run dev
    `wget -qO- --header="Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/daily-credits`
    (ya koi bhi external cron jo `https://ilmai.online/api/cron/daily-credits` ko Bearer header ke saath call kare).
 
-## 6. Test Studio PDF renderer (required for PDF downloads)
+## 7. Test Studio PDF renderer (required for PDF downloads)
 1. Coolify mein isi repository ka doosra resource banao.
 2. Build context repository root rakho; Dockerfile path `workers/pdf-renderer/Dockerfile`; internal port `3400`.
 3. PDF service par `PDF_RENDERER_SECRET` ko 32+ random bytes ka secret set karo. `/render` ko public domain par expose mat karna.
@@ -54,7 +60,7 @@ npm install && npm run dev
 6. Test Studio `/test-studio` par khulta hai. Pehle test ko topic ya verified textbook source se generate karo. Question Paper PDF sirf questions rakhta hai; Answer Key aur Teacher Copy ko current answer key chahiye.
 7. English, Urdu aur mixed-language exports ko visually check karo. Urdu rendering Noto Nastaliq fonts par depend karti hai.
 
-## 7. Purana app dobara chalana
+## 8. Purana app dobara chalana
 Naye app ko stop/limit karo (ya domain alag rakho), phir purane resource par **Start**. Pehli baar rebuild hoga to naya app band rakho (RAM).
 
 ## Checklist
