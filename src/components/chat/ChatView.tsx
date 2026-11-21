@@ -172,11 +172,22 @@ export function ChatView() {
     return acc;
   }
 
+  function resumeVoiceCall() {
+    callPausedRef.current = false;
+    if (callActiveRef.current && !busyRef.current) {
+      try { callRecognition.current?.start(); } catch { /* browser recognition may still be ending */ }
+    }
+  }
+
   const send = useCallback(async (text?: string) => {
     const t = (text ?? input).trim();
     const selectedAttachments = [...attachments];
     if ((!t && selectedAttachments.length === 0) || busy || uploading) return;
-    if (!selected.length) { toast('Please choose a model first', 'err'); return; }
+    if (!selected.length) {
+      toast('Please choose a model first', 'err');
+      resumeVoiceCall();
+      return;
+    }
     const chosen = [...selected];
     const multi = chosen.length > 1;
     setInput(''); setBusy(true); busyRef.current = true; setSuggestions([]); sugToken.current++; setSugLoading(false); stick.current = true;
@@ -199,7 +210,7 @@ export function ChatView() {
       setAttachments([]);
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Could not send', 'err');
-      setBusy(false); setInput(t);
+      setBusy(false); busyRef.current = false; setInput(t); resumeVoiceCall();
       return;
     }
 
@@ -291,8 +302,6 @@ export function ChatView() {
 
   return (
     <>
-      <div ref={scroller} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto">
-
       <div ref={scroller} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col px-4 pb-5 pt-3">
           {loadingChat && <div className="mx-auto w-full max-w-3xl space-y-4 pt-4">{[0, 1, 2].map((i) => <div key={i} className="h-16 animate-pulse rounded-2xl bg-muted" />)}</div>}
