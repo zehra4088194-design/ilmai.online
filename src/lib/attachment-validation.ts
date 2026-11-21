@@ -59,7 +59,7 @@ export function sanitizeFilename(name: string, fallback = 'attachment') {
 export function validateDeclaration(mime: string, size: number, maxBytes = MAX_ATTACHMENT_BYTES) {
   const type = attachmentType(mime);
   if (!type) throw new Error('Unsupported file type. Supported: images, PDF, Word, Excel, PowerPoint, text, data and common source-code files.');
-  const limit = Math.min(maxBytes, MAX_ATTACHMENT_BYTES, type.kind === 'file' ? MAX_TEXT_BYTES : Infinity);
+  const limit = Math.min(maxBytes, MAX_ATTACHMENT_BYTES, type.kind === 'file' && type.ext !== 'xlsx' ? MAX_TEXT_BYTES : Infinity);
   if (!Number.isSafeInteger(size) || size <= 0) throw new Error('The file must not be empty');
   if (size > limit) throw new Error(`File exceeds the ${Math.round(limit / 1024)} KB limit`);
   return type;
