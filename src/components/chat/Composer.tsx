@@ -170,11 +170,7 @@ export function Composer({
         </button>
       </div>}
 
-      <textarea ref={ta} rows={1} dir="auto" value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); if (!busy && !uploading) onSend(); } }}
-        className="max-h-36 min-h-12 w-full resize-none bg-transparent px-3 py-2.5 text-[0.95rem] leading-6 outline-none placeholder:text-muted-foreground/65" />
-
-      <div className="flex flex-wrap items-center gap-1 border-t border-border/60 px-1 pt-2">
+      <div className="flex min-w-0 items-end gap-1.5">
         <div className="relative">
           <button type="button" onClick={() => setMenuOpen((open) => !open)} disabled={busy || uploading}
             className={cn('grid h-9 w-9 place-items-center rounded-full border border-border bg-muted/70 text-foreground transition hover:border-primary/50 hover:bg-accent', menuOpen && 'border-primary/50 bg-accent')}
@@ -218,6 +214,12 @@ export function Composer({
           </button>
         )}
 
+<textarea ref={ta} rows={1} dir="auto" value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); if (!busy && !uploading) onSend(); } }}
+        className="max-h-28 min-h-10 min-w-0 flex-1 resize-none bg-transparent px-2 py-2 text-[0.95rem] leading-6 outline-none placeholder:text-muted-foreground/65" />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1 border-t border-border/60 px-1 pt-1.5">
         <button type="button" onClick={onEnhance} disabled={!onEnhance || !value.trim() || busy || uploading || enhancing}
           title="Enhance prompt" aria-label="Enhance prompt"
           className="flex h-9 items-center gap-1.5 rounded-full px-2.5 text-xs font-semibold text-muted-foreground transition hover:bg-muted hover:text-primary disabled:opacity-40">
