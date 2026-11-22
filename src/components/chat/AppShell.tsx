@@ -374,7 +374,7 @@ function Sidebar({ collapsed=false, onCollapse }: { collapsed?:boolean; onCollap
               <span className="block truncate text-[11px] leading-tight text-muted-foreground">{user.email}</span><span className="mt-1 flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Coins className="h-3 w-3 text-primary"/>{user.isAdmin ? "Unlimited credits" : fmtNum(credits)+" credits"}<span className="ml-1 badge !px-1.5 !py-0 text-[9px] uppercase">{user.plan}</span></span>
             </span>
           </Link>
-          <Link href="/pricing" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-primary" title="Wallet & pricing" aria-label="Wallet and pricing"><Wallet className="h-4 w-4"/></Link>{user.isAdmin && <Link href="/admin" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-primary hover:bg-muted" title="Admin panel" aria-label="Admin panel"><ShieldCheck className="h-4 w-4" /></Link>
+          <Link href="/pricing" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-primary" title="Wallet & pricing" aria-label="Wallet and pricing"><Wallet className="h-4 w-4"/></Link>{user.isAdmin && <Link href="/admin" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-primary hover:bg-muted" title="Admin panel" aria-label="Admin panel"><ShieldCheck className="h-4 w-4" /></Link>}
           <button type="button" onClick={onCollapse} className="hidden h-8 w-8 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-primary lg:grid" title="Collapse sidebar" aria-label="Collapse sidebar"><PanelLeftClose className="h-4 w-4"/></button>
         </div>
         
