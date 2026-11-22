@@ -68,6 +68,37 @@ alter table public.usage_events
 create index if not exists plan_credit_events_owner
   on public.usage_events(user_id, created_at desc);
 
+create or replace function public.get_credit_balances(p_user uuid)
+returns jsonb
+language sql
+security definer
+set search_path = ''
+stable
+as $
+  select jsonb_build_object(
+    'walletBalance',p.credits_balance,
+    'walletReserved',p.credits_reserved,
+    'planBalance',coalesce(b.credits_remaining,0),
+    'planReserved',coalesce(b.credits_reserved,0),
+    'planId',b.plan_id,
+    'periodStart',b.period_start,
+    'periodEnd',b.period_end
+  )
+  from public.profiles p
+  left join lateral (
+    select plan_id,credits_remaining,credits_reserved,period_start,period_end
+    from public.plan_credit_buckets
+    where user_id=p.id and status='active'
+      and period_start<=now() and period_end>now()
+    order by period_start desc,created_at desc
+    limit 1
+  ) b on true
+  where p.id=p_user and not p.is_banned;
+$;
+
+revoke all on function public.get_credit_balances(uuid) from public,anon,authenticated;
+grant execute on function public.get_credit_balances(uuid) to service_role;
+
 create or replace function public.charge_credits(
   p_user uuid,
   p_amount bigint,
