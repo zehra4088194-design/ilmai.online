@@ -16,6 +16,7 @@ export function LogoMark({ className }: { className?: string }) {
       className={sizeClass}
     />
   );
+}
 
 export function Logo({ href = '/', className }: { href?: string; className?: string }) {
   return (
