@@ -81,7 +81,7 @@ export const POST = handle(async (req: NextRequest) => {
     .order('created_at', { ascending: false }).limit(turnsToKeep * 6);
   const history: ChatMessage[] = buildHistory(((rows ?? []) as Row[]).reverse(), model.id, turnsToKeep);
   const preparedAttachments = attachmentIds.length
-    ? await prepareChatAttachments(userMsg.content as string, attachmentIds, profile.id, { documents: model.documents, plan: profile.plan, isAdmin })
+    ? await prepareChatAttachments(userMsg.content as string, attachmentIds, profile.id, { documents: model.documents, isAdmin })
     : { content: userMsg.content as string, imageAnalysis: null as ImageAnalysisUsage | null };
   const currentUserContent = preparedAttachments.content;
   const imageAnalysis = preparedAttachments.imageAnalysis;
