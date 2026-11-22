@@ -2,7 +2,7 @@ import { handle, json } from '@/lib/http';
 import { requireUserApi } from '@/lib/auth';
 import { requireFeature } from '@/lib/features';
 import { getImageModels, supports } from '@/lib/image-models';
-import { imagePickerParameters } from '@/lib/picsart-models';
+import { imagePickerParameters, picsartParamOptions, picsartParamRange } from '@/lib/picsart-models';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,6 +22,16 @@ export const GET = handle(async () => {
     models: models.map((model) => ({
       id: model.id, name: model.name, description: model.description,
       parameters: imagePickerParameters(model),
+      parameterOptions: {
+        aspect_ratio: picsartParamOptions(model, 'aspectRatio').map(String),
+        resolution: picsartParamOptions(model, 'resolution').map(String),
+        quality: picsartParamOptions(model, 'quality').map(String),
+        output_format: picsartParamOptions(model, 'outputFormat').map(String),
+        n: picsartParamOptions(model, 'count').map(String),
+      },
+      parameterRanges: {
+        n: picsartParamRange(model, 'count'),
+      },
       inputModalities: supports(model, 'imageUrls') ? ['image'] : ['text'],
       provider: model.provider.name,
     })),
