@@ -142,7 +142,7 @@ export function VideoTool() {
         </div>
         {templates.length>0&&<div className="space-y-2"><p className="text-sm font-semibold">Admin templates</p><div className="grid gap-2 sm:grid-cols-2">{templates.map((template)=><button key={template.id} type="button" className="rounded-xl border border-border p-3 text-left hover:bg-muted" onClick={()=>setPrompt(template.templatePrompt)}><span className="font-semibold">{template.title}</span><span className="block text-xs text-muted-foreground">{template.altText}</span></button>)}</div></div>}
         <label className="block space-y-1 text-sm font-medium">Describe the video
-          <textarea className="input min-h-28" dir="auto" maxLength={6000} value={prompt} onChange={(e)=>setPrompt(e.target.value)} placeholder="Describe the scene, camera movement, subject action, lighting, style and mood…"/>
+          <textarea className="input min-h-24" dir="auto" maxLength={6000} value={prompt} onChange={(e)=>setPrompt(e.target.value)} placeholder="Describe the scene, camera movement, subject action, lighting, style and mood…"/>
         </label>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="space-y-1 text-sm font-medium">Video model

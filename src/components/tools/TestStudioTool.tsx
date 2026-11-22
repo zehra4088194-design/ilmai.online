@@ -310,7 +310,7 @@ export function TestStudioTool() {
               <label className="space-y-1 text-sm font-medium">Class / grade<input className="input" value={config.grade} maxLength={80} onChange={(e) => setConfig({ ...config, grade: e.target.value })} placeholder="e.g. 9" /></label>
               <label className="space-y-1 text-sm font-medium">Topic<input className="input" value={config.topic} maxLength={2000} onChange={(e) => setConfig({ ...config, topic: e.target.value })} placeholder="e.g. Cell structure and function" /></label>
             </div>
-            <label className="block space-y-1 text-sm font-medium">Specific instructions / syllabus coverage<textarea className="input min-h-24" value={config.prompt} maxLength={12000} onChange={(e) => setConfig({ ...config, prompt: e.target.value })} placeholder="Mention chapters, learning objectives or the exact topics to assess…" /></label>
+            <label className="block space-y-1 text-sm font-medium">Specific instructions / syllabus coverage<textarea className="input min-h-20" value={config.prompt} maxLength={12000} onChange={(e) => setConfig({ ...config, prompt: e.target.value })} placeholder="Mention chapters, learning objectives or the exact topics to assess…" /></label>
             <div>
               <p className="mb-2 text-sm font-semibold">Textbook sources</p>
               <AttachmentPicker value={attachments} onChange={setAttachments} disabled={busy} onUploadingChange={setUploading} />
@@ -335,7 +335,7 @@ export function TestStudioTool() {
                 ))}
               </div>
             </div>
-            <label className="block space-y-1 text-sm font-medium">Instructions to print on the paper<textarea className="input min-h-20" value={config.instructions} maxLength={4000} onChange={(e) => setConfig({ ...config, instructions: e.target.value })} placeholder="e.g. Attempt all questions. Show your working." /></label>
+            <label className="block space-y-1 text-sm font-medium">Instructions to print on the paper<textarea className="input min-h-16" value={config.instructions} maxLength={4000} onChange={(e) => setConfig({ ...config, instructions: e.target.value })} placeholder="e.g. Attempt all questions. Show your working." /></label>
             <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
               <label className="flex items-center gap-2"><input type="checkbox" checked={config.supplementSources} onChange={(e) => setConfig({ ...config, supplementSources: e.target.checked })} />Allow general knowledge to supplement sources</label>
               <label className="flex items-center gap-2"><input type="checkbox" checked={config.includeAnswerKey} onChange={(e) => setConfig({ ...config, includeAnswerKey: e.target.checked })} />Prepare a separate answer key</label>
@@ -399,7 +399,7 @@ export function TestStudioTool() {
                   <button className="btn-ghost text-xs" disabled={busy} onClick={() => regenerate('question', question.id)}>Regenerate</button>
                   <button className="btn-ghost text-xs text-danger" disabled={paper.questions.length <= 1 || busy} onClick={() => removeQuestion(question.id)}>Remove</button>
                 </div>
-                <textarea className="input min-h-20" dir="auto" value={question.question} onChange={(e) => changeQuestion(question.id, { question: e.target.value })} />
+                <textarea className="input min-h-16" dir="auto" value={question.question} onChange={(e) => changeQuestion(question.id, { question: e.target.value })} />
                 {question.type === 'mcq' && <div className="mt-2 grid gap-2 sm:grid-cols-2">
                   {question.options.map((option, optionIndex) => (
                     <label key={optionIndex} className="text-xs text-muted-foreground">{'Option ' + 'ABCD'[optionIndex]}
@@ -429,9 +429,9 @@ export function TestStudioTool() {
                       <option value="">Choose correct option</option>{question.options.map((option, i) => <option key={i} value={i}>{'ABCD'[i] + '. ' + option}</option>)}
                     </select></label>
                   ) : (
-                    <label className="block text-xs font-medium">Model answer<textarea className="input mt-1 min-h-24" dir="auto" value={answer.modelAnswer} onChange={(e) => updateAnswer(question.id, { modelAnswer: e.target.value })} /></label>
+                    <label className="block text-xs font-medium">Model answer<textarea className="input mt-1 min-h-20" dir="auto" value={answer.modelAnswer} onChange={(e) => updateAnswer(question.id, { modelAnswer: e.target.value })} /></label>
                   )}
-                  {paper.config.includeExplanations && <label className="block text-xs font-medium">Explanation<textarea className="input mt-1 min-h-16" dir="auto" value={answer.explanation} onChange={(e) => updateAnswer(question.id, { explanation: e.target.value })} /></label>}
+                  {paper.config.includeExplanations && <label className="block text-xs font-medium">Explanation<textarea className="input mt-1 min-h-14" dir="auto" value={answer.explanation} onChange={(e) => updateAnswer(question.id, { explanation: e.target.value })} /></label>}
                   {question.type !== 'mcq' && paper.config.includeMarking && <label className="block text-xs font-medium">Marking point<textarea className="input mt-1 min-h-16" dir="auto" value={answer.markingScheme.map((point) => point.point).join('\n')} onChange={(e) => updateAnswer(question.id, { markingScheme: e.target.value.trim() ? [{ point: e.target.value, marks: question.marks }] : [] })} /></label>}
                   <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={answer.sourceConfidence === 'uncertain'} onChange={(e) => updateAnswer(question.id, { sourceConfidence: e.target.checked ? 'uncertain' : 'supported' })} />Mark this answer as uncertain / needs teacher verification</label>
                 </div>;

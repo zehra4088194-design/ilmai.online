@@ -72,7 +72,9 @@ export async function routeAuto(env: Env, candidates: ModelCandidate[], messages
     const response = await fetch(providerUrl('groq'), {
       method: 'POST', headers: { Authorization: 'Bearer ' + routingKey.key, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: env.ROUTING_MODEL || 'llama-3.3-70b-versatile',
+        model: env.ROUTING_MODEL && !['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'].includes(env.ROUTING_MODEL)
+          ? env.ROUTING_MODEL
+          : 'openai/gpt-oss-120b',
         messages: [{ role: 'system', content: prompt }, { role: 'user', content: JSON.stringify(messages).slice(0, 12_000) }],
         temperature: 0, max_tokens: 64,
       }),

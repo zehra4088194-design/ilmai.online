@@ -2,7 +2,7 @@
 
 The Worker is the **only provider-inference gateway** for the Next.js application. Coolify performs user authentication, plan/credit checks, prompt and conversation preparation, then sends a signed request to this Worker. The Worker verifies HMAC signatures, applies per-user replay/rate protection and streams the provider response back.
 
-**Initial production topology:** OpenRouter is the primary model catalogue and inference gateway. Coolify reads the public model catalogue/prices from OpenRouter server-side. All text/image/video inference requests go through this Worker, which calls OpenRouter. Optional Groq keys can improve Auto model selection; optional Groq/Gemini provider slots support future explicitly configured routes.
+**Initial production topology:** OpenRouter is the primary model catalogue and inference gateway. Coolify reads the public model catalogue/prices from OpenRouter server-side. All text/image/video inference requests go through this Worker, which calls OpenRouter. Groq keys power Suggestions and Auto model selection. Gemini keys power image-to-text understanding before the selected answer model is called.
 
 ## Configure Cloudflare
 
@@ -29,7 +29,7 @@ Run from the repository root, or use the equivalent commands from `workers/ai-ro
    npx wrangler secret list
    ```
 5. Wrangler prints the deployed Worker URL, normally `https://ilmai-ai-router.<account-subdomain>.workers.dev`. Copy the actual URL; do not use the example hostname.
-6. Optional secrets are added from Cloudflare Dashboard → Workers & Pages → `ilmai-ai-router` → Settings → Variables and Secrets → Add → Secret. Use names `GROQ_API_KEY_1` through `GROQ_API_KEY_10`, and `GEMINI_API_KEY_1` through `GEMINI_API_KEY_10`. The Worker KeyPool can rotate multiple slots and cool down keys on rate-limit/auth/server errors. **Current application limitation:** Next.js chat currently labels every candidate `provider: 'openrouter'`; a Groq key is used only by Auto to choose among OpenRouter candidates, and Gemini keys are not yet selected by the chat UI. Direct Groq/Gemini model discovery and picker routing need a separate Next.js integration before those keys drive user inference.
+6. Optional secrets are added from Cloudflare Dashboard → Workers & Pages → `ilmai-ai-router` → Settings → Variables and Secrets → Add → Secret. Use names `GROQ_API_KEY_1` through `GROQ_API_KEY_10`, and `GEMINI_API_KEY_1` through `GEMINI_API_KEY_10`. The Worker KeyPool can rotate multiple slots and cool down keys on rate-limit/auth/server errors. The Suggestions endpoint uses Groq-hosted GPT-OSS/Qwen models only. When users attach images to chat, Gemini reads the images and returns a text report. The selected answer model receives that report, never the original image bytes or URL. The UI continues to show the original photo beside the user's message.
 
 SQLite-backed Durable Objects are required for request replay/rate protection and key pools. Review Cloudflare plan limits and enable spend alerts before production usage.
 
@@ -58,7 +58,7 @@ Manual model selection does not silently switch to a different model on failure.
 - `GET /health` — public liveness only; does not prove provider credentials are configured.
 - `GET /providers/health` — HMAC-signed provider slot health (never returns keys).
 - `POST /v1/chat/completions` — signed chat/streaming; `routing.provider=auto` accepts a server-built candidate allowlist.
-- `POST /v1/images` — signed OpenRouter image-generation proxy.
+- `GET /v1/images/models...` and `POST /v1/images` — signed OpenRouter image catalogue and generation proxy.
 - `POST|GET /v1/videos...` — signed OpenRouter video-generation proxy.
 
 ## Local development

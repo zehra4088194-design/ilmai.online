@@ -101,7 +101,7 @@ export default {
       return Response.json({ providers: keyStates, openrouterConfigured: !!env.OPENROUTER_API_KEY }, { headers: { 'Cache-Control': 'no-store' } });
     }
     if (request.method === 'POST' && url.pathname === '/v1/chat/completions') return handleChat(request, env, bodyText);
-    if (url.pathname === '/v1/images' || url.pathname.startsWith('/v1/videos'))
+    if (url.pathname.startsWith('/v1/images') || url.pathname.startsWith('/v1/videos'))
       return proxyOpenRouter(request, env, url.pathname.replace(/^\/v1/, '') + url.search, bodyText);
     return errorResponse(404, 'Route not found', 'not_found');
   },

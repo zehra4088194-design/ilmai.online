@@ -4,6 +4,7 @@ import { handle, HttpError, json } from '@/lib/http';
 import { requireUserApi } from '@/lib/auth';
 import { requireFeature } from '@/lib/features';
 import { getAllTextModels, canUseTier } from '@/lib/models';
+import { getUtilityModels } from '@/lib/utility-ai';
 import { aiRouterChat } from '@/lib/ai-router';
 import { adminClient } from '@/lib/supabase/admin';
 import { AttachmentIds, attachmentContent, validateAttachments } from '@/lib/attachments';
@@ -96,19 +97,81 @@ export const POST = handle(async (req: NextRequest) => {
     const content = ids.length
       ? await attachmentContent(userPrompt, ids, profile.id, { vision: model.vision, documents: model.documents })
       : userPrompt;
-    const result = await aiRouterChat({
-      userId: profile.id,
-      model: model.id,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: testGenerationPrompt(config) },
-        { role: 'user', content },
-      ],
-    });
-    const raw = result.choices?.[0]?.message?.content ?? '';
+    const baseMessages = [
+      { role: 'system', content: testGenerationPrompt(config) },
+      { role: 'user', content },
+    ];
+    const preferredOrder = await getUtilityModels().catch(() => []);
+    const preferredRank = new Map(preferredOrder.map((id, index) => [id, index]));
+    const candidates = askedModel || policy.default_model
+      ? [model, ...permittedModels.filter((candidate) => candidate.id !== model.id)]
+      : [model, ...permittedModels.filter((candidate) => candidate.id !== model.id).sort((left, right) =>
+          (preferredRank.get(left.id) ?? 1000) - (preferredRank.get(right.id) ?? 1000) ||
+          ((left.pricePromptPerM + left.priceCompletionPerM) - (right.pricePromptPerM + right.priceCompletionPerM))
+        )];
+    const attemptModels = candidates.slice(0, askedModel ? 1 : 2);
+    const maxTokens = Math.min(16000, Math.max(6000, requested * 500));
+    let result: Awaited<ReturnType<typeof aiRouterChat>> | null = null;
+    let generated: ReturnType<typeof parseGeneratedTest> | null = null;
+    let totalPromptTokens = 0;
+    let totalCompletionTokens = 0;
+    let totalCost = 0;
+    let lastGenerationError: unknown = null;
+
+    // Try another eligible model on provider failure and repair incomplete/invalid JSON once.
+    for (const candidate of attemptModels) {
+      try {
+        const first = await aiRouterChat({
+          userId: profile.id, model: candidate.id, max_tokens: maxTokens, temperature: 0.25,
+          timeoutMs: 35000, response_format: { type: 'json_object' }, messages: baseMessages,
+        });
+        const firstUsage = first.usage ?? {};
+        totalPromptTokens += firstUsage.prompt_tokens ?? 0;
+        totalCompletionTokens += firstUsage.completion_tokens ?? 0;
+        totalCost += firstUsage.cost ?? 0;
+        const firstRaw = first.choices?.[0]?.message?.content ?? '';
+        if (!firstRaw.trim()) throw new Error('The model returned an empty answer');
+
+        try {
+          generated = parseGeneratedTest(firstRaw, config, randomUUID);
+          result = first;
+          break;
+        } catch (validationError) {
+          const reason = validationError instanceof Error ? validationError.message : 'Invalid test schema';
+          const repaired = await aiRouterChat({
+            userId: profile.id, model: candidate.id, max_tokens: maxTokens, temperature: 0.1,
+            timeoutMs: 35000, response_format: { type: 'json_object' },
+            messages: [
+              { role: 'system', content: testGenerationPrompt(config) +
+                '\n\nYour previous answer failed validation. Rebuild the COMPLETE paper as valid JSON. ' +
+                'Do not omit requested questions, answers, four distinct MCQ options, source audit or marking points.' },
+              { role: 'user', content },
+              { role: 'assistant', content: firstRaw.slice(0, 40000) },
+              { role: 'user', content: 'Validation error: ' + reason +
+                '\nReturn a corrected complete JSON object. Preserve all requested counts and required fields.' },
+            ],
+          });
+          const repairUsage = repaired.usage ?? {};
+          totalPromptTokens += repairUsage.prompt_tokens ?? 0;
+          totalCompletionTokens += repairUsage.completion_tokens ?? 0;
+          totalCost += repairUsage.cost ?? 0;
+          const repairedRaw = repaired.choices?.[0]?.message?.content ?? '';
+          if (!repairedRaw.trim()) throw new Error('The JSON repair model returned an empty answer');
+          generated = parseGeneratedTest(repairedRaw, config, randomUUID);
+          result = repaired;
+          break;
+        }
+      } catch (error) {
+        lastGenerationError = error;
+      }
+    }
+
+    if (!result || !generated) {
+      const detail = lastGenerationError instanceof Error ? lastGenerationError.message : 'No model returned a valid examination paper';
+      throw new HttpError(502, 'Test generation could not produce a valid paper. No credits were charged. ' + detail.slice(0, 180), 'test_generation_failed');
+    }
     const actualModel = result.routedModel;
     const actualProvider = result.provider;
-    const generated = parseGeneratedTest(raw, config, randomUUID);
     const title = config.title || generated.title;
 
     const saveResult = await db.rpc('save_test_studio_paper', {
@@ -124,7 +187,7 @@ export const POST = handle(async (req: NextRequest) => {
     if (saveResult.error) throw saveResult.error;
     savedTestId = reservationId;
 
-    const usage = result.usage ?? {};
+    const usage = { prompt_tokens: totalPromptTokens, completion_tokens: totalCompletionTokens, cost: totalCost };
     const settlement = await db.rpc('settle_generation', {
       p_id: reservationId,
       p_user: profile.id,

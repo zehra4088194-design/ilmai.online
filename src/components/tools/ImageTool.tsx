@@ -128,7 +128,7 @@ export function ImageTool() {
         </div>
 
         <label className="block space-y-1 text-sm font-medium">Describe your image
-          <textarea className="input min-h-32" dir="auto" maxLength={6000} placeholder="Describe the subject, style, setting, lighting, composition and intended use…" value={prompt} onChange={(e) => setPrompt(e.target.value)} />
+          <textarea className="input min-h-24" dir="auto" maxLength={6000} placeholder="Describe the subject, style, setting, lighting, composition and intended use…" value={prompt} onChange={(e) => setPrompt(e.target.value)} />
         </label>
         <label className="block space-y-1 text-sm font-medium">Things to avoid (optional)
           <textarea className="input min-h-16" dir="auto" maxLength={1200} placeholder="e.g. blurry details, extra fingers, watermarks, text, cluttered background" value={negativePrompt} onChange={(e) => setNegativePrompt(e.target.value)} />

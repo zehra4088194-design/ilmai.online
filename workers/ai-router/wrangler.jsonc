@@ -44,7 +44,7 @@
     "SLOT_CONCURRENCY": 2,
     "PROVIDER_TIMEOUT_MS": 120000,
     "ROUTING_TIMEOUT_MS": 8000,
-    "ROUTING_MODEL": "llama-3.3-70b-versatile"
+    "ROUTING_MODEL": "openai/gpt-oss-120b"
   },
   "durable_objects": {
     "bindings": [

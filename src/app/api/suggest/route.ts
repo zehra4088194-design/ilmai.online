@@ -4,7 +4,7 @@ import { handle, json } from '@/lib/http';
 import { requireUserApi } from '@/lib/auth';
 import { requireFeature } from '@/lib/features';
 import { getSettings } from '@/lib/settings';
-import { utilityChat } from '@/lib/utility-ai';
+import { groqUtilityChat } from '@/lib/utility-ai';
 import { extractJson } from '@/lib/json-extract';
 import { logUsage, countLast24h } from '@/lib/usage';
 
@@ -19,8 +19,7 @@ const Body = z.object({
 const lastCall = new Map<string, number>();
 
 /**
- * Produces three follow-up ideas. Uses a dynamic free router first, then
- * catalogue-selected free and low-cost models through the same utility chain.
+ * Produces three follow-up ideas through Groq only; it never falls back to OpenRouter or Gemini.
  */
 export const POST = handle(async (req: NextRequest) => {
   const { profile, isAdmin } = await requireUserApi();
@@ -37,7 +36,7 @@ export const POST = handle(async (req: NextRequest) => {
 
   const started = Date.now();
   try {
-    const result = await utilityChat(
+    const result = await groqUtilityChat(
       [
         {
           role: 'system',
@@ -60,8 +59,6 @@ export const POST = handle(async (req: NextRequest) => {
         maxTokens: 220,
         temperature: 0.7,
         timeoutMs: 10_000,
-        tries: 5,
-        deadlineMs: 50_000,
       },
     );
 

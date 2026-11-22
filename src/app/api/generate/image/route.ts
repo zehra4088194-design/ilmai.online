@@ -67,7 +67,7 @@ export const POST = handle(async (req: NextRequest) => {
   if (allowedModels.length && !allowedModels.includes(modelId) && !isAdmin)
     throw new HttpError(403, 'This image model is disabled by the administrator', 'image_model_disabled');
 
-  const model = await getImageModel(modelId);
+  const model = await getImageModel(modelId, profile.id);
   requireCapability(model, 'aspect_ratio', body.aspectRatio);
   requireCapability(model, 'resolution', body.resolution);
   requireCapability(model, 'quality', body.quality);

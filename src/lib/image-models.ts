@@ -1,6 +1,6 @@
 import 'server-only';
 import { z } from 'zod';
-import { env } from '@/lib/env';
+import { aiRouterFetch } from '@/lib/ai-router';
 import { HttpError } from '@/lib/http';
 
 const CapabilitySchema = z.discriminatedUnion('type', [
@@ -46,29 +46,26 @@ export type ImageOutput = {
   priceUsd: number | null;
 };
 
-async function openRouterFetch(path: string) {
-  if (!env.openrouterKey) throw new HttpError(503, 'OpenRouter is not configured', 'provider_not_configured');
-  const response = await fetch('https://openrouter.ai/api/v1' + path, {
-    headers: {
-      Authorization: 'Bearer ' + env.openrouterKey,
-      'HTTP-Referer': env.siteUrl,
-      'X-Title': 'Ilm AI',
-      Accept: 'application/json',
-    },
-    cache: 'no-store',
+async function openRouterFetch(path: string, userId: string) {
+  const apiPath = path.startsWith('/api/v1/') ? path.slice('/api/v1'.length) : path;
+  const routePath = apiPath.startsWith('/v1/') ? apiPath : '/v1' + apiPath;
+  const response = await aiRouterFetch({
+    userId,
+    path: routePath,
+    method: 'GET',
     signal: AbortSignal.timeout(20000),
   }).catch(() => null);
   if (!response?.ok) {
     const detail = response ? await response.text().catch(() => '') : '';
-    throw new HttpError(response?.status === 401 ? 503 : 502, detail.slice(0, 300) || 'Could not load image model catalog', 'image_catalog_unavailable');
+    throw new HttpError(response?.status === 401 ? 503 : 502, detail.slice(0, 300) || 'Could not load image model catalog through Cloudflare AI Router', 'image_catalog_unavailable');
   }
   return response.json();
 }
 
 let catalogCache: { expiresAt: number; models: ImageModel[] } | null = null;
-export async function getImageModels(force = false): Promise<ImageModel[]> {
+export async function getImageModels(userId = 'model-catalog', force = false): Promise<ImageModel[]> {
   if (!force && catalogCache && catalogCache.expiresAt > Date.now()) return catalogCache.models;
-  const parsed = CatalogSchema.safeParse(await openRouterFetch('/images/models'));
+  const parsed = CatalogSchema.safeParse(await openRouterFetch('/images/models', userId));
   if (!parsed.success) throw new HttpError(502, 'Image model catalog returned an invalid response', 'invalid_image_catalog');
   const models = parsed.data.data.filter((model) =>
     model.architecture?.output_modalities?.includes('image') !== false,
@@ -77,8 +74,8 @@ export async function getImageModels(force = false): Promise<ImageModel[]> {
   return models;
 }
 
-export async function getImageModel(id: string): Promise<ImageOutput> {
-  const models = await getImageModels();
+export async function getImageModel(id: string, userId = 'model-catalog'): Promise<ImageOutput> {
+  const models = await getImageModels(userId);
   const model = models.find((item) => item.id === id);
   if (!model) throw new HttpError(400, 'The selected model is not available for image generation', 'image_model_unavailable');
 
@@ -87,7 +84,7 @@ export async function getImageModel(id: string): Promise<ImageOutput> {
   if (model.endpoints) {
     try {
       const url = model.endpoints.startsWith('/') ? model.endpoints : '/images/models/' + encodeURIComponent(model.id) + '/endpoints';
-      const response = EndpointListSchema.safeParse(await openRouterFetch(url));
+      const response = EndpointListSchema.safeParse(await openRouterFetch(url, userId));
       if (response.success) {
         const choices = response.data.endpoints.map((item) => {
           const price = item.pricing.filter((p) => p.billable === 'output_image').reduce((sum,p) => sum + p.cost_usd,0);

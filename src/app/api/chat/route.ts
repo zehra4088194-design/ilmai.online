@@ -10,7 +10,7 @@ import { buildHistory } from '@/lib/history';
 import type { ChatMessage } from '@/lib/openrouter';
 import { aiRouterFetch, type RouterCandidate } from '@/lib/ai-router';
 import { adminClient } from '@/lib/supabase/admin';
-import { AttachmentIds, attachmentContent } from '@/lib/attachments';
+import { AttachmentIds, prepareChatAttachments, type ImageAnalysisUsage } from '@/lib/attachments';
 import { creditsFor, addCredits } from '@/lib/credits';
 import { logUsage } from '@/lib/usage';
 
@@ -68,11 +68,9 @@ export const POST = handle(async (req: NextRequest) => {
   if (attachmentIds.length) await requireFeature('file_upload', profile.plan, isAdmin);
   if (autoMode && attachmentIds.length) {
     const owned = await import('@/lib/attachments').then(({ validateAttachments }) => validateAttachments(attachmentIds, profile.id));
-    const needsVision = owned.some((file) => file.kind === 'image');
     const needsDocuments = owned.some((file) => file.mime === 'application/pdf');
-    autoCandidates = autoCandidates.filter((candidate) =>
-      (!needsVision || candidate.vision) && (!needsDocuments || candidate.documents)
-    );
+    // Images are analyzed separately by Gemini; the selected answer model only needs PDF support.
+    autoCandidates = autoCandidates.filter((candidate) => !needsDocuments || candidate.documents);
     if (!autoCandidates.length) throw new HttpError(400, 'No model on your plan supports the attached image or document', 'no_capable_model');
     model = autoCandidates[0];
   }
@@ -82,9 +80,11 @@ export const POST = handle(async (req: NextRequest) => {
     .eq('conversation_id', conv.id).lt('created_at', userMsg.created_at)
     .order('created_at', { ascending: false }).limit(turnsToKeep * 6);
   const history: ChatMessage[] = buildHistory(((rows ?? []) as Row[]).reverse(), model.id, turnsToKeep);
-  const currentUserContent = attachmentIds.length
-    ? await attachmentContent(userMsg.content as string, attachmentIds, profile.id, { vision: model.vision, documents: model.documents })
-    : userMsg.content as string;
+  const preparedAttachments = attachmentIds.length
+    ? await prepareChatAttachments(userMsg.content as string, attachmentIds, profile.id, { documents: model.documents, plan: profile.plan, isAdmin })
+    : { content: userMsg.content as string, imageAnalysis: null as ImageAnalysisUsage | null };
+  const currentUserContent = preparedAttachments.content;
+  const imageAnalysis = preparedAttachments.imageAnalysis;
   const messages: ChatMessage[] = [
     { role: 'system', content: buildSystemPrompt({ settings, model: autoMode ? null : { id: model.id, name: model.name, provider: model.provider } }) },
     ...history,
@@ -100,24 +100,58 @@ export const POST = handle(async (req: NextRequest) => {
     modalities: [...(candidate.vision ? ['vision'] : []), ...(candidate.documents ? ['document'] : [])],
   }));
   const hints = [
-    attachmentIds.length ? 'Attached files must be read; choose vision/document capable models.' : '',
+    imageAnalysis ? 'Photos were already analyzed by Gemini. Use only the extracted image text; no image is attached to this model request.' : '',
+    attachmentIds.length && !imageAnalysis ? 'Attached documents must be read; choose a document-capable model.' : ''
     /\b(math|mathematics|equation|integral|matrix|prove|calculate)\b/i.test(String(userMsg.content)) ? 'Mathematics or reasoning task.' : '',
     String(userMsg.content).slice(0, 500),
   ].filter(Boolean).join(' ');
-  const upstream = await aiRouterFetch({
-    userId: profile.id,
-    path: '/v1/chat/completions',
-    body: {
-      model: model.id, messages, stream: true, usage: { include: true },
-      ...(body.thinking ? { reasoning: { effort: body.thinking } } : {}),
-      routing: { provider: autoMode ? 'auto' : 'openrouter', candidates, hints },
-    },
-    signal: ac.signal,
-  });
+  const logImageAnalysis = async (creditsUsed = 0, error?: string) => {
+    if (!imageAnalysis) return;
+    await logUsage({
+      userId: profile.id, kind: 'image_understanding', model: imageAnalysis.model,
+      promptTokens: imageAnalysis.promptTokens, completionTokens: imageAnalysis.completionTokens,
+      costUsd: imageAnalysis.costUsd, creditsUsed, latencyMs: Date.now() - started,
+      status: error ? 'error' : 'ok', error,
+    });
+  };
+  const chargeImageAnalysisOnly = async () => {
+    if (!imageAnalysis) return;
+    let applied = 0;
+    let debitError: string | undefined;
+    if (!isAdmin) {
+      const amount = creditsFor(imageAnalysis.costUsd, imageAnalysis.promptTokens + imageAnalysis.completionTokens, settings);
+      try {
+        await addCredits(profile.id, -amount, 'image_understanding:' + imageAnalysis.model);
+        applied = amount;
+      } catch (error) {
+        debitError = error instanceof Error ? error.message : 'Wallet debit failed';
+      }
+    }
+    await logImageAnalysis(applied, debitError);
+  };
+
+  let upstream: Response;
+  try {
+    upstream = await aiRouterFetch({
+      userId: profile.id, path: '/v1/chat/completions',
+      body: {
+        model: model.id, messages, stream: true, usage: { include: true },
+        ...(body.thinking ? { reasoning: { effort: body.thinking } } : {}),
+        routing: { provider: autoMode ? 'auto' : 'openrouter', candidates, hints },
+      },
+      signal: ac.signal,
+    });
+  } catch (error) {
+    await chargeImageAnalysisOnly();
+    const message = error instanceof Error ? error.message : 'AI Router unavailable';
+    await logUsage({ userId: profile.id, kind, model: model.id, status: 'error', error: message, latencyMs: Date.now() - started });
+    throw error;
+  }
   if (!upstream.ok || !upstream.body) {
     const t = await upstream.text().catch(() => '');
     let msg = 'Model error (' + upstream.status + ')';
     try { const parsed = JSON.parse(t); msg = parsed?.error?.message ?? parsed?.error ?? msg; } catch { /* ignore */ }
+    await chargeImageAnalysisOnly();
     await logUsage({ userId: profile.id, kind, model: model.id, status: 'error', error: String(msg), latencyMs: Date.now() - started });
     throw new HttpError(upstream.status >= 400 && upstream.status < 500 ? upstream.status : 502, String(msg), 'upstream_error');
   }
@@ -132,7 +166,9 @@ export const POST = handle(async (req: NextRequest) => {
     const pt = usage?.prompt_tokens ?? 0;
     const ct = usage?.completion_tokens ?? Math.ceil(full.length / 4);
     const cost = usage?.cost ?? 0;
-    const charge = !isAdmin && (full || usage) ? creditsFor(cost, pt + ct, settings) : 0;
+    const totalTokens = pt + ct + (imageAnalysis?.promptTokens ?? 0) + (imageAnalysis?.completionTokens ?? 0);
+    const totalCost = cost + (imageAnalysis?.costUsd ?? 0);
+    const charge = !isAdmin && (full || usage || imageAnalysis) ? creditsFor(totalCost, totalTokens, settings) : 0;
     if (full) {
       await db.from('messages').insert({
         conversation_id: conv.id, user_id: profile.id, role: 'assistant', content: full,
@@ -140,10 +176,23 @@ export const POST = handle(async (req: NextRequest) => {
       });
       await db.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', conv.id);
     }
-    if (charge) await addCredits(profile.id, -charge, kind + ':' + actualModel).catch((e) => console.error(e));
+    let creditsApplied = 0;
+    let creditError: string | undefined;
+    if (charge) {
+      try {
+        await addCredits(profile.id, -charge, kind + ':' + actualModel);
+        creditsApplied = charge;
+      } catch (error) {
+        creditError = error instanceof Error ? error.message : 'Wallet debit failed';
+        console.error('[credits] Chat debit was not applied:', creditError);
+      }
+    }
+    await logImageAnalysis(0);
     await logUsage({
-      userId: profile.id, kind, model: actualModel, promptTokens: pt, completionTokens: ct, costUsd: cost, creditsUsed: charge,
-      latencyMs: Date.now() - started, status: errMsg && !full ? 'error' : 'ok', error: errMsg,
+      userId: profile.id, kind, model: actualModel, promptTokens: pt, completionTokens: ct, costUsd: cost, creditsUsed: creditsApplied,
+      latencyMs: Date.now() - started,
+      status: creditError || (errMsg && !full) ? 'error' : 'ok',
+      error: [errMsg, creditError ? 'Credit debit not applied: ' + creditError : ''].filter(Boolean).join('; ') || undefined,
     });
   };
 

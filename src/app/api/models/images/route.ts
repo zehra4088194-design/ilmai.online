@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export const GET = handle(async () => {
   const { profile, isAdmin } = await requireUserApi();
   await requireFeature('image_generation', profile.plan, isAdmin);
-  const models = await getImageModels();
+  const models = await getImageModels(profile.id);
   return json({
     models: models.map((model) => ({
       id: model.id, name: model.name ?? model.id, description: model.description ?? '',

@@ -153,7 +153,7 @@ export function ModelBar({
       <AnimatePresence>
         {open && (
           <motion.div initial={{ opacity: 0, y: 7, scale: 0.985 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 5, scale: 0.985 }} transition={{ duration: 0.14 }}
-            className="glass fixed inset-x-3 bottom-28 z-[60] flex max-h-[calc(100dvh-9rem)] min-h-[14rem] flex-col rounded-2xl border border-border bg-card p-2 shadow-2xl sm:absolute sm:inset-x-auto sm:bottom-full sm:left-0 sm:mb-2 sm:max-h-[min(34rem,calc(100dvh-19rem))] sm:w-[min(36rem,calc(100vw-2rem))]">
+            className="glass fixed inset-x-3 bottom-28 z-[60] flex max-h-[calc(100dvh-10rem)] min-h-[12rem] flex-col rounded-2xl border border-border bg-card p-2 shadow-2xl sm:absolute sm:inset-x-auto sm:bottom-full sm:left-0 sm:mb-2 sm:max-h-[min(28rem,calc(100dvh-20rem))] sm:w-[min(30rem,calc(100vw-2rem))]">
             <div className="relative shrink-0">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               <input autoFocus className="input !py-2 !pl-9" placeholder={selectedProvider ? 'Search ' + providerName(selectedProvider) + ' models…' : 'Search an AI provider or model…'} value={q} onChange={(event) => setQ(event.target.value)} />

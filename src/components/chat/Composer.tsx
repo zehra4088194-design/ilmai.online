@@ -172,7 +172,7 @@ export function Composer({
 
       <textarea ref={ta} rows={1} dir="auto" value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); if (!busy && !uploading) onSend(); } }}
-        className="max-h-52 min-h-12 w-full resize-none bg-transparent px-3 py-2.5 text-[0.95rem] leading-6 outline-none placeholder:text-muted-foreground/65" />
+        className="max-h-36 min-h-12 w-full resize-none bg-transparent px-3 py-2.5 text-[0.95rem] leading-6 outline-none placeholder:text-muted-foreground/65" />
 
       <div className="flex flex-wrap items-center gap-1 border-t border-border/60 px-1 pt-2">
         <div className="relative">
