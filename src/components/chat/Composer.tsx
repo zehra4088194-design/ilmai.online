@@ -259,10 +259,6 @@ export function Composer({
           )}
         </div>
       </div>
-      <div className="flex items-center justify-between px-2 pt-1.5 text-[10px] text-muted-foreground">
-        <span>Enter to send · Shift+Enter for new line</span>
-        <span>Attach up to 8 supported files</span>
-      </div>
             </div>
           </div>
         </div>
