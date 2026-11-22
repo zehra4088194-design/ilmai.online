@@ -43,6 +43,11 @@ alter table public.credit_transactions
   add column if not exists plan_delta bigint not null default 0,
   add column if not exists plan_bucket_id uuid references public.plan_credit_buckets(id) on delete set null;
 
+-- All pre-existing credits were held in the permanent wallet before plan allowances existed.
+update public.credit_transactions
+set wallet_delta=delta
+where wallet_delta=0 and plan_delta=0 and delta<>0;
+
 alter table public.usage_events
   add column if not exists provider_usage jsonb not null default '{}'::jsonb,
   add column if not exists usage_details jsonb not null default '{}'::jsonb,
