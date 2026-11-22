@@ -9,6 +9,11 @@ export const metadata: Metadata = {
   title: { default: 'Ilm AI – every AI model, one beautiful place', template: '%s · Ilm AI' },
   description: 'Chat with every top AI model in one place. Built for students and teachers.',
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'),
+  icons: {
+    icon: [{ url: '/icon.png', type: 'image/png' }],
+    shortcut: '/icon.png',
+    apple: [{ url: '/icon.png', type: 'image/png' }],
+  },
 };
 
 export const viewport: Viewport = {
