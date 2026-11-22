@@ -7,7 +7,6 @@ import { saveMedia } from '@/lib/media';
 import { signedDownloadUrl } from '@/lib/storage/b2';
 import {
   downloadPicsartAsset,
-  extractPicsartResponse,
   picsartPollModel,
 } from '@/lib/picsart-models';
 
