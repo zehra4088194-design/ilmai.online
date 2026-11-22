@@ -110,44 +110,42 @@ export function ModelBar({
 
   return (
     <div ref={ref} className="relative flex min-w-0 flex-1 flex-col gap-1.5">
-      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+      <div className="flex min-w-0 items-center gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
           <AnimatePresence initial={false}>
-            {selected.map((id) => (
+            {selected.slice(0, 2).map((id) => (
               <motion.span key={id} layout initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.85 }}
-                className="flex max-w-full shrink-0 items-center gap-1.5 rounded-full border border-primary/30 bg-accent py-1 pl-2 pr-2.5 text-xs font-semibold text-accent-foreground">
-                <ProviderLogo provider={byId.get(id)?.provider} className="!h-4 !w-4 !rounded-md" /><span className="max-w-[10rem] truncate">{short(byId.get(id)) || id}</span>
-                {compareMode && selected.length > 1 && !disabled && <button type="button" onClick={() => onToggle(id)} aria-label={'Remove ' + (short(byId.get(id)) || id)} className="grid h-5 w-5 place-items-center rounded-full hover:bg-primary/20"><X className="h-3 w-3" /></button>}
+                className="flex max-w-[min(42vw,13rem)] min-w-0 shrink items-center gap-1 rounded-full border border-primary/30 bg-accent py-1 pl-1.5 pr-2 text-[11px] font-semibold text-accent-foreground">
+                <ProviderLogo provider={byId.get(id)?.provider} className="!h-4 !w-4 !shrink-0 !rounded-md" />
+                <span className="truncate">{short(byId.get(id)) || id}</span>
+                {compareMode && selected.length > 1 && !disabled && <button type="button" onClick={() => onToggle(id)} aria-label={'Remove ' + (short(byId.get(id)) || id)} className="grid h-4 w-4 shrink-0 place-items-center rounded-full hover:bg-primary/20"><X className="h-3 w-3" /></button>}
               </motion.span>
             ))}
           </AnimatePresence>
+          {selected.length > 2 && <span className="shrink-0 text-[10px] text-muted-foreground">+{selected.length - 2}</span>}
+          <button type="button" disabled={disabled} onClick={() => open ? setOpen(false) : openPicker()}
+            className="flex h-7 shrink-0 items-center gap-1 rounded-full border border-dashed border-border px-2.5 text-[11px] font-semibold text-muted-foreground transition hover:border-primary hover:text-primary disabled:opacity-50">
+            <Plus className="h-3 w-3" />{compareMode ? 'Add model' : 'Choose model'}<ChevronDown className={cn('h-3 w-3 transition', open && 'rotate-180')} />
+          </button>
         </div>
         <div className="flex shrink-0 items-center rounded-full border border-border bg-muted/50 p-0.5">
           <button type="button" disabled={disabled} onClick={() => onCompareModeChange?.(false)}
-            className={cn('flex h-7 items-center gap-1 rounded-full px-2.5 text-[11px] font-semibold transition', !compareMode ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}
+            className={cn('flex h-7 items-center gap-1 rounded-full px-2 text-[10px] font-semibold transition', !compareMode ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}
             aria-pressed={!compareMode} title="Use one model">
             <MessageSquare className="h-3 w-3" />Single
           </button>
           {compareEnabled ? (
             <button type="button" disabled={disabled} onClick={() => onCompareModeChange?.(true)}
-              className={cn('flex h-7 items-center gap-1 rounded-full px-2.5 text-[11px] font-semibold transition', compareMode ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}
+              className={cn('flex h-7 items-center gap-1 rounded-full px-2 text-[10px] font-semibold transition', compareMode ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}
               aria-pressed={compareMode} title={'Compare up to ' + actualCompareLimit + ' models'}>
-              <GitCompareArrows className="h-3 w-3" />Compare <span className="opacity-75">{selected.length}/{actualCompareLimit}</span>
+              <GitCompareArrows className="h-3 w-3" /><span>Compare</span><span className="opacity-75">{selected.length}/{actualCompareLimit}</span>
             </button>
           ) : (
-            <Link href="/plans" className="flex h-7 items-center gap-1 rounded-full px-2.5 text-[11px] font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground" title="Compare mode needs an eligible plan">
-              <GitCompareArrows className="h-3 w-3" />Compare <Lock className="h-3 w-3" />
+            <Link href="/plans" className="flex h-7 items-center gap-1 rounded-full px-2 text-[10px] font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground" title="Compare mode needs an eligible plan">
+              <GitCompareArrows className="h-3 w-3" /><span>Compare</span><Lock className="h-3 w-3" />
             </Link>
           )}
         </div>
-      </div>
-
-      <div className="flex min-w-0 items-center gap-2">
-        <button type="button" disabled={disabled} onClick={() => open ? setOpen(false) : openPicker()}
-          className="flex min-w-0 items-center gap-1.5 rounded-full border border-dashed border-border px-3 py-1 text-xs font-semibold text-muted-foreground transition hover:border-primary hover:text-primary disabled:opacity-50">
-          <Plus className="h-3.5 w-3.5" />{compareMode ? 'Add model' : 'Choose AI provider'}<ChevronDown className={cn('h-3 w-3 transition', open && 'rotate-180')} />
-        </button>
-        <span className="truncate text-[10px] text-muted-foreground">{models.length.toLocaleString()} models · {compareMode ? 'choose up to ' + actualCompareLimit : 'one model per reply'}</span>
       </div>
 
       <AnimatePresence>
