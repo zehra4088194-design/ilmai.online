@@ -1,19 +1,30 @@
 import { handle, json } from '@/lib/http';
 import { requireUserApi } from '@/lib/auth';
 import { requireFeature } from '@/lib/features';
-import { getImageModels } from '@/lib/image-models';
+import { getImageModels, supports } from '@/lib/image-models';
+import { imagePickerParameters } from '@/lib/picsart-models';
 
 export const dynamic = 'force-dynamic';
 
 export const GET = handle(async () => {
   const { profile, isAdmin } = await requireUserApi();
-  await requireFeature('image_generation', profile.plan, isAdmin);
-  const models = await getImageModels(profile.id);
+  const feature = await requireFeature('image_generation', profile.plan, isAdmin);
+  const config = feature.config ?? {};
+  const disabled = Array.isArray(config.disabled_models) ? config.disabled_models.filter((id): id is string => typeof id === 'string') : [];
+  const legacyAllowed = Array.isArray(config.allowed_models) ? config.allowed_models.filter((id): id is string => typeof id === 'string') : [];
+  const allModels = await getImageModels(profile.id);
+  const models = allModels.filter((model) =>
+    !disabled.includes(model.id) && (!legacyAllowed.length || legacyAllowed.includes(model.id)),
+  );
+  const configuredDefault = typeof config.default_model === 'string' ? config.default_model : null;
+  if (configuredDefault) models.sort((a, b) => Number(b.id === configuredDefault) - Number(a.id === configuredDefault));
   return json({
     models: models.map((model) => ({
-      id: model.id, name: model.name ?? model.id, description: model.description ?? '',
-      parameters: model.supported_parameters,
-      inputModalities: model.architecture?.input_modalities ?? ['text'],
+      id: model.id, name: model.name, description: model.description,
+      parameters: imagePickerParameters(model),
+      inputModalities: supports(model, 'imageUrls') ? ['image'] : ['text'],
+      provider: model.provider.name,
     })),
-  }, { headers: { 'Cache-Control': 'private, max-age=300' } });
+    defaultModel: configuredDefault && models.some((model) => model.id === configuredDefault) ? configuredDefault : null,
+  }, { headers: { 'Cache-Control': 'private, max-age=60' } });
 });
