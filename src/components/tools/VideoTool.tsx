@@ -147,7 +147,7 @@ export function VideoTool() {
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="space-y-1 text-sm font-medium">Video model
             <select className="input" value={modelId} onChange={(e)=>setModelId(e.target.value)} disabled={busy}>
-              <option value="auto">Auto · cheapest compatible model</option>
+              <option value="auto">Auto · default compatible Picsart model</option>
               {models.map((model)=><option key={model.id} value={model.id}>{model.name}</option>)}
             </select>
           </label>
