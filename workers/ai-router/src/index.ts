@@ -80,6 +80,32 @@ async function proxyOpenRouter(request: Request, env: Env, path: string, bodyTex
   return new Response(response.body, { status: response.status, headers });
 }
 
+/** Picsart credentials and upstream host stay exclusively inside this Worker. */
+async function proxyPicsart(request: Request, env: Env, path: string, bodyText: string) {
+  if (!env.PICSART_API_KEY) return errorResponse(503, 'Picsart API key is not configured in the AI Router', 'picsart_not_configured');
+  const headers = new Headers({
+    Authorization: 'Bearer ' + env.PICSART_API_KEY,
+    'Content-Type': request.headers.get('content-type') ?? 'application/json',
+    Accept: request.headers.get('accept') ?? 'application/json',
+    platform: 'api',
+    'X-Touchpoint': 'sdk',
+  });
+  const response = await fetch('https://api.picsart.com' + path, {
+    method: request.method,
+    headers,
+    body: request.method === 'GET' ? undefined : bodyText,
+    signal: request.signal,
+    redirect: 'manual',
+  }).catch((error) => new Response(JSON.stringify({ message: String(error) }), {
+    status: 502, headers: { 'Content-Type': 'application/json' },
+  }));
+  const outHeaders = new Headers(response.headers);
+  outHeaders.set('Cache-Control', 'no-store');
+  outHeaders.set('X-Accel-Buffering', 'no');
+  outHeaders.delete('set-cookie');
+  return new Response(response.body, { status: response.status, headers: outHeaders });
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -98,9 +124,17 @@ export default {
         });
         return response.json();
       }));
-      return Response.json({ providers: keyStates, openrouterConfigured: !!env.OPENROUTER_API_KEY }, { headers: { 'Cache-Control': 'no-store' } });
+      return Response.json({
+        providers: keyStates,
+        openrouterConfigured: !!env.OPENROUTER_API_KEY,
+        picsartConfigured: !!env.PICSART_API_KEY,
+      }, { headers: { 'Cache-Control': 'no-store' } });
     }
     if (request.method === 'POST' && url.pathname === '/v1/chat/completions') return handleChat(request, env, bodyText);
+    if (url.pathname.startsWith('/picsart/')) {
+      const upstreamPath = url.pathname.slice('/picsart'.length) + url.search;
+      return proxyPicsart(request, env, upstreamPath, bodyText);
+    }
     if (url.pathname.startsWith('/v1/images') || url.pathname.startsWith('/v1/videos'))
       return proxyOpenRouter(request, env, url.pathname.replace(/^\/v1/, '') + url.search, bodyText);
     return errorResponse(404, 'Route not found', 'not_found');
