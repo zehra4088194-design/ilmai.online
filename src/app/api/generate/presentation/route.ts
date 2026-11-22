@@ -96,6 +96,9 @@ export const POST = handle(async (req: NextRequest) => {
         completion_tokens: usage.completion_tokens ?? 0,
         cost_usd: usage.cost ?? 0,
         latency_ms: Date.now() - started,
+        provider_usage: usage,
+        usage_details: { mediaKind: 'presentation', slideCount: body.slides, language: body.language },
+        model_tier: model.tier, credit_multiplier: 1,
       },
       p_result: result,
     });
