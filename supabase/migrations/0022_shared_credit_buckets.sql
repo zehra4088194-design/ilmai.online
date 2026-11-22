@@ -51,6 +51,11 @@ alter table public.usage_events
   add column if not exists plan_credits_used bigint not null default 0,
   add column if not exists wallet_credits_used bigint not null default 0;
 
+insert into public.app_settings(key,value) values
+  ('standard_model_multiplier','1'::jsonb),
+  ('premium_model_multiplier','4'::jsonb)
+on conflict(key) do nothing;
+
 alter table public.usage_events
   add constraint usage_events_credit_multiplier_positive check (credit_multiplier > 0),
   add constraint usage_events_credit_split_nonnegative check (plan_credits_used >= 0 and wallet_credits_used >= 0);
@@ -107,6 +112,21 @@ begin
     where id=p_user and not is_banned
     for update;
   if not found then raise exception 'user_unavailable' using errcode='P0002'; end if;
+
+  -- Re-check after locking the profile so concurrent retries cannot double-debit.
+  if p_idempotency_key is not null then
+    select * into v_existing from public.credit_transactions
+    where user_id=p_user and idempotency_key=p_idempotency_key;
+    if found then
+      return jsonb_build_object(
+        'walletBalance',v_wallet_balance,
+        'planCreditsUsed',greatest(0,-v_existing.plan_delta),
+        'walletCreditsUsed',greatest(0,-v_existing.wallet_delta),
+        'planBucketId',v_existing.plan_bucket_id,
+        'duplicate',true
+      );
+    end if;
+  end if;
 
   select id,credits_remaining,credits_reserved
     into v_bucket_id,v_bucket_remaining,v_bucket_reserved
