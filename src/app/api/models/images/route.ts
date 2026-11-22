@@ -27,7 +27,14 @@ export const GET = handle(async () => {
         resolution: picsartParamOptions(model, 'resolution').map(String),
         quality: picsartParamOptions(model, 'quality').map(String),
         output_format: picsartParamOptions(model, 'outputFormat').map(String),
-        n: picsartParamOptions(model, 'count').map(String),
+        n: (() => {
+          const options = picsartParamOptions(model, 'count').map(String);
+          const range = picsartParamRange(model, 'count');
+          if (options.length || !range) return options;
+          const values: string[] = [];
+          for (let value = Math.max(1, Math.ceil(range.min)); value <= Math.min(10, range.max); value += Math.max(1, Math.ceil(range.step))) values.push(String(value));
+          return values;
+        })(),
       },
       parameterRanges: {
         n: picsartParamRange(model, 'count'),
