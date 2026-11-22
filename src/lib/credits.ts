@@ -28,19 +28,11 @@ export function creditsFor(costUsd: number, totalTokens: number, s: AppSettings,
 
 /** Available credits across the current plan allowance and permanent wallet. */
 export async function getAvailableCredits(userId: string) {
-  const db = adminClient();
-  const now = new Date().toISOString();
-  const [{ data: profile, error: profileError }, { data: bucket, error: bucketError }] = await Promise.all([
-    db.from('profiles').select('credits_balance,credits_reserved,is_banned').eq('id', userId).maybeSingle(),
-    db.from('plan_credit_buckets').select('credits_remaining,credits_reserved')
-      .eq('user_id', userId).eq('status', 'active').lte('period_start', now).gt('period_end', now)
-      .order('period_start', { ascending: false }).order('created_at', { ascending: false }).limit(1).maybeSingle(),
-  ]);
-  if (profileError) throw profileError;
-  if (bucketError) throw bucketError;
-  if (!profile || profile.is_banned) return 0;
-  const wallet = Math.max(0, Number(profile.credits_balance) - Number(profile.credits_reserved));
-  const plan = bucket ? Math.max(0, Number(bucket.credits_remaining) - Number(bucket.credits_reserved)) : 0;
+  const { data, error } = await adminClient().rpc('get_credit_balances', { p_user: userId });
+  if (error) throw error;
+  if (!data) return 0;
+  const wallet = Math.max(0, Number(data.walletBalance ?? 0) - Number(data.walletReserved ?? 0));
+  const plan = Math.max(0, Number(data.planBalance ?? 0) - Number(data.planReserved ?? 0));
   return wallet + plan;
 }
 
