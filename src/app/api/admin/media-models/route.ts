@@ -48,6 +48,8 @@ export const GET = handle(async (req: NextRequest) => {
     const config = configs.get(FEATURE_KEY[mode]) ?? {};
     const disabled = new Set(Array.isArray(config.disabled_models)
       ? config.disabled_models.filter((id): id is string => typeof id === 'string') : []);
+    const legacyAllowed = Array.isArray(config.allowed_models)
+      ? config.allowed_models.filter((id): id is string => typeof id === 'string') : [];
     const defaultModel = typeof config.default_model === 'string' ? config.default_model : null;
     return models.map((model) => ({
       id: model.id,
@@ -56,8 +58,8 @@ export const GET = handle(async (req: NextRequest) => {
       provider: model.provider.name,
       release: model.release ?? '',
       features: model.features.map((feature) => feature.label),
-      enabled: !disabled.has(model.id),
-      isDefault: model.id === defaultModel && !disabled.has(model.id),
+      enabled: !disabled.has(model.id) && (!legacyAllowed.length || legacyAllowed.includes(model.id)),
+      isDefault: model.id === defaultModel && !disabled.has(model.id) && (!legacyAllowed.length || legacyAllowed.includes(model.id)),
     }));
   }
 
@@ -85,15 +87,23 @@ export const PATCH = handle(async (req: NextRequest) => {
   const disabled = new Set(Array.isArray(config.disabled_models)
     ? config.disabled_models.filter((id): id is string => typeof id === 'string') : []);
 
+  const legacyAllowed = Array.isArray(config.allowed_models)
+    ? config.allowed_models.filter((id): id is string => typeof id === 'string') : [];
   if (body.action === 'set-enabled') {
     if (body.enabled) disabled.delete(body.modelId);
     else disabled.add(body.modelId);
+    if (legacyAllowed.length) {
+      config.allowed_models = body.enabled
+        ? [...new Set([...legacyAllowed, body.modelId])]
+        : legacyAllowed.filter((id) => id !== body.modelId);
+    }
     const enabledCount = models.filter((model) => !disabled.has(model.id)).length;
     if (enabledCount < 1) throw new HttpError(400, 'At least one ' + mode + ' model must remain enabled', 'media_model_required');
     config.disabled_models = [...disabled];
     if (!body.enabled && config.default_model === body.modelId) config.default_model = null;
   } else {
     if (disabled.has(body.modelId)) disabled.delete(body.modelId);
+    if (legacyAllowed.length && !legacyAllowed.includes(body.modelId)) config.allowed_models = [...legacyAllowed, body.modelId];
     config.disabled_models = [...disabled];
     config.default_model = body.modelId;
   }
