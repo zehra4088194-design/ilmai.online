@@ -52,7 +52,7 @@ export async function callChatProvider(env: Env, candidate: ModelCandidate, payl
       body: JSON.stringify({ ...payload, model: candidate.id }), signal,
     }).catch((error) => new Response(JSON.stringify({ error: String(error) }), { status: 502, headers: { 'Content-Type': 'application/json' } }));
     await report(env, current, response.status);
-    if (response.ok || (response.status < 500 && response.status !== 429)) return { response, model: candidate.id, provider, attempts };
+    if (response.ok) return { response, model: candidate.id, provider, attempts };
     last = response;
   }
   return { response: last, model: candidate.id, provider, attempts };
@@ -61,32 +61,25 @@ export async function callChatProvider(env: Env, candidate: ModelCandidate, payl
 export async function routeAuto(env: Env, candidates: ModelCandidate[], messages: unknown[], hints: string) {
   if (!candidates.length) throw new Error('No model candidates are available for Auto routing');
   const sorted = [...candidates].sort((a, b) => (a.priority ?? 100) - (b.priority ?? 100));
-  const routingKey = await lease(env, 'groq');
-  if (routingKey) {
-    const prompt = [
-      'Choose exactly one model ID from the candidate JSON. Return only the ID.',
-      'Choose the best capability fit. Respect vision and document requirements. Prefer low latency for simple requests and stronger quality for complex reasoning, mathematics and long writing.',
-      'Task hints: ' + hints,
-      'Candidates: ' + JSON.stringify(sorted),
-    ].join('\n');
-    const response = await fetch(providerUrl('groq'), {
-      method: 'POST', headers: { Authorization: 'Bearer ' + routingKey.key, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: env.ROUTING_MODEL && !['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'].includes(env.ROUTING_MODEL)
-          ? env.ROUTING_MODEL
-          : 'openai/gpt-oss-120b',
-        messages: [{ role: 'system', content: prompt }, { role: 'user', content: JSON.stringify(messages).slice(0, 12_000) }],
-        temperature: 0, max_tokens: 64,
-      }),
-      signal: AbortSignal.timeout(Number(env.ROUTING_TIMEOUT_MS || 8000)),
-    }).catch(() => new Response(null, { status: 502 }));
-    await report(env, routingKey, response.status);
-    if (response.ok) {
-      const json = await response.json().catch(() => ({})) as { choices?: { message?: { content?: string } }[] };
-      const choice = (json.choices?.[0]?.message?.content ?? '').trim().replace(/^["']+|["']+$/g, '');
-      const match = sorted.find((item) => item.id === choice);
-      if (match) return match;
-    }
+  const routingModel = env.ROUTING_MODEL && !['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'].includes(env.ROUTING_MODEL)
+    ? env.ROUTING_MODEL
+    : 'openai/gpt-oss-120b';
+  const prompt = [
+    'Choose exactly one model ID from the candidate JSON. Return only the ID.',
+    'Choose the best capability fit. Respect vision and document requirements. Prefer low latency for simple requests and stronger quality for complex reasoning, mathematics and long writing.',
+    'Task hints: ' + hints,
+    'Candidates: ' + JSON.stringify(sorted),
+  ].join('\\n');
+  const routed = await callChatProvider(env, { id: routingModel, provider: 'groq' }, {
+    messages: [{ role: 'system', content: prompt }, { role: 'user', content: JSON.stringify(messages).slice(0, 12_000) }],
+    temperature: 0,
+    max_tokens: 64,
+  }, AbortSignal.timeout(Number(env.ROUTING_TIMEOUT_MS || 8000)));
+  if (routed.response.ok) {
+    const json = await routed.response.json().catch(() => ({})) as { choices?: { message?: { content?: string } }[] };
+    const choice = (json.choices?.[0]?.message?.content ?? '').trim().replace(/^["']+|["']+$/g, '');
+    const match = sorted.find((item) => item.id === choice);
+    if (match) return match;
   }
   const hint = hints.toLowerCase();
   const required = hint.includes('image') || hint.includes('vision') ? 'vision'
