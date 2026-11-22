@@ -241,6 +241,7 @@ function Sidebar({ collapsed=false, onCollapse }: { collapsed?:boolean; onCollap
           <Link href="/education" className={cn('grid h-9 w-9 place-items-center rounded-xl hover:bg-muted',pathname.startsWith('/education')?'bg-accent text-primary':'text-muted-foreground')} title="Education" aria-label="Education"><GraduationCap className="h-4 w-4"/></Link>
           <Link href="/projects" className={cn('grid h-9 w-9 place-items-center rounded-xl hover:bg-muted',pathname.startsWith('/projects')?'bg-accent text-primary':'text-muted-foreground')} title="Projects" aria-label="Projects"><FolderKanban className="h-4 w-4"/></Link>
           <Link href="/library" className={cn('grid h-9 w-9 place-items-center rounded-xl hover:bg-muted',pathname.startsWith('/library')?'bg-accent text-primary':'text-muted-foreground')} title="Library" aria-label="Library"><LibraryIcon className="h-4 w-4"/></Link>
+          <span className="grid h-8 w-8 place-items-center text-muted-foreground" title={user.isAdmin ? 'Unlimited credits' : fmtNum(credits) + ' credits'} aria-label="Credits"><Coins className="h-4 w-4"/></span>
           <Link href="/pricing" className="grid h-9 w-9 place-items-center rounded-xl text-muted-foreground hover:bg-muted" title="Wallet & pricing" aria-label="Wallet and pricing"><Wallet className="h-4 w-4"/></Link>
         </nav>
         <div className="flex flex-col items-center gap-2 border-t border-border pt-3">
@@ -371,10 +372,13 @@ function Sidebar({ collapsed=false, onCollapse }: { collapsed?:boolean; onCollap
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/15 text-sm font-bold text-primary">{(user.name || user.email || 'A').slice(0, 1).toUpperCase()}</span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[13px] font-semibold leading-tight text-foreground">{user.name || 'Account'}</span>
-              <span className="block truncate text-[11px] leading-tight text-muted-foreground">{user.email}</span><span className="mt-1 flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Coins className="h-3 w-3 text-primary"/>{user.isAdmin ? "Unlimited credits" : fmtNum(credits)+" credits"}<span className="ml-1 badge !px-1.5 !py-0 text-[9px] uppercase">{user.plan}</span></span>
+              <span className="block truncate text-[11px] leading-tight text-muted-foreground">{user.email}</span><span className="mt-1 block"><span className="badge !px-1.5 !py-0 text-[9px] uppercase">{user.plan}</span></span>
             </span>
           </Link>
-          <Link href="/pricing" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-primary" title="Wallet & pricing" aria-label="Wallet and pricing"><Wallet className="h-4 w-4"/></Link>{user.isAdmin && <Link href="/admin" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-primary hover:bg-muted" title="Admin panel" aria-label="Admin panel"><ShieldCheck className="h-4 w-4" /></Link>}
+          <div className="flex shrink-0 flex-col items-center gap-0.5">
+            <span className="grid h-7 w-8 place-items-center text-muted-foreground" title={user.isAdmin ? 'Unlimited credits' : fmtNum(credits) + ' credits'} aria-label="Credits"><Coins className="h-4 w-4"/></span>
+            <Link href="/pricing" className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-primary" title="Wallet & pricing" aria-label="Wallet and pricing"><Wallet className="h-4 w-4"/></Link>
+          </div>{user.isAdmin && <Link href="/admin" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-primary hover:bg-muted" title="Admin panel" aria-label="Admin panel"><ShieldCheck className="h-4 w-4" /></Link>}
           <button type="button" onClick={onCollapse} className="hidden h-8 w-8 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-primary lg:grid" title="Collapse sidebar" aria-label="Collapse sidebar"><PanelLeftClose className="h-4 w-4"/></button>
         </div>
         
