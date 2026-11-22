@@ -330,13 +330,13 @@ export function ChatView() {
   return (
     <>
       <div ref={scroller} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col px-4 pb-5 pt-3">
-          {loadingChat && <div className="mx-auto w-full max-w-3xl space-y-4 pt-4">{[0, 1, 2].map((i) => <div key={i} className="h-16 animate-pulse rounded-2xl bg-muted" />)}</div>}
+        <div className="mx-auto flex min-h-full w-full max-w-none flex-col px-4 pb-5 pt-3">
+          {loadingChat && <div className="mx-auto w-full max-w-none space-y-4 pt-4">{[0, 1, 2].map((i) => <div key={i} className="h-16 animate-pulse rounded-2xl bg-muted" />)}</div>}
           {empty && (
             <EmptyState onSend={send} showUpgrade={user.plan==='free'&&!user.isAdmin} />
           )}
           <div className="space-y-7">
-            {groups.map((g) => <TurnView key={g.key} group={g} names={names} onAsk={send} onEdit={(text) => { setInput(text); toast('Prompt copied to the composer. Edit it, then send.', 'info'); }} onNewQuiz={(topic) => setQuizDlg({ topic })} />)}
+            {groups.map((g) => <TurnView key={g.key} group={g} names={names} onAsk={send} onDifferentModel={(text) => { setInput(text); toast('Prompt loaded. Choose another model above, then send.', 'info'); }} onNewQuiz={(topic) => setQuizDlg({ topic })} />)}
             {!busy && lastGroup && (suggestions.length > 0 || sugLoading) && (
               <Suggestions items={suggestions} loading={sugLoading} onPick={send}
                 onQuiz={quizOn ? () => setQuizDlg({
