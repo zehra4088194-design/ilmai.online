@@ -133,7 +133,7 @@ export function Composer({
   return (
     <div
       ref={root}
-      className="mx-auto w-full max-w-4xl"
+      className="mx-auto w-full max-w-none"
       onMouseEnter={handleComposerEnter}
       onMouseLeave={()=>setHovered(false)}
       onFocusCapture={()=>setFocused(true)}
