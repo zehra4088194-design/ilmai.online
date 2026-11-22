@@ -47,7 +47,9 @@ export function ImageTool() {
   const [error, setError] = useState('');
 
   const selectedModel = useMemo(() => models.find((model) => model.id === modelId) ?? null, [models, modelId]);
-  const supports = (key: string) => !!selectedModel?.parameters.includes(key);
+  const supports = (key: string) => key === 'imageUrls'
+    ? !!selectedModel?.inputModalities.includes('image')
+    : !!selectedModel?.parameters.includes(key);
 
   const loadModels = useCallback(async () => {
     setLoadingModels(true); setError('');
