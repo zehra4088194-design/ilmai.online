@@ -11,6 +11,8 @@ export type AppSettings = {
   default_credits: number;
   daily_free_credits: number;
   credits_per_usd: number;
+  standard_model_multiplier: number;
+  premium_model_multiplier: number;
   min_credits_per_msg: number;
   max_history_messages: number;
   max_upload_mb: number;
@@ -31,6 +33,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   default_credits: 500,
   daily_free_credits: 100,
   credits_per_usd: 10000,
+  standard_model_multiplier: 1,
+  premium_model_multiplier: 4,
   min_credits_per_msg: 1,
   max_history_messages: 30,
   max_upload_mb: 15,
