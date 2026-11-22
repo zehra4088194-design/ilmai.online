@@ -5,8 +5,8 @@ import { handle, HttpError, json } from '@/lib/http';
 import { requireUserApi } from '@/lib/auth';
 import { requireFeature } from '@/lib/features';
 import { adminClient } from '@/lib/supabase/admin';
-import { aiRouterFetch } from '@/lib/ai-router';
-import { getVideoModels, videoModelPrice } from '@/lib/video-models';
+import { picsartSubmitModel, buildPicsartParams } from '@/lib/picsart-models';
+import { getVideoModels } from '@/lib/video-models';
 import { signedDownloadUrl } from '@/lib/storage/b2';
 import { validateAttachments } from '@/lib/attachments';
 
@@ -19,14 +19,11 @@ const Body = z.object({
   prompt: z.string().trim().min(3).max(6000),
   model: z.string().trim().min(1).max(200).optional(),
   duration: z.number().int().min(1).max(120).optional(),
-  aspectRatio: z.string().max(16).optional(),
+  aspectRatio: z.string().max(24).optional(),
   resolution: z.string().max(16).optional(),
   generateAudio: z.boolean().optional(),
   firstFrameAssetId: z.string().uuid().optional(),
 }).strict();
-
-type ProviderJob = { id?: string; polling_url?: string; status?: string; error?: string };
-
 
 export const GET = handle(async () => {
   const { profile } = await requireUserApi();
@@ -60,12 +57,14 @@ export const POST = handle(async (req: NextRequest) => {
   if (!Number.isSafeInteger(creditsPerSecond) || creditsPerSecond <= 0)
     throw new HttpError(503, 'Video credit pricing has not been configured by the administrator', 'video_pricing_unconfigured');
 
-  const models = await getVideoModels();
-  const allowed = Array.isArray(config.allowed_models)
-    ? config.allowed_models.filter((value): value is string => typeof value === 'string')
-    : [];
-  const candidates = models.filter((model) => !allowed.length || allowed.includes(model.id));
-  const requestedModel = body.model ?? (typeof config.default_model === 'string' ? config.default_model : 'auto');
+  const allModels = await getVideoModels(false, profile.id);
+  const disabled = Array.isArray(config.disabled_models) ? config.disabled_models.filter((id): id is string => typeof id === 'string') : [];
+  const legacyAllowed = Array.isArray(config.allowed_models) ? config.allowed_models.filter((id): id is string => typeof id === 'string') : [];
+  const candidates = allModels.filter((model) =>
+    !disabled.includes(model.id) && (!legacyAllowed.length || legacyAllowed.includes(model.id)),
+  );
+  const configuredDefault = typeof config.default_model === 'string' ? config.default_model : undefined;
+  const requestedModel = body.model ?? configuredDefault ?? 'auto';
   const durationLimit = Math.max(1, Math.min(120, Number(config.max_duration_seconds ?? 30)));
   const referenceFiles = body.firstFrameAssetId
     ? await validateAttachments([body.firstFrameAssetId], profile.id)
@@ -74,22 +73,22 @@ export const POST = handle(async (req: NextRequest) => {
     throw new HttpError(400, 'The first-frame reference must be an image');
 
   const capable = candidates.filter((model) =>
-    (body.duration === undefined || model.supported_durations.includes(body.duration)) &&
-    (body.aspectRatio === undefined || model.supported_aspect_ratios.includes(body.aspectRatio)) &&
-    (body.resolution === undefined || model.supported_resolutions.includes(body.resolution)) &&
-    (!body.generateAudio || model.generate_audio) &&
-    (!body.firstFrameAssetId || model.supported_frame_images.includes('first_frame'))
+    (body.duration === undefined || model.supportedDurations.includes(body.duration)) &&
+    (body.aspectRatio === undefined || !model.supportedAspectRatios.length || model.supportedAspectRatios.includes(body.aspectRatio)) &&
+    (body.resolution === undefined || !model.supportedResolutions.length || model.supportedResolutions.includes(body.resolution)) &&
+    (!body.generateAudio || model.generateAudio) &&
+    (!body.firstFrameAssetId || model.supportedFrameImages.includes('first_frame'))
   );
   const selected = requestedModel === 'auto'
-    ? capable.slice().sort((a,b) => videoModelPrice(a)-videoModelPrice(b))[0]
+    ? capable.find((model) => model.id === configuredDefault) ?? capable[0]
     : capable.find((model) => model.id === requestedModel);
   if (!selected) {
     if (requestedModel !== 'auto' && !candidates.some((model) => model.id === requestedModel))
       throw new HttpError(400, 'This video model is not enabled by the administrator', 'video_model_disabled');
-    throw new HttpError(400, 'No enabled model supports the requested duration, ratio, resolution, audio or reference image', 'video_capability_mismatch');
+    throw new HttpError(400, 'No enabled Picsart model supports the requested duration, ratio, resolution, audio or reference image', 'video_capability_mismatch');
   }
 
-  const duration = body.duration ?? selected.supported_durations[0];
+  const duration = body.duration ?? selected.supportedDurations[0];
   if (!duration || duration > durationLimit)
     throw new HttpError(400, 'This video duration exceeds the administrator limit', 'video_duration_limit');
   const creditAmount = creditsPerSecond * duration;
@@ -132,9 +131,11 @@ export const POST = handle(async (req: NextRequest) => {
     model: selected.id,
     prompt: body.prompt,
     config: {
+      provider: 'picsart',
+      workflow: 'v1/models',
       duration,
-      aspect_ratio: body.aspectRatio ?? selected.supported_aspect_ratios[0] ?? null,
-      resolution: body.resolution ?? selected.supported_resolutions[0] ?? null,
+      aspect_ratio: body.aspectRatio ?? selected.supportedAspectRatios[0] ?? null,
+      resolution: body.resolution ?? selected.supportedResolutions[0] ?? null,
       generate_audio: body.generateAudio ?? false,
       first_frame_asset_id: body.firstFrameAssetId ?? null,
     },
@@ -147,48 +148,37 @@ export const POST = handle(async (req: NextRequest) => {
   }
 
   try {
-    const request: Record<string, unknown> = {
-      model: selected.id,
-      prompt: body.prompt,
-      duration,
-      generate_audio: body.generateAudio ?? false,
-    };
-    const ratio = body.aspectRatio ?? selected.supported_aspect_ratios[0];
-    const resolution = body.resolution ?? selected.supported_resolutions[0];
-    if (ratio) request.aspect_ratio = ratio;
-    if (resolution) request.resolution = resolution;
-
+    let firstFrameUrl: string | undefined;
     if (body.firstFrameAssetId) {
       const { data: asset, error } = await db.from('media_assets')
         .select('storage_key').eq('id', body.firstFrameAssetId).eq('user_id', profile.id).eq('status', 'ready').maybeSingle();
       if (error) throw error;
       if (!asset) throw new HttpError(404, 'Reference image not found');
-      const url = await signedDownloadUrl(asset.storage_key, 300);
-      request.frame_images = [{ type: 'image_url', image_url: { url }, frame_type: 'first_frame' }];
+      firstFrameUrl = await signedDownloadUrl(asset.storage_key, 300);
     }
 
-    const response = await aiRouterFetch({
-      userId: profile.id, path: '/v1/videos', body: request, signal: AbortSignal.timeout(45000),
+    const params = buildPicsartParams(selected, {
+      prompt: body.prompt,
+      duration,
+      aspectRatio: body.aspectRatio,
+      resolution: body.resolution,
+      generateAudio: body.generateAudio,
+      startFrame: firstFrameUrl,
+      imageUrls: firstFrameUrl ? [firstFrameUrl] : undefined,
     });
-    const responseText = await response.text();
-    if (!response.ok) {
-      let message = 'Video provider error (' + response.status + ')';
-      try { message = JSON.parse(responseText)?.error?.message ?? message; } catch { /* retain safe summary */ }
-      throw new HttpError(502, message.slice(0,500), 'video_provider_error');
+    if (firstFrameUrl && !('startFrame' in params) && !('imageUrls' in params)) {
+      throw new HttpError(400, 'This Picsart model does not accept a first-frame or reference image', 'video_reference_unsupported');
     }
-    let providerJob: ProviderJob;
-    try { providerJob = JSON.parse(responseText) as ProviderJob; }
-    catch { throw new HttpError(502, 'Video provider returned invalid job data'); }
-    if (!providerJob.id || providerJob.id.length > 250)
-      throw new HttpError(502, 'Video provider did not return a job ID');
+
+    const providerJobId = await picsartSubmitModel(profile.id, selected, params);
     const { data: submitted, error } = await db.from('video_jobs').update({
-      provider_job_id: providerJob.id,
-      status: providerJob.status === 'processing' ? 'processing' : 'submitted',
+      provider_job_id: providerJobId,
+      status: 'submitted',
       updated_at: new Date().toISOString(),
     }).eq('id', reservationId).eq('user_id', profile.id).select('id,status,model,prompt,config,created_at').single();
     if (error) throw error;
     await db.from('generation_requests').update({
-      result: { videoJobId: reservationId, providerJobId: providerJob.id },
+      result: { videoJobId: reservationId, providerJobId, provider: 'picsart', workflow: 'v1/models' },
     }).eq('id', reservationId).eq('user_id', profile.id).eq('status', 'reserved');
     return json({ job: submitted, duplicate: false }, { status: 202, headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) {
@@ -201,6 +191,6 @@ export const POST = handle(async (req: NextRequest) => {
       });
     } catch { /* best-effort reservation cleanup */ }
     if (error instanceof HttpError) throw error;
-    throw new HttpError(502, error instanceof Error ? error.message : 'Could not submit video generation', 'video_submit_failed');
+    throw new HttpError(502, error instanceof Error ? error.message : 'Could not submit Picsart video generation', 'video_submit_failed');
   }
 });
