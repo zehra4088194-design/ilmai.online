@@ -62,7 +62,7 @@ export function TurnView({ group, names, onAsk, onNewQuiz, onDifferentModel }: {
       {n === 1 && <div className="mx-auto w-full"><Answer m={group.answers[0]} label={shortName(group.answers[0].model, names)} boxed={false} prompt={group.user?.content ?? ''} onRetry={onAsk} onDifferentModel={onDifferentModel} /></div>}
       {n > 1 && (
         <div className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2 md:grid md:overflow-visible md:[grid-template-columns:repeat(var(--cols),minmax(0,1fr))]" style={{ ['--cols' as string]: Math.min(n, 4) }}>
-          {group.answers.map((a) => <Answer key={a.id} m={a} label={shortName(a.model, names)} boxed onRetry={onAsk} onDifferentModel={onDifferentModel} />)}
+          {group.answers.map((a) => <Answer key={a.id} m={a} label={shortName(a.model, names)} boxed prompt={group.user?.content ?? ''} onRetry={onAsk} onDifferentModel={onDifferentModel} />)}
         </div>
       )}
 
