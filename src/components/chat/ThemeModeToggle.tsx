@@ -14,4 +14,5 @@ export function ThemeModeToggle() {
       title={dark ? 'Switch to light mode' : 'Switch to dark mode'} className="grid h-8 w-8 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground">
       {dark ? <Sun className="h-4 w-4"/> : <Moon className="h-4 w-4"/>}
     </button>
+  );
 }
