@@ -74,7 +74,7 @@ language sql
 security definer
 set search_path = ''
 stable
-as $
+as $func$
   select jsonb_build_object(
     'walletBalance',p.credits_balance,
     'walletReserved',p.credits_reserved,
@@ -94,7 +94,7 @@ as $
     limit 1
   ) b on true
   where p.id=p_user and not p.is_banned;
-$;
+$func$;
 
 revoke all on function public.get_credit_balances(uuid) from public,anon,authenticated;
 grant execute on function public.get_credit_balances(uuid) to service_role;
