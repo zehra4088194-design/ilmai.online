@@ -182,7 +182,8 @@ export const POST = handle(async (req: NextRequest) => {
     const cost = usage?.cost ?? 0;
     const totalTokens = pt + ct + (imageAnalysis?.promptTokens ?? 0) + (imageAnalysis?.completionTokens ?? 0);
     const totalCost = cost + (imageAnalysis?.costUsd ?? 0);
-    const multiplier = creditMultiplierFor(model.tier, settings);
+    const billedModel = autoMode ? autoCandidates.find((candidate) => candidate.id === actualModel) ?? model : model;
+    const multiplier = creditMultiplierFor(billedModel.tier, settings);
     const charge = !isAdmin && (full || usage || imageAnalysis)
       ? creditsFor(totalCost, totalTokens, settings, multiplier) : 0;
     if (full) {
@@ -213,7 +214,7 @@ export const POST = handle(async (req: NextRequest) => {
     await logImageAnalysis(0);
     await logUsage({
       userId: profile.id, kind, model: actualModel, provider: actualProvider,
-      modelTier: model.tier, creditMultiplier: multiplier,
+      modelTier: billedModel.tier, creditMultiplier: multiplier,
       promptTokens: pt, completionTokens: ct, costUsd: cost, creditsUsed: creditsApplied,
       planCreditsUsed, walletCreditsUsed,
       providerUsage: usage ?? {},
