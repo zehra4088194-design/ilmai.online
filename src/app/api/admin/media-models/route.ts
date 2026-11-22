@@ -57,7 +57,7 @@ export const GET = handle(async (req: NextRequest) => {
       release: model.release ?? '',
       features: model.features.map((feature) => feature.label),
       enabled: !disabled.has(model.id),
-      isDefault: model.id === defaultModel,
+      isDefault: model.id === defaultModel && !disabled.has(model.id),
     }));
   }
 
