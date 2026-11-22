@@ -129,6 +129,27 @@ html[data-theme-family='midnight'] .aurora::before, html[data-theme-family='midn
 .md a { color: hsl(var(--primary)); }
 .md code:not(pre code) { @apply rounded-md bg-muted px-1.5 py-0.5 text-[0.85em] font-medium before:content-none after:content-none; }
 .md table { @apply w-full; }
+
+/* Code examples: force readable contrast in both themes and offer adjustable sizing. */
+.md .code-block__pre { color: hsl(var(--foreground)) !important; opacity: 1 !important; font-size: .9rem; line-height: 1.7; tab-size: 2; }
+.md .code-block__pre code { color: inherit !important; opacity: 1 !important; font-size: inherit !important; text-shadow: none !important; }
+.md .code-token--keyword { color: #7c3aed; font-weight: 650; }
+.md .code-token--string { color: #15803d; }
+.md .code-token--comment { color: #64748b; font-style: italic; }
+.md .code-token--number { color: #b45309; }
+.md .code-token--function { color: #0369a1; }
+.md .code-token--builtin { color: #0f766e; }
+.md .code-token--punctuation { color: #475569; }
+html.dark .md .code-token--keyword { color: #c4b5fd; }
+html.dark .md .code-token--string { color: #86efac; }
+html.dark .md .code-token--comment { color: #94a3b8; }
+html.dark .md .code-token--number { color: #fdba74; }
+html.dark .md .code-token--function { color: #7dd3fc; }
+html.dark .md .code-token--builtin { color: #5eead4; }
+html.dark .md .code-token--punctuation { color: #cbd5e1; }
+html[data-code-font-size='small'] .md .code-block__pre { font-size: .8rem; }
+html[data-code-font-size='medium'] .md .code-block__pre { font-size: .92rem; }
+html[data-code-font-size='large'] .md .code-block__pre { font-size: 1.04rem; }
 .md .katex { color: inherit; direction: ltr; unicode-bidi: isolate; }
 .md .katex-display { max-width: 100%; overflow-x: auto; overflow-y: hidden; padding-block: 0.4rem; }
 .md .katex-display > .katex { display: inline-block; min-width: min-content; }
