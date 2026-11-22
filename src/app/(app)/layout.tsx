@@ -10,11 +10,21 @@ export const dynamic = 'force-dynamic';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { profile, isAdmin } = await requireUserPage();
-  const [features, settings, bannerResult] = await Promise.all([
+  const db=adminClient();
+  const [features, settings, bannerResult, walletResult, bucketResult] = await Promise.all([
     featuresForUser(profile.plan, isAdmin), getSettings(),
-    adminClient().from('site_creatives').select('title,alt_text,storage_path')
+    db.from('site_creatives').select('title,alt_text,storage_path')
       .eq('location','banner').eq('is_active',true).order('sort_order').limit(1).maybeSingle(),
+    db.from('profiles').select('credits_balance,credits_reserved').eq('id',profile.id).single(),
+    db.from('plan_credit_buckets').select('credits_remaining,credits_reserved')
+      .eq('user_id',profile.id).eq('status','active').gt('period_end',new Date().toISOString())
+      .order('period_start',{ascending:false}).limit(1).maybeSingle(),
   ]);
+  if(walletResult.error) throw walletResult.error;
+  if(bucketResult.error) throw bucketResult.error;
+  const walletAvailable=Math.max(0,Number(walletResult.data.credits_balance)-Number(walletResult.data.credits_reserved));
+  const planAvailable=bucketResult.data?Math.max(0,Number(bucketResult.data.credits_remaining)-Number(bucketResult.data.credits_reserved)):0;
+  const availableCredits=walletAvailable+planAvailable;
   const banner = bannerResult.data ? {
     title: bannerResult.data.title,
     altText: bannerResult.data.alt_text,
@@ -35,7 +45,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <AppShell
-      user={{ id: profile.id, name: profile.full_name ?? '', email: profile.email ?? '', plan: profile.plan, credits: profile.credits_balance, isAdmin, appearance: (profile.preferences?.appearance as Partial<Appearance> | undefined) ?? null }}
+      user={{ id: profile.id, name: profile.full_name ?? '', email: profile.email ?? '', plan: profile.plan, credits: availableCredits, isAdmin, appearance: (profile.preferences?.appearance as Partial<Appearance> | undefined) ?? null }}
       features={features}
       announcement={settings.announcement}
       banner={banner}
