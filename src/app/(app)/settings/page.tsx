@@ -10,16 +10,14 @@ export const dynamic = 'force-dynamic';
 export default async function Page() {
   const { profile } = await requireUserPage();
   const db=adminClient();
-  const [{data:usage},{data:wallet},{data:bucket}] = await Promise.all([
+  const [{data:usage},{data:balances,error:balanceError}] = await Promise.all([
     db.from('usage_events').select('kind,model,credits_used,created_at,status')
       .eq('user_id', profile.id).order('created_at', { ascending: false }).limit(12),
-    db.from('profiles').select('credits_balance,credits_reserved').eq('id',profile.id).single(),
-    db.from('plan_credit_buckets').select('plan_id,credits_remaining,credits_reserved,period_end')
-      .eq('user_id',profile.id).eq('status','active').gt('period_end',new Date().toISOString())
-      .order('period_start',{ascending:false}).limit(1).maybeSingle(),
+    db.rpc('get_credit_balances',{p_user:profile.id}),
   ]);
-  const walletAvailable=Math.max(0,Number(wallet?.credits_balance??0)-Number(wallet?.credits_reserved??0));
-  const planAvailable=bucket?Math.max(0,Number(bucket.credits_remaining)-Number(bucket.credits_reserved)):0;
+  if(balanceError) throw balanceError;
+  const walletAvailable=Math.max(0,Number(balances?.walletBalance??0)-Number(balances?.walletReserved??0));
+  const planAvailable=Math.max(0,Number(balances?.planBalance??0)-Number(balances?.planReserved??0));
 
   return (
     <>
@@ -28,7 +26,7 @@ export default async function Page() {
         <div className="mx-auto max-w-2xl space-y-6 px-4 py-8">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="card p-4"><p className="text-xs text-muted-foreground">Plan</p><p className="text-2xl font-extrabold capitalize">{profile.plan}</p></div>
-            <div className="card p-4"><p className="text-xs text-muted-foreground">Available shared plan credits</p><p className="text-2xl font-extrabold">{fmtNum(planAvailable)}</p>{bucket&&<p className="mt-1 text-xs text-muted-foreground">Expires {fmtDate(bucket.period_end)}</p>}</div>
+            <div className="card p-4"><p className="text-xs text-muted-foreground">Available shared plan credits</p><p className="text-2xl font-extrabold">{fmtNum(planAvailable)}</p>{balances?.periodEnd&&<p className="mt-1 text-xs text-muted-foreground">Expires {fmtDate(String(balances.periodEnd))}</p>}</div>
             <div className="card p-4"><p className="text-xs text-muted-foreground">Available wallet credits</p><p className="text-2xl font-extrabold">{fmtNum(walletAvailable)}</p><p className="mt-1 text-xs text-muted-foreground">Purchased/top-up credits remain separate from monthly plan credits.</p></div>
             <div className="card p-4"><p className="text-xs text-muted-foreground">Member since</p><p className="text-lg font-bold">{new Date(profile.created_at).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}</p></div>
           </div>
