@@ -19,7 +19,7 @@ beforeAll(async () => {
     alter default privileges in schema public grant usage,select on sequences to service_role;
     alter default privileges in schema public grant select,insert,update,delete on tables to authenticated;
   `);
-  for (const file of ['0001_init.sql','0002_modes_quiz_suggestions.sql','0004_wallet_security.sql','0022_shared_credit_buckets.sql']) {
+  for (const file of ['0001_init.sql','0002_modes_quiz_suggestions.sql','0004_wallet_security.sql','0022_shared_credit_buckets.sql','0024_usage_pkr_cost_snapshot.sql']) {
     const sql = await readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), 'utf8');
     await db.exec(sql.replace(/create extension if not exists pgcrypto\s*;/gi, ''));
   }
@@ -98,6 +98,24 @@ describe('real PostgreSQL wallet transactions', () => {
     );
     expect(duplicate.rows[0].duplicate).toBe(true);
     expect((await db.query<{count:number}>('select count(*)::int from credit_transactions where user_id=$1 and idempotency_key=$2',[user,'direct-charge-1'])).rows[0].count).toBe(1);
+  });
+
+  it('snapshots the current USD to PKR rate on provider usage rows', async () => {
+    await db.query(
+      `insert into app_settings(key,value) values('usd_pkr_rate',$1::jsonb)
+       on conflict(key) do update set value=excluded.value`,
+      [JSON.stringify({usdToPkr:280.5})],
+    );
+    await db.query(
+      `insert into usage_events(user_id,kind,cost_usd) values($1,'chat',0.01)`,
+      [user],
+    );
+    const row=(await db.query<{cost_pkr:number;usd_to_pkr:number}>(
+      `select cost_pkr::float8,usd_to_pkr::float8 from usage_events
+       where user_id=$1 and kind='chat' order by id desc limit 1`,
+      [user],
+    )).rows[0];
+    expect(row).toEqual({cost_pkr:2.805,usd_to_pkr:280.5});
   });
   it('RLS rejects cross-owner conversation references and private wallet RPC calls', async () => {
     const conv = id(20);
