@@ -1,6 +1,7 @@
 export interface Env {
   AI_ROUTER_SECRET: string;
   OPENROUTER_API_KEY?: string;
+  PICSART_API_KEY?: string;
   GROQ_API_KEY_1?: string; GROQ_API_KEY_2?: string; GROQ_API_KEY_3?: string; GROQ_API_KEY_4?: string; GROQ_API_KEY_5?: string;
   GROQ_API_KEY_6?: string; GROQ_API_KEY_7?: string; GROQ_API_KEY_8?: string; GROQ_API_KEY_9?: string; GROQ_API_KEY_10?: string;
   GEMINI_API_KEY_1?: string; GEMINI_API_KEY_2?: string; GEMINI_API_KEY_3?: string; GEMINI_API_KEY_4?: string; GEMINI_API_KEY_5?: string;
