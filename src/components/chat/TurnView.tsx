@@ -14,7 +14,7 @@ import type { Group, Msg } from '@/components/chat/types';
 
 const shortName = (id: string | null | undefined, names: Map<string, string>) => (id ? (names.get(id) ?? id.split('/').pop() ?? id) : '');
 
-function Answer({ m, label, boxed, onRetry, onDifferentModel }: { m: Msg; label: string; boxed: boolean; onRetry: (text:string)=>void; onDifferentModel: (text:string)=>void }) {
+function Answer({ m, label, boxed, prompt, onRetry, onDifferentModel }: { m: Msg; label: string; boxed: boolean; prompt: string; onRetry: (text:string)=>void; onDifferentModel: (text:string)=>void }) {
   const [copied, setCopied] = useState(false);
   const [feedback, setFeedback] = useState<'up'|'down'|null>(null);
   const provider = providerFromModelId(m.model);
@@ -37,8 +37,8 @@ function Answer({ m, label, boxed, onRetry, onDifferentModel }: { m: Msg; label:
             <button type="button" className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground" onClick={() => { navigator.clipboard.writeText(m.content); setCopied(true); window.setTimeout(() => setCopied(false), 1500); }} aria-label="Copy answer" title={copied ? 'Copied' : 'Copy'}>{copied ? <Check className="h-4 w-4"/> : <Copy className="h-4 w-4"/>}</button>
             <button type="button" onClick={()=>setFeedback(feedback==='up'?null:'up')} className={cn('grid h-8 w-8 place-items-center rounded-lg hover:bg-muted',feedback==='up'?'text-primary':'text-muted-foreground')} aria-label="Helpful answer" title="Helpful"><ThumbsUp className="h-4 w-4"/></button>
             <button type="button" onClick={()=>setFeedback(feedback==='down'?null:'down')} className={cn('grid h-8 w-8 place-items-center rounded-lg hover:bg-muted',feedback==='down'?'text-danger':'text-muted-foreground')} aria-label="Not helpful" title="Not helpful"><ThumbsDown className="h-4 w-4"/></button>
-            <button type="button" onClick={()=>onRetry(m.content)} className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Try again" title="Try again"><RotateCcw className="h-4 w-4"/></button>
-            <button type="button" onClick={()=>onDifferentModel(m.content)} className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Answer with a different model" title="Answer with a different model"><Shuffle className="h-4 w-4"/></button>
+            <button type="button" onClick={()=>onRetry(prompt)} className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Try again" title="Try again"><RotateCcw className="h-4 w-4"/></button>
+            <button type="button" onClick={()=>onDifferentModel(prompt)} className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Answer with a different model" title="Answer with a different model"><Shuffle className="h-4 w-4"/></button>
           </div>
         )}
       </div>
@@ -59,7 +59,7 @@ export function TurnView({ group, names, onAsk, onNewQuiz, onDifferentModel }: {
           </div>
         </div>
       )}
-      {n === 1 && <div className="mx-auto w-full"><Answer m={group.answers[0]} label={shortName(group.answers[0].model, names)} boxed={false} onRetry={onAsk} onDifferentModel={onDifferentModel} /></div>}
+      {n === 1 && <div className="mx-auto w-full"><Answer m={group.answers[0]} label={shortName(group.answers[0].model, names)} boxed={false} prompt={group.user?.content ?? ''} onRetry={onAsk} onDifferentModel={onDifferentModel} /></div>}
       {n > 1 && (
         <div className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2 md:grid md:overflow-visible md:[grid-template-columns:repeat(var(--cols),minmax(0,1fr))]" style={{ ['--cols' as string]: Math.min(n, 4) }}>
           {group.answers.map((a) => <Answer key={a.id} m={a} label={shortName(a.model, names)} boxed onRetry={onAsk} onDifferentModel={onDifferentModel} />)}
