@@ -3,18 +3,33 @@ import { z } from 'zod';
 import { aiRouterFetch } from '@/lib/ai-router';
 import { HttpError } from '@/lib/http';
 
+// OpenRouter's video catalogue can return null for optional capability fields.
+// Normalize those fields so one model with an omitted capability never breaks the whole picker.
+const stringList = z.array(z.string()).nullish().transform((values) =>
+  (values ?? []).filter((value) => value.trim().length > 0),
+);
+const durationList = z.array(z.number().int().positive()).nullish().transform((values) =>
+  [...new Set(values ?? [])].sort((a, b) => a - b),
+);
+
 const VideoModelSchema = z.object({
-  id: z.string().min(1).max(200),
-  name: z.string().optional(),
-  description: z.string().optional(),
-  supported_aspect_ratios: z.array(z.string()).default([]),
-  supported_durations: z.array(z.number().int().positive()).default([]),
-  supported_resolutions: z.array(z.string()).default([]),
-  supported_sizes: z.array(z.string()).nullable().optional(),
-  supported_frame_images: z.array(z.enum(['first_frame','last_frame'])).default([]),
-  generate_audio: z.boolean().default(false),
-  allowed_passthrough_parameters: z.array(z.string()).default([]),
-  pricing_skus: z.record(z.string(), z.unknown()).default({}),
+  id: z.string().trim().min(1).max(200),
+  name: z.string().nullish(),
+  description: z.string().nullish(),
+  supported_aspect_ratios: stringList,
+  supported_durations: durationList,
+  supported_resolutions: stringList,
+  supported_sizes: stringList,
+  // Some catalog entries omit frame-image support and return null rather than [].
+  // Ignore future/unknown roles instead of rejecting every video model in the response.
+  supported_frame_images: stringList.transform((values) =>
+    values.filter((value): value is 'first_frame' | 'last_frame' =>
+      value === 'first_frame' || value === 'last_frame',
+    ),
+  ),
+  generate_audio: z.boolean().nullish().transform((value) => value ?? false),
+  allowed_passthrough_parameters: stringList,
+  pricing_skus: z.record(z.string(), z.unknown()).nullish().transform((value) => value ?? {}),
 }).passthrough();
 
 const VideoCatalogSchema = z.object({ data: z.array(VideoModelSchema) });
@@ -29,8 +44,12 @@ export async function getVideoModels(force = false): Promise<VideoModel[]> {
     const detail = await response.text().catch(() => '');
     throw new HttpError(response.status >= 500 ? 503 : response.status, detail.slice(0,300) || 'Could not load video model catalogue', 'video_catalog_unavailable');
   }
-  const parsed = VideoCatalogSchema.safeParse(await response.json());
-  if (!parsed.success) throw new HttpError(502, 'Video model catalogue returned an invalid response', 'invalid_video_catalog');
+  const payload = await response.json().catch(() => null);
+  const parsed = VideoCatalogSchema.safeParse(payload);
+  if (!parsed.success) {
+    console.error('[video-catalog] OpenRouter returned an unsupported catalogue shape:', parsed.error.issues.slice(0, 8));
+    throw new HttpError(502, 'Video model catalogue returned an invalid response', 'invalid_video_catalog');
+  }
   cached = { expiresAt: Date.now() + 5 * 60 * 1000, data: parsed.data.data };
   return cached.data;
 }
