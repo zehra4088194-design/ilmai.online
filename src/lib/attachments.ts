@@ -4,9 +4,8 @@ import { z } from 'zod';
 import { adminClient } from '@/lib/supabase/admin';
 import { readObject, signedDownloadUrl } from '@/lib/storage/b2';
 import { HttpError } from '@/lib/http';
-import { getAllTextModels, canUseTier } from '@/lib/models';
+import { getAllTextModels } from '@/lib/models';
 import { aiRouterChat } from '@/lib/ai-router';
-import type { Plan } from '@/lib/auth';
 import {
   type Attachment, ATTACHMENT_PROMPT, MAX_ATTACHMENTS, MAX_ATTACHMENT_BYTES, MAX_EXTRACTED_CHARS,
   MAX_TOTAL_TEXT_CHARS, OFFICE_LIMITS, attachmentType, decodeText, sanitizeFilename, validateAttachmentBytes,
@@ -193,7 +192,7 @@ export type PreparedChatAttachments = { content: string | unknown[]; imageAnalys
  * the selected answer model receives only the extracted text, never image_url or image bytes. */
 export async function prepareChatAttachments(
   text: string, ids: string[], userId: string,
-  options: { documents: boolean; plan: Plan; isAdmin: boolean },
+  options: { documents: boolean; isAdmin: boolean },
 ): Promise<PreparedChatAttachments> {
   const assets = await loadAttachments(ids, userId);
   if (!assets.length) return { content: text, imageAnalysis: null };
@@ -208,7 +207,6 @@ export async function prepareChatAttachments(
     const catalog = await getAllTextModels();
     const geminiModels = catalog.filter((model) =>
       (options.isAdmin || model.enabled) &&
-      (options.isAdmin || canUseTier(options.plan, model.tier)) &&
       model.vision && /gemini/i.test(model.id)
     ).sort((left, right) => {
       const flashLeft = /flash|lite/i.test(left.id) ? 0 : 1;

@@ -101,7 +101,7 @@ export const POST = handle(async (req: NextRequest) => {
   }));
   const hints = [
     imageAnalysis ? 'Photos were already analyzed by Gemini. Use only the extracted image text; no image is attached to this model request.' : '',
-    attachmentIds.length && !imageAnalysis ? 'Attached documents must be read; choose a document-capable model.' : ''
+    attachmentIds.length && !imageAnalysis ? 'Attached documents must be read; choose a document-capable model.' : '',
     /\b(math|mathematics|equation|integral|matrix|prove|calculate)\b/i.test(String(userMsg.content)) ? 'Mathematics or reasoning task.' : '',
     String(userMsg.content).slice(0, 500),
   ].filter(Boolean).join(' ');
