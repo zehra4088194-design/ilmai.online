@@ -54,6 +54,7 @@ export async function callChatProvider(env: Env, candidate: ModelCandidate, payl
       body: JSON.stringify({ ...payload, model: candidate.id }),
       signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs),
     }).catch((error) => new Response(JSON.stringify({ error: String(error) }), { status: 502, headers: { 'Content-Type': 'application/json' } }));
+    if (signal?.aborted) return { response, model: candidate.id, provider, attempts };
     await report(env, current, response.status);
     if (response.ok) return { response, model: candidate.id, provider, attempts };
     last = response;
