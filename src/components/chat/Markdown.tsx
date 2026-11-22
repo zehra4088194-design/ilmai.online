@@ -12,7 +12,7 @@ const KEYWORDS = new Set(('and as assert async await break case catch class cons
 const BUILTINS = new Set(('print len range enumerate zip map filter reduce sum min max abs round sorted reversed list dict set tuple str int float bool None True False console Math JSON Array Object String Number Promise Date').split(' '));
 
 function highlightedCode(source: string) {
-  const tokenPattern = /(\\/\\*[\\s\\S]*?\\*\\/|\\/\\/[^\\n]*|^[\\t ]*#.*$|"(?:\\\\.|[^"\\\\])*"|'(?:\\\\.|[^'\\\\])*'|`(?:\\\\.|[^`\\\\])*`|\\b[A-Za-z_$][\\w$]*(?=\\s*\\()|\\b[A-Za-z_$][\\w$]*\\b|\\b\\d+(?:\\.\\d+)?\\b|[{}()[\\].,:;])/gm;
+  const tokenPattern = /(\/\*[\s\S]*?\*\/|\/\/[^\n]*|^[\t ]*#.*$|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\x60(?:\\.|[^\x60\\])*\x60|\b[A-Za-z_$][\w$]*(?=\s*\()|\b[A-Za-z_$][\w$]*\b|\b\d+(?:\.\d+)?\b|[{}()\[\].,:;])/gm;
   const parts: ReactNode[] = [];
   let cursor = 0;
   let match: RegExpExecArray | null;
@@ -21,13 +21,13 @@ function highlightedCode(source: string) {
     if (match.index > cursor) parts.push(source.slice(cursor, match.index));
     const token = match[0];
     let kind = '';
-    if (/^(\\/\\*|\\/\\/|#)/.test(token)) kind = 'comment';
+    if (/^(\/\\*|\/\/|#)/.test(token)) kind = 'comment';
     else if (/^["'`]/.test(token)) kind = 'string';
     else if (/^\\d/.test(token)) kind = 'number';
     else if (KEYWORDS.has(token)) kind = 'keyword';
     else if (BUILTINS.has(token)) kind = 'builtin';
-    else if (/^[A-Za-z_$]/.test(token) && /\\s*\\($/.test(source.slice(match.index + token.length, match.index + token.length + 2))) kind = 'function';
-    else if (/^[{}()[\\].,:;]$/.test(token)) kind = 'punctuation';
+    else if (/^[A-Za-z_$]/.test(token) && /^\\s*\\(/.test(source.slice(match.index + token.length))) kind = 'function';
+    else if (/^[{}()\\[\\].,:;]$/.test(token)) kind = 'punctuation';
     parts.push(kind ? <span key={index++} className={`code-token code-token--${kind}`}>{token}</span> : token);
     cursor = match.index + token.length;
   }
