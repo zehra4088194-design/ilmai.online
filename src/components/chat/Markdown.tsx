@@ -21,13 +21,13 @@ function highlightedCode(source: string) {
     if (match.index > cursor) parts.push(source.slice(cursor, match.index));
     const token = match[0];
     let kind = '';
-    if (/^(\/\\*|\/\/|#)/.test(token)) kind = 'comment';
+    if (token.startsWith('//') || token.startsWith('/*') || token.startsWith('#')) kind = 'comment';
     else if (/^["'`]/.test(token)) kind = 'string';
-    else if (/^\\d/.test(token)) kind = 'number';
+    else if (token[0] >= '0' && token[0] <= '9') kind = 'number';
     else if (KEYWORDS.has(token)) kind = 'keyword';
     else if (BUILTINS.has(token)) kind = 'builtin';
-    else if (/^[A-Za-z_$]/.test(token) && /^\\s*\\(/.test(source.slice(match.index + token.length))) kind = 'function';
-    else if (/^[{}()\\[\\].,:;]$/.test(token)) kind = 'punctuation';
+    else if (/^[A-Za-z_$]/.test(token) && source.slice(match.index + token.length).trimStart().startsWith('(')) kind = 'function';
+    else if ('{}()[] .,:;'.includes(token)) kind = 'punctuation';
     parts.push(kind ? <span key={index++} className={`code-token code-token--${kind}`}>{token}</span> : token);
     cursor = match.index + token.length;
   }
