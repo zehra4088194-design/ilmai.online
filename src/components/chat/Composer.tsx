@@ -163,8 +163,8 @@ export function Composer({
         {/* Full composer */}
         <div className={cn('composer-fold', expanded && 'is-open', expanded && settled && 'is-settled')} aria-hidden={!expanded} inert={!expanded}>
           <div className="composer-fold-inner">
-            <div className="p-2.5 sm:p-3">
-      {modelSlot && <div className="mb-2 flex min-w-0 items-center gap-2 border-b border-border/70 pb-2">{modelSlot}
+            <div className="p-2 sm:p-2.5">
+      {modelSlot && <div className="mb-1.5 flex min-w-0 items-center gap-2 border-b border-border/70 pb-1.5">{modelSlot}
         <button type="button" onClick={toggleComposerLock} className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-lg transition hover:bg-muted',lockMode!=='auto'?'bg-primary/10 text-primary':'text-muted-foreground')} title={lockMode==='open'?'Unlock expanded composer':'Lock composer open'} aria-label="Toggle composer lock">
           {lockMode==='open'?<Lock className="h-4 w-4"/>:<Unlock className="h-4 w-4"/>}
         </button>
