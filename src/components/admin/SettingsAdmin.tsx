@@ -9,7 +9,9 @@ import type { AppSettings } from '@/lib/settings';
 const NUM: { key: keyof AppSettings; label: string; hint: string }[] = [
   { key: 'default_credits', label: 'Credits on sign-up', hint: 'Given once to every new user' },
   { key: 'daily_free_credits', label: 'Daily free top-up', hint: 'Free-plan users are topped up to this balance by the daily cron' },
-  { key: 'credits_per_usd', label: 'Credits per $1 of provider cost', hint: '10000 → 1 credit = $0.0001. Raise it to charge users more per message' },
+  { key: 'credits_per_usd', label: 'Credits per $1 of provider cost', hint: '10000 → 1 credit = $0.0001. Provider USD cost is the base before model multipliers.' },
+  { key: 'standard_model_multiplier', label: 'Standard model multiplier', hint: 'Applied to Free-tier text models. Default 1×.' },
+  { key: 'premium_model_multiplier', label: 'Premium model multiplier', hint: 'Applied to Pro and Elite text models. Default 4×; adjustable.' },
   { key: 'min_credits_per_msg', label: 'Minimum credits per message', hint: 'Floor price, even for free models' },
   { key: 'max_history_messages', label: 'Messages of history sent to the model', hint: 'Lower = cheaper' },
   { key: 'max_upload_mb', label: 'Max upload size (MB)', hint: 'For images / PDFs' },
