@@ -225,6 +225,13 @@ export const POST = handle(async (req: NextRequest) => {
         model: model.id, provider: 'picsart-image-api',
         prompt_tokens: 0, completion_tokens: 0,
         cost_usd: 0, latency_ms: Date.now() - started,
+        provider_usage: result.usage ?? {},
+        usage_details: {
+          mediaKind: 'image', count: saved.length, requestedCount: body.count,
+          aspectRatio: body.aspectRatio ?? null, resolution: body.resolution ?? null,
+          quality: body.quality ?? null, outputFormat: body.outputFormat ?? null,
+        },
+        model_tier: 'media', credit_multiplier: 1,
       },
       p_result: output,
     });
