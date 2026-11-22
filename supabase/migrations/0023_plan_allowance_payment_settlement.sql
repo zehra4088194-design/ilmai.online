@@ -1,8 +1,6 @@
+begin;
 -- Paid subscriptions receive a period-bound shared allowance, not permanent wallet credits.
-begin;
 -- 0019 - Settle already-created purchases even if an admin later hides/deactivates the plan.
-begin;
-
 create or replace function public.apply_paid_payment(
   p_payment uuid,
   p_provider_reference text,
