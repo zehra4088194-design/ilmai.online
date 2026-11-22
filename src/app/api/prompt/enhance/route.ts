@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { handle, HttpError, json } from '@/lib/http';
 import { requireUserApi } from '@/lib/auth';
 import { requireFeature } from '@/lib/features';
-import { utilityChat } from '@/lib/utility-ai';
+import { groqUtilityChat } from '@/lib/utility-ai';
 import { logUsage } from '@/lib/usage';
 
 export const runtime = 'nodejs';
@@ -19,7 +19,7 @@ export const POST = handle(async (req: NextRequest) => {
   const started = Date.now();
 
   try {
-    const result = await utilityChat(
+    const result = await groqUtilityChat(
       [
         {
           role: 'system',
@@ -34,11 +34,9 @@ export const POST = handle(async (req: NextRequest) => {
       ],
       {
         userId: profile.id,
-        maxTokens: 900,
+        maxTokens: 750,
         temperature: 0.2,
-        timeoutMs: 10_000,
-        tries: 5,
-        deadlineMs: 50_000,
+        timeoutMs: 9_000,
       },
     );
 
