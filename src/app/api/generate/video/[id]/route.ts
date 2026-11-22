@@ -3,9 +3,12 @@ import { z } from 'zod';
 import { handle, HttpError, json } from '@/lib/http';
 import { requireUserApi } from '@/lib/auth';
 import { adminClient } from '@/lib/supabase/admin';
-import { aiRouterFetch } from '@/lib/ai-router';
 import { saveMedia } from '@/lib/media';
 import { signedDownloadUrl } from '@/lib/storage/b2';
+import {
+  downloadPicsartAsset,
+  picsartPollModel,
+} from '@/lib/picsart-models';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -13,11 +16,6 @@ export const maxDuration = 180;
 
 type Ctx = { params: Promise<{ id: string }> };
 const Params = z.object({ id: z.string().uuid() });
-type ProviderJob = {
-  id?: string; status?: string; error?: string;
-  usage?: { cost?: number; prompt_tokens?: number; completion_tokens?: number };
-  generation_id?: string;
-};
 
 const TERMINAL = new Set(['ready','failed','cancelled','expired']);
 const MAX_VIDEO_BYTES = 150 * 1024 * 1024;
@@ -29,26 +27,16 @@ function videoSignature(bytes: Buffer) {
   );
 }
 
-async function boundedBuffer(response: Response) {
-  const declared = Number(response.headers.get('content-length') ?? 0);
-  if (declared > MAX_VIDEO_BYTES) throw new HttpError(413, 'Generated video exceeds the storage limit', 'video_too_large');
-  if (!response.body) throw new HttpError(502, 'Video provider returned an empty file', 'empty_video');
-  const reader = response.body.getReader();
-  const chunks: Buffer[] = [];
-  let total = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > MAX_VIDEO_BYTES) {
-      await reader.cancel().catch(() => undefined);
-      throw new HttpError(413, 'Generated video exceeds the storage limit', 'video_too_large');
-    }
-    chunks.push(Buffer.from(value));
+function resultVideoUrl(result: unknown) {
+  if (!result || typeof result !== 'object') return null;
+  const value = result as Record<string, unknown>;
+  if (typeof value.url === 'string') return value.url;
+  const items = Array.isArray(value.items) ? value.items : Array.isArray(value.results) ? value.results : [];
+  const first = items[0];
+  if (first && typeof first === 'object' && typeof (first as Record<string, unknown>).url === 'string') {
+    return (first as Record<string, unknown>).url as string;
   }
-  const bytes = Buffer.concat(chunks, total);
-  if (!videoSignature(bytes)) throw new HttpError(502, 'Provider file is not a valid MP4 or WebM video', 'invalid_video_output');
-  return bytes;
+  return null;
 }
 
 async function shapeJob(row: Record<string, unknown>) {
@@ -88,26 +76,21 @@ export const GET = handle(async (_req: NextRequest, { params }: Ctx) => {
   if (job.status !== 'storing' && Date.now()-lastPoll < 15_000)
     return json({job:await shapeJob(job)},{headers:{'Cache-Control':'private, no-store'}});
 
-  const poll = await aiRouterFetch({
-    userId:profile.id,path:'/v1/videos/'+encodeURIComponent(job.provider_job_id),
-    method:'GET',signal:AbortSignal.timeout(45_000),
-  });
-  if (!poll.ok) {
-    const detail = await poll.text().catch(()=>'');
-    await db.from('video_jobs').update({last_polled_at:new Date().toISOString()}).eq('id',id).eq('user_id',profile.id);
-    throw new HttpError(poll.status>=500?503:poll.status,detail.slice(0,300)||'Could not check video generation status','video_poll_failed');
-  }
-  const provider = await poll.json().catch(()=>({})) as ProviderJob;
-  const providerStatus = String(provider.status ?? '').toLowerCase();
+  const provider = await picsartPollModel(profile.id, String(job.provider_job_id), 45_000);
+  const providerStatus = provider.status.toUpperCase();
 
-  if (providerStatus === 'failed' || providerStatus === 'cancelled' || providerStatus === 'expired') {
-    await failJob(job,profile.id,providerStatus as 'failed'|'cancelled'|'expired',provider.error ?? 'Video generation '+providerStatus);
+  if (providerStatus === 'FAILED' || providerStatus === 'CANCELLED' || providerStatus === 'EXPIRED') {
+    const mapped = providerStatus.toLowerCase() as 'failed'|'cancelled'|'expired';
+    await failJob(job,profile.id,mapped,provider.error || 'Picsart video generation ' + mapped);
     const fresh = await db.from('video_jobs').select('*').eq('id',id).eq('user_id',profile.id).single();
     return json({job:await shapeJob(fresh.data)},{headers:{'Cache-Control':'private, no-store'}});
   }
 
-  if (providerStatus !== 'completed') {
-    const status = providerStatus === 'processing' ? 'processing' : 'submitted';
+  if (providerStatus !== 'COMPLETED') {
+    if (providerStatus !== 'ACCEPTED' && providerStatus !== 'IN_PROGRESS' && providerStatus !== '') {
+      throw new HttpError(502, 'Picsart returned an unknown video job status: ' + providerStatus, 'picsart_unknown_status');
+    }
+    const status = providerStatus === 'IN_PROGRESS' ? 'processing' : 'submitted';
     await db.from('video_jobs').update({
       status,last_polled_at:new Date().toISOString(),updated_at:new Date().toISOString(),
       provider_usage:provider.usage ?? {},
@@ -121,16 +104,14 @@ export const GET = handle(async (_req: NextRequest, { params }: Ctx) => {
       .eq('id',job.media_asset_id).eq('user_id',profile.id).eq('kind','video').eq('status','ready').maybeSingle();
     if (assetError) throw assetError;
     if (existingAsset) {
-      const usage = {
-        model:job.model,provider:'openrouter-video-api',
-        prompt_tokens:Number(provider.usage?.prompt_tokens ?? 0),
-        completion_tokens:Number(provider.usage?.completion_tokens ?? 0),
-        cost_usd:Number(provider.usage?.cost ?? 0),
-        latency_ms:Math.max(0,Date.now()-new Date(job.submitted_at).getTime()),
-      };
       const completed = await db.rpc('complete_video_job',{
-        p_job:id,p_user:profile.id,p_asset:existingAsset.id,p_charge:job.credits_reserved,p_usage:usage,
-        p_result:{providerGenerationId:provider.generation_id ?? null},
+        p_job:id,p_user:profile.id,p_asset:existingAsset.id,p_charge:job.credits_reserved,
+        p_usage:{
+          model:job.model,provider:'picsart-video-api',
+          prompt_tokens:0,completion_tokens:0,cost_usd:0,
+          latency_ms:Math.max(0,Date.now()-new Date(job.submitted_at).getTime()),
+        },
+        p_result:{provider:'picsart',providerJobId:job.provider_job_id,providerCredits:Number(provider.usage?.credits ?? 0)},
       });
       if (completed.error) throw completed.error;
       const fresh = await db.from('video_jobs').select('*').eq('id',id).eq('user_id',profile.id).single();
@@ -141,7 +122,7 @@ export const GET = handle(async (_req: NextRequest, { params }: Ctx) => {
   const claim = await db.from('video_jobs').update({
     status:'downloading',last_polled_at:new Date().toISOString(),updated_at:new Date().toISOString(),
     provider_usage:provider.usage ?? {},
-  }).eq('id',id).eq('user_id',profile.id).in('status',['submitted','processing']).select('id').maybeSingle();
+  }).eq('id',id).eq('user_id',profile.id).in('status',['submitted','processing','storing']).select('id').maybeSingle();
   if (claim.error) throw claim.error;
   if (!claim.data) {
     const fresh = await db.from('video_jobs').select('*').eq('id',id).eq('user_id',profile.id).single();
@@ -149,20 +130,16 @@ export const GET = handle(async (_req: NextRequest, { params }: Ctx) => {
   }
 
   try {
-    const videoResponse = await aiRouterFetch({
-      userId:profile.id,path:'/v1/videos/'+encodeURIComponent(job.provider_job_id)+'/content?index=0',
-      method:'GET',signal:AbortSignal.timeout(90_000),
-    });
-    if (!videoResponse.ok) {
-      const detail = await videoResponse.text().catch(()=>'');
-      throw new HttpError(502,detail.slice(0,300)||'Could not download generated video','video_download_failed');
+    const url = resultVideoUrl(provider.result);
+    if (!url) throw new HttpError(502,'Picsart completed the job but returned no video URL','empty_video_result');
+    const downloaded = await downloadPicsartAsset(url, MAX_VIDEO_BYTES);
+    const mime = downloaded.mime === 'video/webm' ? 'video/webm' : downloaded.mime === 'video/mp4' || downloaded.mime === 'application/octet-stream' ? 'video/mp4' : '';
+    if (!mime || !videoSignature(downloaded.bytes)) {
+      throw new HttpError(502,'Picsart returned a file that is not a valid MP4 or WebM video','invalid_video_output');
     }
-    const bytes = await boundedBuffer(videoResponse);
-    const contentType = (videoResponse.headers.get('content-type') ?? '').split(';')[0].toLowerCase();
-    const mime = contentType === 'video/webm' ? 'video/webm' : 'video/mp4';
     const media = await saveMedia({
-      userId:profile.id,kind:'video',body:bytes,mime,prompt:job.prompt,model:job.model,
-      meta:{video_job_id:id,provider_job_id:job.provider_job_id,generation_id:provider.generation_id ?? null,config:job.config},
+      userId:profile.id,kind:'video',body:downloaded.bytes,mime,prompt:job.prompt,model:job.model,
+      meta:{video_job_id:id,provider_job_id:job.provider_job_id,provider:'picsart',provider_usage:provider.usage ?? {},config:job.config},
     });
     const storing = await db.from('video_jobs').update({
       status:'storing',media_asset_id:media.id,provider_usage:provider.usage ?? {},
@@ -171,16 +148,14 @@ export const GET = handle(async (_req: NextRequest, { params }: Ctx) => {
     if (storing.error) throw storing.error;
     if (!storing.data) throw new HttpError(409,'Video job changed while the completed file was stored','video_job_conflict');
 
-    const usage = {
-      model:job.model,provider:'openrouter-video-api',
-      prompt_tokens:Number(provider.usage?.prompt_tokens ?? 0),
-      completion_tokens:Number(provider.usage?.completion_tokens ?? 0),
-      cost_usd:Number(provider.usage?.cost ?? 0),
-      latency_ms:Math.max(0,Date.now()-new Date(job.submitted_at).getTime()),
-    };
     const settlement = await db.rpc('complete_video_job',{
-      p_job:id,p_user:profile.id,p_asset:media.id,p_charge:job.credits_reserved,p_usage:usage,
-      p_result:{providerGenerationId:provider.generation_id ?? null},
+      p_job:id,p_user:profile.id,p_asset:media.id,p_charge:job.credits_reserved,
+      p_usage:{
+        model:job.model,provider:'picsart-video-api',
+        prompt_tokens:0,completion_tokens:0,cost_usd:0,
+        latency_ms:Math.max(0,Date.now()-new Date(job.submitted_at).getTime()),
+      },
+      p_result:{provider:'picsart',providerJobId:job.provider_job_id,providerCredits:Number(provider.usage?.credits ?? 0)},
     });
     if (settlement.error) throw settlement.error;
     const fresh = await db.from('video_jobs').select('*').eq('id',id).eq('user_id',profile.id).single();

@@ -1,14 +1,14 @@
 # Ilm AI Cloudflare AI Router
 
-The Worker is the **only provider-inference gateway** for the Next.js application. Coolify performs user authentication, plan/credit checks, prompt and conversation preparation, then sends a signed request to this Worker. The Worker verifies HMAC signatures, applies per-user replay/rate protection and streams the provider response back.
+The Worker is the **only provider-inference gateway** for the Next.js application. Coolify performs user authentication, plan/credit checks, prompt and conversation preparation, then sends signed requests to this Worker. The Worker verifies HMAC signatures, applies per-user replay/rate protection, and proxies to the configured provider without exposing provider credentials to the browser.
 
-**Initial production topology:** OpenRouter is the primary model catalogue and inference gateway. Coolify reads the public model catalogue/prices from OpenRouter server-side. All text/image/video inference requests go through this Worker, which calls OpenRouter. Groq keys power Suggestions and Auto model selection. Gemini keys power image-to-text understanding before the selected answer model is called.
+**Provider topology:** OpenRouter remains the text-chat inference and text-model catalogue provider. Groq powers AI Suggestions and Gemini powers chat-image understanding. Picsart is the image/video generation provider and its live catalogue is the source of truth for media model IDs, parameter schemas and routing.
 
 ## Configure Cloudflare
 
-Run from the repository root, or use the equivalent commands from `workers/ai-router`:
+Run from the repository root, or use equivalent commands from `workers/ai-router`:
 
-1. Create the Worker shell once in Cloudflare Dashboard → Workers & Pages → Create Worker. Name it exactly `ilmai-ai-router` and deploy the starter Hello World script. This bootstrap is needed before Wrangler can attach secrets to the Worker.
+1. Create the Worker shell once in Cloudflare Dashboard → Workers & Pages → Create Worker. Name it exactly `ilmai-ai-router` and deploy the starter Hello World script. This bootstrap is needed before Wrangler can attach secrets.
 2. In a terminal, install and verify the code:
    ```bash
    cd workers/ai-router
@@ -17,49 +17,62 @@ Run from the repository root, or use the equivalent commands from `workers/ai-ro
    npm test
    npx wrangler login
    ```
-3. Set both required Worker secrets using Wrangler's interactive prompts:
+3. Set the required Worker secrets using Wrangler's interactive prompts:
    ```bash
    npx wrangler secret put AI_ROUTER_SECRET
    npx wrangler secret put OPENROUTER_API_KEY
+   npx wrangler secret put PICSART_API_KEY
    ```
-   `AI_ROUTER_SECRET` must be a newly generated random secret. `OPENROUTER_API_KEY` is the OpenRouter key used by this Worker for inference; the same OpenRouter key is also configured separately in Coolify for catalogue discovery. Never put secret values in source control, `.env.example`, Worker vars, or browser-side `NEXT_PUBLIC_*` values.
+   `AI_ROUTER_SECRET` must be a newly generated random secret. `OPENROUTER_API_KEY` is used for text inference. `PICSART_API_KEY` is the Picsart API Platform key used only for image/video catalogue and workflows. Never put secret values in source control, `.env.example`, Worker vars, Supabase, or browser-side `NEXT_PUBLIC_*` values.
 4. Deploy the repository's Worker code and inspect configured secret names (not values):
    ```bash
    npx wrangler deploy
    npx wrangler secret list
    ```
 5. Wrangler prints the deployed Worker URL, normally `https://ilmai-ai-router.<account-subdomain>.workers.dev`. Copy the actual URL; do not use the example hostname.
-6. Optional secrets are added from Cloudflare Dashboard → Workers & Pages → `ilmai-ai-router` → Settings → Variables and Secrets → Add → Secret. Use names `GROQ_API_KEY_1` through `GROQ_API_KEY_10`, and `GEMINI_API_KEY_1` through `GEMINI_API_KEY_10`. The Worker KeyPool can rotate multiple slots and cool down keys on rate-limit/auth/server errors. The Suggestions endpoint uses Groq-hosted GPT-OSS/Qwen models only. When users attach images to chat, Gemini reads the images and returns a text report. The selected answer model receives that report, never the original image bytes or URL. The UI continues to show the original photo beside the user's message.
+6. Optional secrets are added from Cloudflare Dashboard → Workers & Pages → `ilmai-ai-router` → Settings → Variables and Secrets → Add → Secret. Use names `GROQ_API_KEY_1` through `GROQ_API_KEY_10`, and `GEMINI_API_KEY_1` through `GEMINI_API_KEY_10`. The Suggestions endpoint uses Groq-hosted GPT-OSS/Qwen models only. For chat image attachments, Gemini extracts a text report; only that text reaches the selected answer model, while the original image remains visible beside the user's message.
 
 SQLite-backed Durable Objects are required for request replay/rate protection and key pools. Review Cloudflare plan limits and enable spend alerts before production usage.
+
+## Picsart media generation
+
+- The Next.js app requests the live Picsart model catalogue through the signed `/picsart/gw-v2/v1/models-catalog` Worker route, including schema, constraints and routing metadata for image and video modes.
+- Image and video generations use the Picsart dynamic `v1/models` workflow. Short/synchronous image models use `execute`; asynchronous models and videos use `submit` followed by `result` polling.
+- The Worker pins the upstream origin to `https://api.picsart.com`, adds the Picsart Bearer token server-side, and does not accept a caller-supplied host.
+- Image and video output URLs are validated as HTTPS Picsart CDN URLs, size-limited, downloaded server-side, and saved into the user's private Backblaze B2 Library.
+- Provider-reported Picsart credits are recorded as provider usage metadata; they are **not** treated as Ilm AI wallet credits. The app retains its own admin-configured generation prices and reservation/refund logic.
+- Admin → Models → Picsart image & video models shows all non-deprecated models returned by the live catalogue. Enable/disable models and set an independent default for each mode. Newly published Picsart models appear after catalogue refresh; unsupported/custom IDs are not fabricated.
+
+If the Worker has no `PICSART_API_KEY` secret, the media catalogue returns a clear configuration error. Add the secret in Cloudflare and deploy the Worker before enabling image/video generation.
 
 ## Coolify Next.js variables
 
 Set these on the **main Ilm AI app**:
 
-- `AI_ROUTER_URL`: the base Worker URL only (no `/v1/chat/completions` suffix).
+- `AI_ROUTER_URL`: the base Worker URL only (no API endpoint suffix).
 - `AI_ROUTER_SECRET`: the exact same secret value as the Worker's `AI_ROUTER_SECRET`.
-- `OPENROUTER_API_KEY`: the OpenRouter key for server-side model catalogue/pricing discovery. Configure the same OpenRouter key separately as the Worker secret above.
+- `OPENROUTER_API_KEY`: used for server-side text-model catalogue/pricing discovery and other text-model requests that remain on OpenRouter.
 
-Redeploy the Next.js app after updating variables. Keep all three server-only. Never expose provider keys or the HMAC secret in `NEXT_PUBLIC_*` values.
+Do **not** put `PICSART_API_KEY` in Coolify. Keep it as a Cloudflare Worker secret. Redeploy the Next.js app after changing its server-only variables.
 
 ## Request flow
 
-1. Browser → Coolify Next.js API (the browser never calls a provider).
-2. Coolify authenticates the user, checks plan/features and credit balance, and prepares the model request.
+1. Browser → Coolify Next.js API (the browser never calls a model provider).
+2. Coolify authenticates the user, checks plan/features and Ilm AI wallet credits, and prepares the model request.
 3. Coolify signs the exact method/path/body with HMAC-SHA256, timestamp and nonce.
-4. Cloudflare Worker validates the signature and nonce, enforces per-user limits, then sends inference to OpenRouter (or an explicitly server-approved direct provider route).
-5. Response streams Worker → Coolify → browser. Coolify records provider-reported token usage/cost and settles wallet credits.
+4. Cloudflare Worker validates the signature and nonce, enforces per-user limits, then routes text inference to OpenRouter and image/video catalog or workflow requests to Picsart.
+5. Response returns Worker → Coolify → browser. Coolify records provider usage and settles Ilm AI wallet credits separately.
 
-Manual model selection does not silently switch to a different model on failure. Auto mode may choose and fail over among the server-approved candidate list. Provider names shown in the picker are model publishers/namespaces from the OpenRouter catalogue; the initial production inference route remains OpenRouter.
+Manual text-model selection does not silently switch to another model on failure. Auto mode may choose and fail over among the server-approved text-model candidate list. Picsart image/video model availability is controlled by the live Picsart catalogue and the admin's enabled/default settings.
 
 ## Endpoints
 
 - `GET /health` — public liveness only; does not prove provider credentials are configured.
-- `GET /providers/health` — HMAC-signed provider slot health (never returns keys).
-- `POST /v1/chat/completions` — signed chat/streaming; `routing.provider=auto` accepts a server-built candidate allowlist.
-- `GET /v1/images/models...` and `POST /v1/images` — signed OpenRouter image catalogue and generation proxy.
-- `POST|GET /v1/videos...` — signed OpenRouter video-generation proxy.
+- `GET /providers/health` — HMAC-signed provider configuration/slot health (never returns keys).
+- `POST /v1/chat/completions` — signed OpenRouter/Groq/Gemini chat routing.
+- `GET /picsart/gw-v2/v1/models-catalog` — signed Picsart image/video catalogue proxy.
+- `POST /picsart/gw-v2/workflows/v1/models/execute` — synchronous Picsart generation.
+- `POST /picsart/gw-v2/workflows/v1/models/submit` and `GET /picsart/gw-v2/workflows/v1/models/{id}/result` — asynchronous Picsart generation and status polling.
 
 ## Local development
 

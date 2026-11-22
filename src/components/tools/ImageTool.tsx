@@ -5,9 +5,11 @@ import { ImagePlus, Loader2, Download, Sparkles, RefreshCw } from 'lucide-react'
 import { useApp } from '@/components/chat/AppShell';
 import { useToast } from '@/components/providers';
 import { api } from '@/lib/client-api';
+import { AttachmentPicker } from '@/components/AttachmentPicker';
+import type { Attachment } from '@/lib/attachment-validation';
 
 type ParameterCatalog = string[];
-type ImageModel = { id: string; name: string; description: string; parameters: ParameterCatalog; inputModalities: string[] };
+type ImageModel = { id: string; name: string; description: string; parameters: ParameterCatalog; inputModalities: string[]; parameterOptions?: { aspect_ratio?: string[]; resolution?: string[]; quality?: string[]; output_format?: string[]; n?: string[] }; parameterRanges?: { n?: { min: number; max: number; step: number } | null } };
 type GeneratedAsset = { id: string; kind: string; mime: string; sizeBytes: number; createdAt: string; url: string };
 type Template = { id: string; label: string; description: string; prompt: string };
 
@@ -35,6 +37,8 @@ export function ImageTool() {
   const [quality, setQuality] = useState('');
   const [outputFormat, setOutputFormat] = useState<(typeof FORMATS)[number]>('png');
   const [count, setCount] = useState(1);
+  const [referenceImages, setReferenceImages] = useState<Attachment[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [loadingModels, setLoadingModels] = useState(true);
   const [busy, setBusy] = useState(false);
   const [action, setAction] = useState('');
@@ -43,7 +47,9 @@ export function ImageTool() {
   const [error, setError] = useState('');
 
   const selectedModel = useMemo(() => models.find((model) => model.id === modelId) ?? null, [models, modelId]);
-  const supports = (key: string) => !!selectedModel?.parameters.includes(key);
+  const supports = (key: string) => key === 'imageUrls'
+    ? !!selectedModel?.inputModalities.includes('image')
+    : !!selectedModel?.parameters.includes(key);
 
   const loadModels = useCallback(async () => {
     setLoadingModels(true); setError('');
@@ -71,11 +77,17 @@ export function ImageTool() {
 
   useEffect(() => {
     if (!selectedModel) return;
+    const options = selectedModel?.parameterOptions;
     if (!supports('aspect_ratio')) setAspectRatio('');
+    else setAspectRatio((current) => options?.aspect_ratio?.length && current && !options.aspect_ratio.includes(current) ? '' : current);
     if (!supports('resolution')) setResolution('');
+    else setResolution((current) => options?.resolution?.length && current && !options.resolution.includes(current) ? '' : current);
     if (!supports('quality')) setQuality('');
+    else setQuality((current) => options?.quality?.length && current && !options.quality.includes(current) ? '' : current);
     if (!supports('output_format')) setOutputFormat('png');
+    else setOutputFormat((current) => options?.output_format?.length && !options.output_format.includes(current) ? options.output_format[0] as typeof outputFormat : current);
     if (!supports('n')) setCount(1);
+    else setCount((current) => options?.n?.length && !options.n.includes(String(current)) ? Number(options.n[0]) : current);
   }, [modelId, selectedModel]);
 
   function applyTemplate(template: Template) {
@@ -83,23 +95,27 @@ export function ImageTool() {
   }
 
   async function generate() {
-    if (busy || prompt.trim().length < 3 || !modelId) return;
+    if (busy || uploading || prompt.trim().length < 3 || !modelId) return;
     setBusy(true); setAction('Generating image'); setError('');
     try {
-      const finalPrompt = negativePrompt.trim()
+      const nativeNegativePrompt = supports('negative_prompt');
+      const finalPrompt = negativePrompt.trim() && !nativeNegativePrompt
         ? prompt.trim() + '\n\nAvoid these visual elements: ' + negativePrompt.trim()
         : prompt.trim();
       const data = await api<{ assets: GeneratedAsset[]; creditsCharged: number }>('/api/generate/image', 'POST', {
         requestId: crypto.randomUUID(),
         prompt: finalPrompt,
+        negativePrompt: nativeNegativePrompt ? negativePrompt.trim() || undefined : undefined,
         model: modelId,
         aspectRatio: aspectRatio || undefined,
         resolution: resolution || undefined,
         quality: quality || undefined,
         outputFormat: supports('output_format') ? outputFormat : undefined,
         count,
+        referenceAssetIds: referenceImages.map((item) => item.asset_id).filter((id): id is string => !!id),
       });
       setAssets((current) => [...data.assets, ...current]);
+      setReferenceImages([]);
       await refreshMe();
       toast('Generated ' + data.assets.length + ' image' + (data.assets.length === 1 ? '' : 's'), 'ok');
     } catch (e) {
@@ -134,6 +150,11 @@ export function ImageTool() {
           <textarea className="input min-h-16" dir="auto" maxLength={1200} placeholder="e.g. blurry details, extra fingers, watermarks, text, cluttered background" value={negativePrompt} onChange={(e) => setNegativePrompt(e.target.value)} />
           <span className="block text-[11px] font-normal text-muted-foreground">This is added as an instruction to the prompt. A dedicated negative-prompt parameter is used only by models that expose it.</span>
         </label>
+        {supports('imageUrls') && <div className="space-y-2">
+          <p className="text-sm font-medium">Reference images (optional)</p>
+          <AttachmentPicker value={referenceImages} onChange={(items) => setReferenceImages(items.slice(0, 4))} disabled={busy} onUploadingChange={setUploading} />
+          <p className="text-[11px] text-muted-foreground">This model accepts reference images for image-to-image editing or visual guidance.</p>
+        </div>}
 
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="space-y-1 text-sm font-medium">Image model
@@ -143,25 +164,25 @@ export function ImageTool() {
           </label>
           <label className="space-y-1 text-sm font-medium">Number of images
             <select className="input" value={count} onChange={(e) => setCount(Number(e.target.value))} disabled={busy || !supports('n')}>
-              {[1,2,3,4].map((n) => <option key={n} value={n}>{n}</option>)}
+              {(selectedModel?.parameterOptions?.n?.length ? selectedModel.parameterOptions.n.map(Number) : [1,2,3,4]).map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
             {!supports('n') && <span className="block text-[11px] font-normal text-muted-foreground">This model returns one image per request.</span>}
           </label>
           {supports('aspect_ratio') && <label className="space-y-1 text-sm font-medium">Aspect ratio
-            <select className="input" value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value)}><option value="">Model default</option>{ASPECT_RATIOS.map((ratio) => <option key={ratio} value={ratio}>{ratio}</option>)}</select>
+            <select className="input" value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value)}><option value="">Model default</option>{(selectedModel?.parameterOptions?.aspect_ratio?.length ? selectedModel.parameterOptions.aspect_ratio : ASPECT_RATIOS).map((ratio) => <option key={ratio} value={ratio}>{ratio}</option>)}</select>
           </label>}
           {supports('resolution') && <label className="space-y-1 text-sm font-medium">Resolution
-            <select className="input" value={resolution} onChange={(e) => setResolution(e.target.value)}><option value="">Model default</option>{RESOLUTIONS.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+            <select className="input" value={resolution} onChange={(e) => setResolution(e.target.value)}><option value="">Model default</option>{(selectedModel?.parameterOptions?.resolution?.length ? selectedModel.parameterOptions.resolution : RESOLUTIONS).map((item) => <option key={item} value={item}>{item}</option>)}</select>
           </label>}
           {supports('quality') && <label className="space-y-1 text-sm font-medium">Quality
-            <select className="input" value={quality} onChange={(e) => setQuality(e.target.value)}><option value="">Model default</option>{QUALITIES.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+            <select className="input" value={quality} onChange={(e) => setQuality(e.target.value)}><option value="">Model default</option>{(selectedModel?.parameterOptions?.quality?.length ? selectedModel.parameterOptions.quality : QUALITIES).map((item) => <option key={item} value={item}>{item}</option>)}</select>
           </label>}
           {supports('output_format') && <label className="space-y-1 text-sm font-medium">File format
-            <select className="input" value={outputFormat} onChange={(e) => setOutputFormat(e.target.value as typeof outputFormat)}>{FORMATS.map((format) => <option key={format} value={format}>{format.toUpperCase()}</option>)}</select>
+            <select className="input" value={outputFormat} onChange={(e) => setOutputFormat(e.target.value as typeof outputFormat)}>{(selectedModel?.parameterOptions?.output_format?.length ? selectedModel.parameterOptions.output_format : FORMATS).map((format) => <option key={format} value={format}>{format.toUpperCase()}</option>)}</select>
           </label>}
         </div>
         {selectedModel && <p className="text-xs text-muted-foreground">{selectedModel.description || selectedModel.id} · {selectedModel.parameters.length} reported options detected from the live model catalog.</p>}
-        <button className="btn-primary w-full !py-3 sm:w-auto" disabled={busy || loadingModels || !modelId || prompt.trim().length < 3} onClick={generate}>
+        <button className="btn-primary w-full !py-3 sm:w-auto" disabled={busy || uploading || loadingModels || !modelId || prompt.trim().length < 3} onClick={generate}>
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} {busy ? action || 'Working…' : 'Generate image'}
         </button>
       </section>

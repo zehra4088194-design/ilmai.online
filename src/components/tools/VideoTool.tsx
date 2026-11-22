@@ -57,6 +57,16 @@ export function VideoTool() {
         frame:!!selected?.supportedFrameImages.includes('first_frame'),
       },[modelId,models,selected,maxDuration]);
 
+  useEffect(() => {
+    if (choices.durations.length && !choices.durations.includes(duration)) setDuration(choices.durations[0]);
+    if (choices.ratios.length && !choices.ratios.includes(aspectRatio)) setAspectRatio(choices.ratios[0]);
+    else if (!choices.ratios.length && aspectRatio) setAspectRatio('');
+    if (choices.resolutions.length && !choices.resolutions.includes(resolution)) setResolution(choices.resolutions[0]);
+    else if (!choices.resolutions.length && resolution) setResolution('');
+    if (!choices.audio && generateAudio) setGenerateAudio(false);
+    if (!choices.frame && frame.length) setFrame([]);
+  }, [choices, duration, aspectRatio, resolution, generateAudio, frame]);
+
   const loadJobs = useCallback(async () => {
     const result = await api<{jobs:VideoJob[]}>('/api/generate/video','GET');
     setJobs(result.jobs ?? []);
@@ -147,7 +157,7 @@ export function VideoTool() {
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="space-y-1 text-sm font-medium">Video model
             <select className="input" value={modelId} onChange={(e)=>setModelId(e.target.value)} disabled={busy}>
-              <option value="auto">Auto · cheapest compatible model</option>
+              <option value="auto">Auto · default compatible Picsart model</option>
               {models.map((model)=><option key={model.id} value={model.id}>{model.name}</option>)}
             </select>
           </label>
