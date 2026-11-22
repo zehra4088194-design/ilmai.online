@@ -1,5 +1,5 @@
 'use client';
-import { LogoMark } from '@/components/ui/Logo';
+import Image from 'next/image';
 import { useAppearance, type LoaderStyle } from '@/components/providers';
 import { cn } from '@/lib/utils';
 
@@ -42,7 +42,11 @@ export function LoaderGraphic({ style, className }: { style: LoaderStyle; classN
       );
     case 'logo':
     default:
-      return <span className={cn('ld-spin inline-grid h-8 w-8 place-items-center', className)} aria-hidden><LogoMark className="h-7 w-7" /></span>;
+      return (
+        <span className={cn('ld-spin inline-grid h-8 w-8 place-items-center', className)} aria-hidden>
+          <Image src="/spin.webp" alt="" aria-hidden width={56} height={56} unoptimized className="h-7 w-7 object-contain" />
+        </span>
+      );
   }
 }
 
