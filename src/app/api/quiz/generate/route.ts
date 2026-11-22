@@ -56,7 +56,6 @@ export const POST = handle(async (req: NextRequest) => {
     language: body.language,
   };
   const started = Date.now();
-  const minimumUsefulQuestions = Math.max(3, Math.ceil(count * 0.6));
 
   let questions = parseQuiz('', 0);
   let used = '';
@@ -98,7 +97,7 @@ export const POST = handle(async (req: NextRequest) => {
   }
 
   let repairError = '';
-  if (questions.length < minimumUsefulQuestions) {
+  if (questions.length < count) {
     try {
       const repair = await utilityChat(
         [
@@ -144,8 +143,20 @@ export const POST = handle(async (req: NextRequest) => {
       promptTokens += repair.promptTokens;
       completionTokens += repair.completionTokens;
       const repaired = parseQuiz(repair.text, count);
-      if (repaired.length > questions.length) {
-        questions = repaired;
+      const seen = new Set(questions.map((question) =>
+        question.question.trim().toLocaleLowerCase().replace(/\s+/g, ' '),
+      ));
+      const combined = [
+        ...questions,
+        ...repaired.filter((question) => {
+          const key = question.question.trim().toLocaleLowerCase().replace(/\s+/g, ' ');
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        }),
+      ].slice(0, count);
+      if (combined.length > questions.length) {
+        questions = combined;
         used = repair.model;
       }
     } catch (error) {
