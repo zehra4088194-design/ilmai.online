@@ -29,7 +29,7 @@ function providerUrl(provider: Provider) {
   return OPENROUTER_BASE + '/chat/completions';
 }
 
-export async function callChatProvider(env: Env, candidate: ModelCandidate, payload: Record<string, unknown>, signal?: AbortSignal): Promise<RoutedResponse> {
+export async function callChatProvider(env: Env, candidate: ModelCandidate, payload: Record<string, unknown>, signal?: AbortSignal, timeoutMs = Number(env.PROVIDER_TIMEOUT_MS || 30_000)): Promise<RoutedResponse> {
   const provider: Provider = candidate.provider ?? 'openrouter';
   if (provider === 'openrouter') {
     if (!env.OPENROUTER_API_KEY) return { response: Response.json({ error: 'OpenRouter is not configured' }, { status: 503 }), model: candidate.id, provider, attempts: 0 };
@@ -51,7 +51,8 @@ export async function callChatProvider(env: Env, candidate: ModelCandidate, payl
     const response = await fetch(providerUrl(provider), {
       method: 'POST',
       headers: { Authorization: 'Bearer ' + current.key, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...payload, model: candidate.id }), signal,
+      body: JSON.stringify({ ...payload, model: candidate.id }),
+      signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs),
     }).catch((error) => new Response(JSON.stringify({ error: String(error) }), { status: 502, headers: { 'Content-Type': 'application/json' } }));
     await report(env, current, response.status);
     if (response.ok) return { response, model: candidate.id, provider, attempts };
@@ -76,7 +77,7 @@ export async function routeAuto(env: Env, candidates: ModelCandidate[], messages
     messages: [{ role: 'system', content: prompt }, { role: 'user', content: JSON.stringify(messages).slice(0, 12_000) }],
     temperature: 0,
     max_tokens: 64,
-  }, AbortSignal.timeout(Number(env.ROUTING_TIMEOUT_MS || 8000)));
+  }, undefined, Number(env.ROUTING_TIMEOUT_MS || 8000));
   if (routed.response.ok) {
     const json = await routed.response.json().catch(() => ({})) as { choices?: { message?: { content?: string } }[] };
     const choice = (json.choices?.[0]?.message?.content ?? '').trim().replace(/^["']+|["']+$/g, '');
