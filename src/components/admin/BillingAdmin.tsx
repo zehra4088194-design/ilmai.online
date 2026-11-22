@@ -185,7 +185,7 @@ export function BillingAdmin({initial}:{initial:Data}) {
     </section>
 
     <section className="space-y-3">
-      <div><h2 className="text-lg font-bold">Plan catalogue</h2><p className="text-sm text-muted-foreground">Public pricing, the checkout amount and credits granted after a verified payment are read from these saved plan records.</p></div>
+      <div><h2 className="text-lg font-bold">Plan catalogue</h2><p className="text-sm text-muted-foreground">Period credits become a shared, expiring allowance for chat, image, video and tools. They are spent first; separately purchased wallet credits remain available after the plan period.</p></div>
       {data.plans.map((plan)=>{
         const paddleReady=data.providers.paddleConfigured&&plan.currency==='USD'&&!!plan.paddle_price_id;
         const payproReady=data.providers.payproConfigured&&plan.currency==='PKR'&&plan.paypro_enabled;

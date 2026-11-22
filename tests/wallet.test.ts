@@ -19,7 +19,7 @@ beforeAll(async () => {
     alter default privileges in schema public grant usage,select on sequences to service_role;
     alter default privileges in schema public grant select,insert,update,delete on tables to authenticated;
   `);
-  for (const file of ['0001_init.sql','0002_modes_quiz_suggestions.sql','0004_wallet_security.sql']) {
+  for (const file of ['0001_init.sql','0002_modes_quiz_suggestions.sql','0004_wallet_security.sql','0022_shared_credit_buckets.sql','0024_usage_pkr_cost_snapshot.sql']) {
     const sql = await readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), 'utf8');
     await db.exec(sql.replace(/create extension if not exists pgcrypto\s*;/gi, ''));
   }
@@ -62,6 +62,60 @@ describe('real PostgreSQL wallet transactions', () => {
     await db.query('select grant_daily_credits()');
     expect((await balance()).credits_balance).toBe(50);
     expect((await db.query<{ delta: number }>("select delta::int from credit_transactions where user_id=$1 and reason='daily_free_topup'",[user])).rows).toEqual([{ delta: 50 }]);
+  });
+
+  it('spends shared plan credits before wallet credits and records the settlement split', async () => {
+    const bucketId = id(40);
+    await db.query(
+      `insert into plan_credit_buckets(id,user_id,plan_id,period_start,period_end,credits_granted,credits_remaining)
+       values($1,$2,'pro',now()-interval '1 day',now()+interval '29 days',150,150)`,
+      [bucketId,user],
+    );
+    await db.query('select reserve_generation($1,$2,$3,$4,$5)', [id(41),user,'plan:first','image',180]);
+    expect((await db.query<{credits_reserved:number}>('select credits_reserved::int from profiles where id=$1',[user])).rows[0].credits_reserved).toBe(30);
+    expect((await db.query<{credits_reserved:number}>('select credits_reserved::int from plan_credit_buckets where id=$1',[bucketId])).rows[0].credits_reserved).toBe(150);
+
+    await db.query('select settle_generation($1,$2,$3,$4)', [id(41),user,100,usage]);
+    expect((await db.query<{credits_balance:number;credits_reserved:number}>('select credits_balance::int,credits_reserved::int from profiles where id=$1',[user])).rows[0])
+      .toEqual({credits_balance:50,credits_reserved:0});
+    expect((await db.query<{credits_remaining:number;credits_reserved:number}>('select credits_remaining::int,credits_reserved::int from plan_credit_buckets where id=$1',[bucketId])).rows[0])
+      .toEqual({credits_remaining:50,credits_reserved:0});
+    const logged = (await db.query<{plan_credits_used:number;wallet_credits_used:number;provider_usage:Record<string,unknown>}>(
+      'select plan_credits_used::int,wallet_credits_used::int,provider_usage from usage_events where request_id=$1',[id(41)]
+    )).rows[0];
+    expect(logged).toEqual({plan_credits_used:100,wallet_credits_used:0,provider_usage:{}});
+  });
+
+  it('direct charges consume remaining plan credits then wallet credits exactly once', async () => {
+    const charged = await db.query<{result:{planCreditsUsed:number;walletCreditsUsed:number}}>(
+      `select charge_credits($1,80,'direct-checkout','direct-charge-1') as result`,[user]
+    );
+    expect(charged.rows[0].result.planCreditsUsed).toBe(50);
+    expect(charged.rows[0].result.walletCreditsUsed).toBe(30);
+    expect((await db.query<{credits_balance:number}>('select credits_balance::int from profiles where id=$1',[user])).rows[0].credits_balance).toBe(20);
+    const duplicate = await db.query<{duplicate:boolean}>(
+      `select (charge_credits($1,80,'direct-checkout','direct-charge-1')->>'duplicate')::boolean as duplicate`,[user]
+    );
+    expect(duplicate.rows[0].duplicate).toBe(true);
+    expect((await db.query<{count:number}>('select count(*)::int from credit_transactions where user_id=$1 and idempotency_key=$2',[user,'direct-charge-1'])).rows[0].count).toBe(1);
+  });
+
+  it('snapshots the current USD to PKR rate on provider usage rows', async () => {
+    await db.query(
+      `insert into app_settings(key,value) values('usd_pkr_rate',$1::jsonb)
+       on conflict(key) do update set value=excluded.value`,
+      [JSON.stringify({usdToPkr:280.5})],
+    );
+    await db.query(
+      `insert into usage_events(user_id,kind,cost_usd) values($1,'chat',0.01)`,
+      [user],
+    );
+    const row=(await db.query<{cost_pkr:number;usd_to_pkr:number}>(
+      `select cost_pkr::float8,usd_to_pkr::float8 from usage_events
+       where user_id=$1 and kind='chat' order by id desc limit 1`,
+      [user],
+    )).rows[0];
+    expect(row).toEqual({cost_pkr:2.805,usd_to_pkr:280.5});
   });
   it('RLS rejects cross-owner conversation references and private wallet RPC calls', async () => {
     const conv = id(20);

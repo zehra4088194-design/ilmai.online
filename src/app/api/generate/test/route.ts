@@ -199,6 +199,9 @@ export const POST = handle(async (req: NextRequest) => {
         completion_tokens: usage.completion_tokens ?? 0,
         cost_usd: usage.cost ?? 0,
         latency_ms: Date.now() - started,
+        provider_usage: { prompt_tokens: totalPromptTokens, completion_tokens: totalCompletionTokens, cost: totalCost, aggregatedAcrossFallbackAttempts: true },
+        usage_details: { mediaKind: 'test', questionCount: requested, sourceCount: ids.length, subject: config.subject, grade: config.grade },
+        model_tier: model.tier, credit_multiplier: 1,
       },
       p_result: { testId: reservationId, version: 1 },
     });

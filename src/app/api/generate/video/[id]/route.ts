@@ -110,6 +110,9 @@ export const GET = handle(async (_req: NextRequest, { params }: Ctx) => {
           model:job.model,provider:'picsart-video-api',
           prompt_tokens:0,completion_tokens:0,cost_usd:0,
           latency_ms:Math.max(0,Date.now()-new Date(job.submitted_at).getTime()),
+          provider_usage:provider.usage ?? {},
+          usage_details:{mediaKind:'video',duration:Number((job.config as Record<string,unknown>)?.duration ?? 0)},
+          model_tier:'media',credit_multiplier:1,
         },
         p_result:{provider:'picsart',providerJobId:job.provider_job_id,providerCredits:Number(provider.usage?.credits ?? 0)},
       });

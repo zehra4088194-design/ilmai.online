@@ -9,17 +9,25 @@ export const dynamic = 'force-dynamic';
 
 export default async function Page() {
   const { profile } = await requireUserPage();
-  const { data: usage } = await adminClient().from('usage_events').select('kind,model,credits_used,created_at,status')
-    .eq('user_id', profile.id).order('created_at', { ascending: false }).limit(12);
+  const db=adminClient();
+  const [{data:usage},{data:balances,error:balanceError}] = await Promise.all([
+    db.from('usage_events').select('kind,model,credits_used,created_at,status')
+      .eq('user_id', profile.id).order('created_at', { ascending: false }).limit(12),
+    db.rpc('get_credit_balances',{p_user:profile.id}),
+  ]);
+  if(balanceError) throw balanceError;
+  const walletAvailable=Math.max(0,Number(balances?.walletBalance??0)-Number(balances?.walletReserved??0));
+  const planAvailable=Math.max(0,Number(balances?.planBalance??0)-Number(balances?.planReserved??0));
 
   return (
     <>
       <MobileTopBar title="Settings" />
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-2xl space-y-6 px-4 py-8">
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             <div className="card p-4"><p className="text-xs text-muted-foreground">Plan</p><p className="text-2xl font-extrabold capitalize">{profile.plan}</p></div>
-            <div className="card p-4"><p className="text-xs text-muted-foreground">Credits left</p><p className="text-2xl font-extrabold">{fmtNum(profile.credits_balance)}</p></div>
+            <div className="card p-4"><p className="text-xs text-muted-foreground">Available shared plan credits</p><p className="text-2xl font-extrabold">{fmtNum(planAvailable)}</p>{balances?.periodEnd&&<p className="mt-1 text-xs text-muted-foreground">Expires {fmtDate(String(balances.periodEnd))}</p>}</div>
+            <div className="card p-4"><p className="text-xs text-muted-foreground">Available wallet credits</p><p className="text-2xl font-extrabold">{fmtNum(walletAvailable)}</p><p className="mt-1 text-xs text-muted-foreground">Purchased/top-up credits remain separate from monthly plan credits.</p></div>
             <div className="card p-4"><p className="text-xs text-muted-foreground">Member since</p><p className="text-lg font-bold">{new Date(profile.created_at).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}</p></div>
           </div>
           <SettingsClient id={profile.id} name={profile.full_name ?? ''} preferences={profile.preferences ?? {}} />

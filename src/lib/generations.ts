@@ -35,7 +35,13 @@ export async function settleGeneration(input: { id: string; userId: string; char
   const u = input.usage;
   const { data, error } = await adminClient().rpc('settle_generation', {
     p_id: input.id, p_user: input.userId, p_charge: input.charge,
-    p_usage: { model: u.model, provider: u.model?.includes('::') ? u.model.split('::')[0] : 'openrouter', prompt_tokens: u.promptTokens ?? 0, completion_tokens: u.completionTokens ?? 0, cost_usd: u.costUsd ?? 0, latency_ms: u.latencyMs ?? null },
+    p_usage: {
+      model: u.model, provider: u.provider ?? (u.model?.includes('::') ? u.model.split('::')[0] : 'openrouter'),
+      prompt_tokens: u.promptTokens ?? 0, completion_tokens: u.completionTokens ?? 0,
+      cost_usd: u.costUsd ?? 0, latency_ms: u.latencyMs ?? null,
+      provider_usage: u.providerUsage ?? {}, usage_details: u.usageDetails ?? {},
+      model_tier: u.modelTier ?? null, credit_multiplier: u.creditMultiplier ?? 1,
+    },
     p_result: input.result ?? null, p_message: input.message ?? null,
   });
   if (error) throw error;

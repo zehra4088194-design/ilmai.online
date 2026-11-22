@@ -11,7 +11,7 @@ import type { ChatMessage } from '@/lib/openrouter';
 import { aiRouterFetch, type RouterCandidate } from '@/lib/ai-router';
 import { adminClient } from '@/lib/supabase/admin';
 import { AttachmentIds, prepareChatAttachments, type ImageAnalysisUsage } from '@/lib/attachments';
-import { creditsFor, addCredits } from '@/lib/credits';
+import { creditsFor, chargeCredits, getAvailableCredits, creditMultiplierFor } from '@/lib/credits';
 import { logUsage } from '@/lib/usage';
 
 export const runtime = 'nodejs';
@@ -53,7 +53,7 @@ export const POST = handle(async (req: NextRequest) => {
   if (!model || (!model.enabled && !isAdmin)) throw new HttpError(400, 'This model is not available', 'model_unavailable');
   if (!isChatCapable(model)) throw new HttpError(400, 'This model cannot be used for chat (music, speech or media model)', 'model_not_chat');
   if (!isAdmin && !canUseTier(profile.plan, model.tier)) throw new HttpError(403, 'This model needs the ' + model.tier + ' plan', 'plan_required');
-  if (!isAdmin && profile.credits_balance <= 0) throw new HttpError(402, 'You are out of credits', 'out_of_credits');
+  if (!isAdmin && await getAvailableCredits(profile.id) <= 0) throw new HttpError(402, 'You are out of credits', 'out_of_credits');
 
   const db = adminClient();
   const { data: conv } = await db.from('conversations').select('id,mode').eq('id', body.conversationId).eq('user_id', profile.id).maybeSingle();
@@ -105,12 +105,19 @@ export const POST = handle(async (req: NextRequest) => {
     /\b(math|mathematics|equation|integral|matrix|prove|calculate)\b/i.test(String(userMsg.content)) ? 'Mathematics or reasoning task.' : '',
     String(userMsg.content).slice(0, 500),
   ].filter(Boolean).join(' ');
-  const logImageAnalysis = async (creditsUsed = 0, error?: string) => {
+  const logImageAnalysis = async (
+    creditsUsed = 0,
+    error?: string,
+    split?: { planCreditsUsed: number; walletCreditsUsed: number },
+  ) => {
     if (!imageAnalysis) return;
     await logUsage({
-      userId: profile.id, kind: 'image_understanding', model: imageAnalysis.model,
+      userId: profile.id, kind: 'image_understanding', model: imageAnalysis.model, provider: 'gemini',
       promptTokens: imageAnalysis.promptTokens, completionTokens: imageAnalysis.completionTokens,
-      costUsd: imageAnalysis.costUsd, creditsUsed, latencyMs: Date.now() - started,
+      costUsd: imageAnalysis.costUsd, creditsUsed,
+      planCreditsUsed: split?.planCreditsUsed ?? 0, walletCreditsUsed: split?.walletCreditsUsed ?? 0,
+      providerUsage: {}, usageDetails: { helper: 'image-analysis' },
+      latencyMs: Date.now() - started,
       status: error ? 'error' : 'ok', error,
     });
   };
@@ -121,8 +128,15 @@ export const POST = handle(async (req: NextRequest) => {
     if (!isAdmin) {
       const amount = creditsFor(imageAnalysis.costUsd, imageAnalysis.promptTokens + imageAnalysis.completionTokens, settings);
       try {
-        await addCredits(profile.id, -amount, 'image_understanding:' + imageAnalysis.model);
+        const charged = await chargeCredits(
+          profile.id, amount, 'image_understanding:' + imageAnalysis.model,
+          'image-understanding:' + userMsg.id,
+        );
         applied = amount;
+        await logImageAnalysis(applied, undefined, {
+          planCreditsUsed: charged.planCreditsUsed, walletCreditsUsed: charged.walletCreditsUsed,
+        });
+        return;
       } catch (error) {
         debitError = error instanceof Error ? error.message : 'Wallet debit failed';
       }
@@ -168,7 +182,10 @@ export const POST = handle(async (req: NextRequest) => {
     const cost = usage?.cost ?? 0;
     const totalTokens = pt + ct + (imageAnalysis?.promptTokens ?? 0) + (imageAnalysis?.completionTokens ?? 0);
     const totalCost = cost + (imageAnalysis?.costUsd ?? 0);
-    const charge = !isAdmin && (full || usage || imageAnalysis) ? creditsFor(totalCost, totalTokens, settings) : 0;
+    const billedModel = autoMode ? autoCandidates.find((candidate) => candidate.id === actualModel) ?? model : model;
+    const multiplier = creditMultiplierFor(billedModel.tier, settings);
+    const charge = !isAdmin && (full || usage || imageAnalysis)
+      ? creditsFor(totalCost, totalTokens, settings, multiplier) : 0;
     if (full) {
       await db.from('messages').insert({
         conversation_id: conv.id, user_id: profile.id, role: 'assistant', content: full,
@@ -177,11 +194,18 @@ export const POST = handle(async (req: NextRequest) => {
       await db.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', conv.id);
     }
     let creditsApplied = 0;
+    let planCreditsUsed = 0;
+    let walletCreditsUsed = 0;
     let creditError: string | undefined;
     if (charge) {
       try {
-        await addCredits(profile.id, -charge, kind + ':' + actualModel);
+        const charged = await chargeCredits(
+          profile.id, charge, kind + ':' + actualModel,
+          'chat:' + userMsg.id + ':' + actualModel,
+        );
         creditsApplied = charge;
+        planCreditsUsed = charged.planCreditsUsed;
+        walletCreditsUsed = charged.walletCreditsUsed;
       } catch (error) {
         creditError = error instanceof Error ? error.message : 'Wallet debit failed';
         console.error('[credits] Chat debit was not applied:', creditError);
@@ -189,7 +213,15 @@ export const POST = handle(async (req: NextRequest) => {
     }
     await logImageAnalysis(0);
     await logUsage({
-      userId: profile.id, kind, model: actualModel, promptTokens: pt, completionTokens: ct, costUsd: cost, creditsUsed: creditsApplied,
+      userId: profile.id, kind, model: actualModel, provider: actualProvider,
+      modelTier: billedModel.tier, creditMultiplier: multiplier,
+      promptTokens: pt, completionTokens: ct, costUsd: cost, creditsUsed: creditsApplied,
+      planCreditsUsed, walletCreditsUsed,
+      providerUsage: usage ?? {},
+      usageDetails: {
+        requestedModel: body.model, autoMode, comparison: !!body.multi,
+        imageAnalysisIncluded: !!imageAnalysis, totalBillableTokens: totalTokens,
+      },
       latencyMs: Date.now() - started,
       status: creditError || (errMsg && !full) ? 'error' : 'ok',
       error: [errMsg, creditError ? 'Credit debit not applied: ' + creditError : ''].filter(Boolean).join('; ') || undefined,

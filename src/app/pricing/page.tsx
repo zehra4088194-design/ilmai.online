@@ -104,7 +104,8 @@ export default async function PricingPage() {
         <ShieldCheck className="mx-auto mb-2 h-5 w-5 text-primary"/>
         <h2 className="font-bold">Secure payment and transparent credits</h2>
         <p className="mt-1 text-sm text-muted-foreground">Plans, prices, AI credit amounts, included features and periods are maintained in Admin → Plans & discounts. Taxes or provider-specific checkout totals may be shown by the payment provider before you confirm.</p>
-        <p className="mt-3 text-xs text-muted-foreground">Credits are usage units, not cash or a fixed count of model tokens. Actual usage depends on the selected model and feature. USD equivalents are estimates for comparison; payment providers may use their own settlement or checkout conversion.</p>
+        <p className="mt-3 text-xs text-muted-foreground">Paid plan credits are one shared allowance across chat, image generation, video generation and tools. They are spent before wallet credits and unused plan credits expire at the end of the plan period. Separately purchased wallet credits remain in your account.</p>
+        <p className="mt-2 text-xs text-muted-foreground">Credits are usage units, not cash or a fixed count of model tokens. Actual usage depends on the selected model and feature. USD equivalents are estimates for comparison; payment providers may use their own settlement or checkout conversion.</p>
       </div>
     </section>
     <footer className="border-t border-border/60 px-5 py-7">

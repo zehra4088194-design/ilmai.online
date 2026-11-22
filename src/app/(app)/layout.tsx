@@ -10,11 +10,16 @@ export const dynamic = 'force-dynamic';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { profile, isAdmin } = await requireUserPage();
-  const [features, settings, bannerResult] = await Promise.all([
+  const [features, settings, bannerResult, creditResult] = await Promise.all([
     featuresForUser(profile.plan, isAdmin), getSettings(),
     adminClient().from('site_creatives').select('title,alt_text,storage_path')
       .eq('location','banner').eq('is_active',true).order('sort_order').limit(1).maybeSingle(),
+    adminClient().rpc('get_credit_balances',{p_user:profile.id}),
   ]);
+  if(creditResult.error) throw creditResult.error;
+  const walletAvailable=Math.max(0,Number(creditResult.data?.walletBalance??0)-Number(creditResult.data?.walletReserved??0));
+  const planAvailable=Math.max(0,Number(creditResult.data?.planBalance??0)-Number(creditResult.data?.planReserved??0));
+  const availableCredits=walletAvailable+planAvailable;
   const banner = bannerResult.data ? {
     title: bannerResult.data.title,
     altText: bannerResult.data.alt_text,
@@ -35,7 +40,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <AppShell
-      user={{ id: profile.id, name: profile.full_name ?? '', email: profile.email ?? '', plan: profile.plan, credits: profile.credits_balance, isAdmin, appearance: (profile.preferences?.appearance as Partial<Appearance> | undefined) ?? null }}
+      user={{ id: profile.id, name: profile.full_name ?? '', email: profile.email ?? '', plan: profile.plan, credits: availableCredits, isAdmin, appearance: (profile.preferences?.appearance as Partial<Appearance> | undefined) ?? null }}
       features={features}
       announcement={settings.announcement}
       banner={banner}
