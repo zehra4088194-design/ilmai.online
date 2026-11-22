@@ -12,6 +12,13 @@ export type UsageInput = {
   latencyMs?: number;
   status?: 'ok' | 'error';
   error?: string;
+  provider?: string | null;
+  providerUsage?: Record<string, unknown>;
+  usageDetails?: Record<string, unknown>;
+  modelTier?: string | null;
+  creditMultiplier?: number;
+  planCreditsUsed?: number;
+  walletCreditsUsed?: number;
 };
 
 /** Fire-and-forget analytics row (never throws). */
@@ -25,6 +32,13 @@ export async function logUsage(u: UsageInput) {
       completion_tokens: u.completionTokens ?? 0,
       cost_usd: u.costUsd ?? 0,
       credits_used: u.creditsUsed ?? 0,
+      provider: u.provider ?? null,
+      provider_usage: u.providerUsage ?? {},
+      usage_details: u.usageDetails ?? {},
+      model_tier: u.modelTier ?? null,
+      credit_multiplier: u.creditMultiplier ?? 1,
+      plan_credits_used: u.planCreditsUsed ?? 0,
+      wallet_credits_used: u.walletCreditsUsed ?? 0,
       latency_ms: u.latencyMs ?? null,
       status: u.status ?? 'ok',
       error: u.error?.slice(0, 500) ?? null,
