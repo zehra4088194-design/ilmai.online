@@ -17,7 +17,7 @@ export function LogoMark({ className }: { className?: string }) {
         className={cn(sizeClass, 'dark:hidden')}
       />
       <Image
-        src="/icon.svg"
+        src="/icon.webp"
         alt=""
         aria-hidden
         width={64}
