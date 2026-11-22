@@ -6,7 +6,7 @@ import { Lightbulb, CircleHelp } from 'lucide-react';
 export function Suggestions({ items, loading, onPick, onQuiz }: { items: string[]; loading: boolean; onPick: (text: string) => void; onQuiz?: () => void }) {
   if (!loading && items.length === 0 && !onQuiz) return null;
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mx-auto w-full max-w-3xl">
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mx-auto w-full max-w-none">
       <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground"><Lightbulb className="h-3.5 w-3.5 text-primary" />Ask next</p>
       <div className="flex flex-wrap gap-2">
         {loading && items.length === 0 && [60, 44, 52].map((w, i) => <span key={i} className="h-9 animate-pulse rounded-full bg-muted" style={{ width: `${w * 3}px` }} />)}
