@@ -42,9 +42,11 @@ export async function callChatProvider(env: Env, candidate: ModelCandidate, payl
   }
   let attempts = 0;
   let last = new Response('Provider keys are not configured', { status: 503 });
+  const attemptedSlots = new Set<number>();
   while (attempts < 10) {
     const current = await lease(env, provider);
-    if (!current) return { response: last, model: candidate.id, provider, attempts };
+    if (!current || attemptedSlots.has(current.slot)) return { response: last, model: candidate.id, provider, attempts };
+    attemptedSlots.add(current.slot);
     attempts++;
     const response = await fetch(providerUrl(provider), {
       method: 'POST',
@@ -69,7 +71,7 @@ export async function routeAuto(env: Env, candidates: ModelCandidate[], messages
     'Choose the best capability fit. Respect vision and document requirements. Prefer low latency for simple requests and stronger quality for complex reasoning, mathematics and long writing.',
     'Task hints: ' + hints,
     'Candidates: ' + JSON.stringify(sorted),
-  ].join('\\n');
+  ].join('\n');
   const routed = await callChatProvider(env, { id: routingModel, provider: 'groq' }, {
     messages: [{ role: 'system', content: prompt }, { role: 'user', content: JSON.stringify(messages).slice(0, 12_000) }],
     temperature: 0,
