@@ -57,6 +57,7 @@ export class KeyPool {
         'cooldown_until INTEGER NOT NULL DEFAULT 0, failures INTEGER NOT NULL DEFAULT 0, ' +
         'PRIMARY KEY(provider,slot))'
       );
+      state.storage.sql.exec('CREATE TABLE IF NOT EXISTS key_pool_cursors (provider TEXT PRIMARY KEY, next_slot INTEGER NOT NULL DEFAULT 1)');
     });
   }
 
@@ -71,18 +72,32 @@ export class KeyPool {
       for (let slot = 1; slot <= 10; slot++) if (slotKey(this.env, provider, slot)) configured.push(slot);
       if (!configured.length) return Response.json({ error: 'provider_not_configured' }, { status: 503 });
       for (const slot of configured) this.state.storage.sql.exec('INSERT OR IGNORE INTO key_slots(provider,slot) VALUES(?,?)', provider, slot);
+      this.state.storage.sql.exec('INSERT OR IGNORE INTO key_pool_cursors(provider,next_slot) VALUES(?,1)', provider);
       const now = Date.now();
-      const available = this.state.storage.sql.exec<{ slot: number }>(
-        'SELECT slot FROM key_slots WHERE provider=? AND slot IN (' + configured.map(() => '?').join(',') +
-        ') AND cooldown_until<=? ORDER BY last_used ASC, slot ASC LIMIT 1',
-        provider, ...configured, now,
-      ).toArray()[0]?.slot;
+      const nextSlot = this.state.storage.sql.exec<{ next_slot: number }>(
+        'SELECT next_slot FROM key_pool_cursors WHERE provider=?', provider,
+      ).toArray()[0]?.next_slot ?? 1;
+      let available: number | undefined;
+      for (let offset = 0; offset < 10; offset++) {
+        const slot = ((nextSlot + offset - 1) % 10) + 1;
+        if (!configured.includes(slot)) continue;
+        const candidate = this.state.storage.sql.exec<{ slot: number }>(
+          'SELECT slot FROM key_slots WHERE provider=? AND slot=? AND cooldown_until<=? LIMIT 1',
+          provider, slot, now,
+        ).toArray()[0]?.slot;
+        if (candidate !== undefined) { available = candidate; break; }
+      }
       if (available === undefined) {
         const earliest = this.state.storage.sql.exec<{ cooldown_until: number }>(
           'SELECT MIN(cooldown_until) AS cooldown_until FROM key_slots WHERE provider=?', provider,
         ).toArray()[0]?.cooldown_until ?? now + 30_000;
         return Response.json({ error: 'all_keys_cooling_down', retryAfterMs: Math.max(1000, earliest - now) }, { status: 429 });
       }
+      const followingSlot = available >= 10 ? 1 : available + 1;
+      this.state.storage.sql.exec(
+        'INSERT INTO key_pool_cursors(provider,next_slot) VALUES(?,?) ON CONFLICT(provider) DO UPDATE SET next_slot=excluded.next_slot',
+        provider, followingSlot,
+      );
       this.state.storage.sql.exec('UPDATE key_slots SET last_used=? WHERE provider=? AND slot=?', now, provider, available);
       return Response.json({ provider, slot: available, key: slotKey(this.env, provider, available) });
     }
