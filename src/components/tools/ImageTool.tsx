@@ -86,7 +86,8 @@ export function ImageTool() {
     if (busy || prompt.trim().length < 3 || !modelId) return;
     setBusy(true); setAction('Generating image'); setError('');
     try {
-      const finalPrompt = negativePrompt.trim()
+      const nativeNegativePrompt = supports('negative_prompt');
+      const finalPrompt = negativePrompt.trim() && !nativeNegativePrompt
         ? prompt.trim() + '\n\nAvoid these visual elements: ' + negativePrompt.trim()
         : prompt.trim();
       const data = await api<{ assets: GeneratedAsset[]; creditsCharged: number }>('/api/generate/image', 'POST', {
