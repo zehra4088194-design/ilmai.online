@@ -6,28 +6,16 @@ export function LogoMark({ className }: { className?: string }) {
   const sizeClass = cn('h-8 w-8 shrink-0 object-contain', className);
 
   return (
-    <>
-      <Image
-        src="/brand/ilm-ai-light.webp"
-        alt=""
-        aria-hidden
-        width={64}
-        height={64}
-        unoptimized
-        className={cn(sizeClass, 'dark:hidden')}
-      />
-      <Image
-        src="/icon.webp"
-        alt=""
-        aria-hidden
-        width={64}
-        height={64}
-        unoptimized
-        className={cn(sizeClass, 'hidden dark:block')}
-      />
-    </>
+    <Image
+      src="/icon.png"
+      alt=""
+      aria-hidden
+      width={64}
+      height={64}
+      unoptimized
+      className={sizeClass}
+    />
   );
-}
 
 export function Logo({ href = '/', className }: { href?: string; className?: string }) {
   return (
