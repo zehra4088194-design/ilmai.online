@@ -34,7 +34,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   min_credits_per_msg: 1,
   max_history_messages: 30,
   max_upload_mb: 15,
-  system_prompt: 'You are Ilm AI, a helpful assistant.',
+  system_prompt: 'Reply in the same language the user writes in (English, Urdu or Roman Urdu). Be clear, accurate and friendly.',
   max_parallel_models: 4,
   utility_models: '',
   suggestions_per_day: 300,

@@ -1,7 +1,6 @@
 'use client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { Menu } from 'lucide-react';
 import { useApp } from '@/components/chat/AppShell';
 import { ModelBar } from '@/components/chat/ModelBar';
 import { Composer } from '@/components/chat/Composer';
@@ -15,6 +14,9 @@ import { useModels } from '@/components/chat/useModels';
 import { useToast } from '@/components/providers';
 import { api } from '@/lib/client-api';
 import { createSpeechRecognition, type SpeechRecognitionLike } from '@/lib/speech';
+import { cleanModelName } from '@/lib/provider-meta';
+import { fallbackSuggestions } from '@/lib/suggestions-fallback';
+import { cleanForSpeech, loadVoicePrefs, speak, stopSpeaking } from '@/lib/voice';
 import { WebsiteBuilderDialog } from '@/components/website/WebsiteBuilderDialog';
 
 type ServerMsg = { id: string; role: 'user' | 'assistant'; content: string; model: string | null; attachments?: Attachment[]; meta: Msg['meta'] };
@@ -23,7 +25,7 @@ export function ChatView() {
   const pathname = usePathname();
   const routeId = pathname.startsWith('/chat/') ? pathname.split('/')[2] || null : null;
 
-  const { user, features, featureOn, refreshConversations, refreshMe, openSidebar } = useApp();
+  const { user, features, featureOn, refreshConversations, refreshMe } = useApp();
   const toast = useToast();
   const { models, selected, toggle, maxParallel, multi: compareAvailable, compareMode, setCompareMode, loading: modelsLoading } = useModels();
 
@@ -42,7 +44,7 @@ export function ChatView() {
   const [callActive, setCallActive] = useState(false);
   const [callStatus, setCallStatus] = useState<'idle'|'listening'|'thinking'|'speaking'>('idle');
 
-  const names = useMemo(() => new Map(models.map((m) => [m.id, m.name.replace(/^[^:]+:\\s*/, '')])), [models]);
+  const names = useMemo(() => new Map(models.map((m) => [m.id, cleanModelName(m.name)])), [models]);
   const groups = useMemo(() => groupMessages(messages), [messages]);
 
   const convRef = useRef<string | null>(null);
@@ -76,6 +78,15 @@ export function ChatView() {
 
   useEffect(() => { if (stick.current) endRef.current?.scrollIntoView({ block: 'end' }); }, [messages, suggestions]);
 
+  // The composer animates its height; keep the newest message visible while the viewport grows/shrinks.
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => { if (stick.current) el.scrollTop = el.scrollHeight; });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   useEffect(() => {
     callActiveRef.current = callActive;
     if (!callActive) {
@@ -83,7 +94,7 @@ export function ChatView() {
       callPausedRef.current = false;
       try { callRecognition.current?.stop(); } catch { /* already stopped */ }
       callRecognition.current = null;
-      if (typeof window !== 'undefined') window.speechSynthesis?.cancel();
+      stopSpeaking();
       return;
     }
 
@@ -152,8 +163,11 @@ export function ChatView() {
     setSugLoading(true);
     try {
       const r = await api<{ suggestions: string[] }>('/api/suggest', 'POST', { user, assistant: assistant.slice(0, 6000) });
-      if (token === sugToken.current) setSuggestions(r.suggestions ?? []);
-    } catch { /* suggestions are optional */ } finally { if (token === sugToken.current) setSugLoading(false); }
+      if (token === sugToken.current) setSuggestions(r.suggestions?.length ? r.suggestions : fallbackSuggestions(user));
+    } catch {
+      // suggestions are optional, but never leave the area empty
+      if (token === sugToken.current) setSuggestions(fallbackSuggestions(user));
+    } finally { if (token === sugToken.current) setSugLoading(false); }
   }, []);
 
   async function streamOne(cid: string, umid: string, model: string, multi: boolean, aid: string, effort: 'low' | 'medium' | 'high' | undefined): Promise<string> {
@@ -245,25 +259,18 @@ export function ChatView() {
     const firstOk = results.find((r) => r.length > 0);
     if (firstOk && featureOn('suggestions')) loadSuggestions(t, firstOk);
     if (firstOk && callActiveRef.current && typeof window !== 'undefined' && window.speechSynthesis) {
-      const spoken = firstOk.replace(/(```[\s\S]*?```|[*_#>`])/g, ' ').replace(/https?:\/\/\S+/g, 'link').slice(0, 5000);
-      const utterance = new SpeechSynthesisUtterance(spoken);
-      utterance.onstart = () => setCallStatus('speaking');
-      utterance.onend = () => {
+      const resumeListening = () => {
         setCallStatus(callActiveRef.current ? 'listening' : 'idle');
         callPausedRef.current = false;
         if (callActiveRef.current && !busyRef.current) {
           try { callRecognition.current?.start(); } catch { /* recognition session may still be closing */ }
         }
       };
-      utterance.onerror = () => {
-        setCallStatus(callActiveRef.current ? 'listening' : 'idle');
-        callPausedRef.current = false;
-        if (callActiveRef.current && !busyRef.current) {
-          try { callRecognition.current?.start(); } catch { /* ignore browser restart race */ }
-        }
-      };
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(utterance);
+      speak(cleanForSpeech(firstOk), loadVoicePrefs(), {
+        onStart: () => setCallStatus('speaking'),
+        onEnd: resumeListening,
+        onError: resumeListening,
+      });
     } else if (callActiveRef.current) {
       callPausedRef.current = false;
       setCallStatus('listening');
@@ -280,13 +287,14 @@ export function ChatView() {
     setBusy(false);
     if (callActiveRef.current) {
       callPausedRef.current = false;
-      window.speechSynthesis?.cancel();
+      stopSpeaking();
       try { callRecognition.current?.start(); } catch { /* resume recognition */ }
     }
   };
 
   async function enhancePrompt() {
     if (!input.trim() || enhancing || busy || uploading) return;
+    if (input.trim().length < 3) { toast('Write a few words first, then tap Enhance.', 'info'); return; }
     setEnhancing(true);
     try {
       const result = await api<{ prompt: string }>('/api/prompt/enhance', 'POST', { prompt: input });
@@ -330,7 +338,11 @@ export function ChatView() {
           <div className="space-y-7">
             {groups.map((g) => <TurnView key={g.key} group={g} names={names} onAsk={send} onEdit={(text) => { setInput(text); toast('Prompt copied to the composer. Edit it, then send.', 'info'); }} onNewQuiz={(topic) => setQuizDlg({ topic })} />)}
             {!busy && lastGroup && (suggestions.length > 0 || sugLoading) && (
-              <Suggestions items={suggestions} loading={sugLoading} onPick={send} />
+              <Suggestions items={suggestions} loading={sugLoading} onPick={send}
+                onQuiz={quizOn ? () => setQuizDlg({
+                  topic: (lastGroup.user?.content ?? '').slice(0, 120),
+                  context: (lastGroup.answers.find((a) => !a.error && a.content)?.content ?? '').slice(0, 4000) || undefined,
+                }) : undefined} />
             )}
           </div>
           <div ref={endRef} />
@@ -342,7 +354,6 @@ export function ChatView() {
           attachments={attachments} onAttachmentsChange={setAttachments} onUploadingChange={setUploading}
           features={features} onQuiz={quizOn ? () => setQuizDlg({}) : undefined}
           modelSlot={<>
-            <button type="button" onClick={openSidebar} className="btn-ghost h-8 w-8 shrink-0 !p-0 lg:hidden" aria-label="Open menu"><Menu className="h-4 w-4" /></button>
             {modelsLoading ? <div className="h-7 w-48 animate-pulse rounded-full bg-muted" /> : <ModelBar models={models} selected={selected} onToggle={toggle} max={maxParallel} compareAvailable={compareAvailable} compareMode={compareMode} onCompareModeChange={setCompareMode} disabled={busy} />}
           </>}
           thinking={thinking} onThinkingChange={setThinking} onEnhance={enhancePrompt} enhancing={enhancing}

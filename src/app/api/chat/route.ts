@@ -4,7 +4,7 @@ import { handle, HttpError } from '@/lib/http';
 import { requireUserApi } from '@/lib/auth';
 import { requireFeature } from '@/lib/features';
 import { getSettings } from '@/lib/settings';
-import { getModel, getAllTextModels, canUseTier, type ModelInfo } from '@/lib/models';
+import { getModel, getAllTextModels, canUseTier, isChatCapable, type ModelInfo } from '@/lib/models';
 import { buildSystemPrompt } from '@/lib/prompt';
 import { buildHistory } from '@/lib/history';
 import type { ChatMessage } from '@/lib/openrouter';
@@ -51,6 +51,7 @@ export const POST = handle(async (req: NextRequest) => {
     throw new HttpError(503, 'No enabled models are available for Auto routing', 'auto_models_unavailable');
   let model = autoMode ? autoCandidates[0] : await getModel(body.model);
   if (!model || (!model.enabled && !isAdmin)) throw new HttpError(400, 'This model is not available', 'model_unavailable');
+  if (!isChatCapable(model)) throw new HttpError(400, 'This model cannot be used for chat (music, speech or media model)', 'model_not_chat');
   if (!isAdmin && !canUseTier(profile.plan, model.tier)) throw new HttpError(403, 'This model needs the ' + model.tier + ' plan', 'plan_required');
   if (!isAdmin && profile.credits_balance <= 0) throw new HttpError(402, 'You are out of credits', 'out_of_credits');
 
@@ -85,7 +86,7 @@ export const POST = handle(async (req: NextRequest) => {
     ? await attachmentContent(userMsg.content as string, attachmentIds, profile.id, { vision: model.vision, documents: model.documents })
     : userMsg.content as string;
   const messages: ChatMessage[] = [
-    { role: 'system', content: buildSystemPrompt({ settings }) },
+    { role: 'system', content: buildSystemPrompt({ settings, model: autoMode ? null : { id: model.id, name: model.name, provider: model.provider } }) },
     ...history,
     { role: 'user', content: currentUserContent },
   ];
@@ -100,7 +101,7 @@ export const POST = handle(async (req: NextRequest) => {
   }));
   const hints = [
     attachmentIds.length ? 'Attached files must be read; choose vision/document capable models.' : '',
-    /\\b(math|mathematics|equation|integral|matrix|prove|calculate)\\b/i.test(String(userMsg.content)) ? 'Mathematics or reasoning task.' : '',
+    /\b(math|mathematics|equation|integral|matrix|prove|calculate)\b/i.test(String(userMsg.content)) ? 'Mathematics or reasoning task.' : '',
     String(userMsg.content).slice(0, 500),
   ].filter(Boolean).join(' ');
   const upstream = await aiRouterFetch({

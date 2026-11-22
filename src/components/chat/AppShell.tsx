@@ -3,7 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, Search, Pin, Pencil, Trash2, ShieldCheck, Menu, X, Image as ImageIcon, Video, GraduationCap, FolderKanban, Library as LibraryIcon, Folder, FolderPlus, FolderInput, FolderOpen, CreditCard, ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Plus, Search, Pin, Pencil, Trash2, ShieldCheck, Menu, X, Image as ImageIcon, Video, GraduationCap, FolderKanban, Library as LibraryIcon, Folder, FolderPlus, FolderInput, CreditCard, ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen, Coins } from 'lucide-react';
 import { Logo, LogoMark } from '@/components/ui/Logo';
 import { ThemeModeToggle } from '@/components/chat/ThemeModeToggle';
 import { cn, fmtNum } from '@/lib/utils';
@@ -87,8 +87,13 @@ export function AppShell({ user, features, announcement, banner, children }: {
           )}
         </AnimatePresence>
 
-        <main className="relative flex min-w-0 flex-1 flex-col bg-background">
-          {(pathname==='/chat'||pathname.startsWith('/chat/'))&&<div className="pointer-events-auto absolute right-4 top-3 z-40"><ThemeModeToggle/></div>}
+        <main className="app-main relative flex min-w-0 flex-1 flex-col">
+          {(pathname==='/chat'||pathname.startsWith('/chat/'))&&(
+            <div className="flex h-12 shrink-0 items-center gap-2 px-3 sm:px-4">
+              <button type="button" className="btn-ghost h-9 w-9 !p-0 lg:hidden" onClick={()=>setOpen(true)} aria-label="Open menu"><Menu className="h-4 w-4"/></button>
+              <div className="ml-auto"><ThemeModeToggle/></div>
+            </div>
+          )}
           {banner?.url && (
             <div className="relative w-full overflow-hidden bg-muted">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -105,25 +110,42 @@ export function AppShell({ user, features, announcement, banner, children }: {
   );
 }
 
+function groupByDate(items: Conv[]) {
+  const now = new Date();
+  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const day = 86_400_000;
+  const groups: { label: string; items: Conv[] }[] = [
+    { label: 'Pinned', items: [] }, { label: 'Today', items: [] }, { label: 'Yesterday', items: [] },
+    { label: 'Previous 7 days', items: [] }, { label: 'Older', items: [] },
+  ];
+  for (const chat of items) {
+    if (chat.pinned) { groups[0].items.push(chat); continue; }
+    const t = new Date(chat.updated_at).getTime();
+    if (t >= startToday) groups[1].items.push(chat);
+    else if (t >= startToday - day) groups[2].items.push(chat);
+    else if (t >= startToday - 7 * day) groups[3].items.push(chat);
+    else groups[4].items.push(chat);
+  }
+  return groups.filter((g) => g.items.length > 0);
+}
+
 function Sidebar({ collapsed=false, onCollapse }: { collapsed?:boolean; onCollapse?:()=>void }) {
   const { user, credits, features, conversations, folders, refreshFolders, refreshConversations } = useApp();
   const router = useRouter();
   const pathname = usePathname();
   const [q, setQ] = useState('');
-  const [activeFolderId, setActiveFolderId] = useState<string | null>('all');
-  const [foldersExpanded, setFoldersExpanded] = useState(false);
-  const [chatsExpanded, setChatsExpanded] = useState(false);
+  const [foldersExpanded, setFoldersExpanded] = useState(true);
   const [expandedFolderIds, setExpandedFolderIds] = useState<string[]>([]);
   const [moveChatId, setMoveChatId] = useState<string | null>(null);
   const toast = useToast();
 
   const activeId = pathname.startsWith('/chat/') ? pathname.split('/')[2] : null;
-  const list = conversations.filter((c) =>
-    c.title.toLowerCase().includes(q.toLowerCase()) &&
-    (activeFolderId === 'all' ? true : activeFolderId === null ? !c.folder_id : c.folder_id === activeFolderId)
-  );
-  const unfiledCount = conversations.filter((c) => !c.folder_id).length;
-  const folderCount = (id: string) => conversations.filter((c) => c.folder_id === id).length;
+  const search = q.trim().toLowerCase();
+  const matches = (c: Conv) => !search || (c.title || 'New chat').toLowerCase().includes(search);
+  // Chats inside a folder live under that folder; everything else is one simple list grouped by date.
+  // While searching, every chat is searched (folder or not).
+  const looseChats = conversations.filter((c) => matches(c) && (search ? true : !c.folder_id));
+  const chatGroups = groupByDate(looseChats);
   const imageFeature = features.find((f) => f.key === 'image_generation');
   const videoFeature = features.find((f) => f.key === 'video_generation');
 
@@ -167,7 +189,6 @@ function Sidebar({ collapsed=false, onCollapse }: { collapsed?:boolean; onCollap
     if (!confirm(`Delete folder "${folder.name}"? Its chats will stay in All chats.`)) return;
     try {
       await folderRequest('/api/chat-folders/' + folder.id, 'DELETE');
-      if (activeFolderId === folder.id) setActiveFolderId('all');
       await Promise.all([refreshFolders(), refreshConversations()]);
       toast('Folder deleted. Its chats are safe in All chats.', 'ok');
     } catch (error) { toast(error instanceof Error ? error.message : 'Could not delete folder', 'err'); }
@@ -203,7 +224,7 @@ function Sidebar({ collapsed=false, onCollapse }: { collapsed?:boolean; onCollap
   }
 
   const navClass = (href: string) => cn(
-    'flex h-10 items-center gap-3 rounded-lg px-3 text-[13px] font-medium transition-colors',
+    'flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium transition-colors',
     pathname === href || (href !== '/chat' && pathname.startsWith(href + '/')) || (href === '/chat' && pathname === '/chat')
       ? 'bg-muted text-foreground'
       : 'text-muted-foreground hover:bg-muted hover:text-foreground',
@@ -231,23 +252,46 @@ function Sidebar({ collapsed=false, onCollapse }: { collapsed?:boolean; onCollap
     );
   }
 
+  function renderChatRow(chat: Conv, nested = false) {
+    return (
+      <div key={chat.id} className={cn('group relative rounded-lg transition', activeId===chat.id?'bg-muted text-foreground':'text-muted-foreground hover:bg-muted hover:text-foreground')}>
+        <Link href={'/chat/'+chat.id} className={cn('block truncate py-2 pl-2.5 text-xs md:pr-2.5 md:group-hover:pr-[6.5rem] md:group-focus-within:pr-[6.5rem]', 'pr-[6.5rem]', nested && 'text-[11px]')} dir="auto">
+          {chat.pinned&&<Pin className="mr-1 inline h-3 w-3 text-primary"/>}{chat.title || 'New chat'}
+        </Link>
+        <div className="absolute right-1 top-1 flex items-center gap-0.5 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
+          <button className="rounded-md p-1.5 hover:bg-background" onClick={()=>act(chat.id,'pin',chat)} aria-label="Pin chat" title="Pin chat"><Pin className="h-3 w-3"/></button>
+          <button className="rounded-md p-1.5 hover:bg-background" onClick={()=>act(chat.id,'rename',chat)} aria-label="Rename chat" title="Rename chat"><Pencil className="h-3 w-3"/></button>
+          <button className="rounded-md p-1.5 hover:bg-background" onClick={()=>setMoveChatId(moveChatId===chat.id?null:chat.id)} aria-label="Move chat to folder" title="Move chat to folder"><FolderInput className="h-3 w-3"/></button>
+          <button className="rounded-md p-1.5 text-danger hover:bg-background" onClick={()=>act(chat.id,'delete',chat)} aria-label="Delete chat" title="Delete chat"><Trash2 className="h-3 w-3"/></button>
+        </div>
+        {moveChatId===chat.id&&<div className="absolute right-1 top-9 z-30 w-44 rounded-xl border border-border bg-card p-2 shadow-xl">
+          <label className="mb-1 block text-[10px] font-semibold text-muted-foreground">Move to</label>
+          <select autoFocus className="input h-8 py-1 text-xs" value={chat.folder_id??''} onChange={e=>moveChat(chat.id,e.target.value)}>
+            <option value="">No folder</option>
+            {folders.map(folder=><option key={folder.id} value={folder.id}>{folder.name}</option>)}
+          </select>
+        </div>}
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full w-full flex-col px-2.5 py-3">
-      <div className="mb-3 flex h-9 items-center justify-between px-2">
+      <div className="mb-2 flex h-9 items-center justify-between px-1.5">
         <Logo href="/chat" />
         <button type="button" onClick={() => router.push('/chat')} className="grid h-9 w-9 place-items-center rounded-xl border border-border bg-muted/60 text-muted-foreground transition hover:border-primary/50 hover:bg-accent hover:text-primary" aria-label="New chat" title="New chat">
           <Plus className="h-4 w-4"/>
         </button>
       </div>
 
-      {imageFeature && (
-        <Link href="/tools/image_generation" className={cn(navClass('/tools/image_generation'),'mb-2 bg-muted/50 font-semibold')}>
+
+      <nav className="space-y-px">
+        {imageFeature && (
+        <Link href="/tools/image_generation" className={navClass('/tools/image_generation')}>
           <ImageIcon className="h-4 w-4 text-primary"/>Photo Studio
           {imageFeature.state !== 'active' && <span className="ml-auto text-[10px] text-muted-foreground">{imageFeature.state === 'locked_plan' ? 'Locked' : 'Soon'}</span>}
-        </Link>
-      )}
-
-      <nav className="space-y-0.5">
+          </Link>
+        )}
         {videoFeature && (
           <Link href="/tools/video_generation" className={navClass('/tools/video_generation')}>
             <Video className="h-4 w-4 text-primary" />Video Studio
@@ -265,109 +309,78 @@ function Sidebar({ collapsed=false, onCollapse }: { collapsed?:boolean; onCollap
         </Link>
       </nav>
 
-      <div className="mt-4 min-h-0 flex-1 overflow-y-auto border-t border-border pt-3">
-        <section className="space-y-1">
-          <div className="flex items-center gap-1 px-1">
-            <button type="button" onClick={()=>setFoldersExpanded((value)=>!value)} aria-expanded={foldersExpanded}
-              className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-lg px-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:bg-muted hover:text-foreground">
-              {foldersExpanded?<ChevronDown className="h-3.5 w-3.5"/>:<ChevronRight className="h-3.5 w-3.5"/>}
-              <span>Folders</span><span className="ml-auto text-[10px] font-normal">{folders.length}</span>
-            </button>
-            <button type="button" onClick={createFolder} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-primary" aria-label="Create folder" title="Create folder"><FolderPlus className="h-4 w-4"/></button>
-          </div>
-          {foldersExpanded && <div className="space-y-1">
-            {folders.length===0&&<p className="px-3 py-2 text-xs text-muted-foreground">No folders yet. Create one to organise chats.</p>}
-            {folders.map(folder=>{
-              const folderChats=conversations.filter(c=>c.folder_id===folder.id&&c.title.toLowerCase().includes(q.toLowerCase()));
-              const isExpanded=expandedFolderIds.includes(folder.id);
-              return <div key={folder.id} className={cn('rounded-lg',activeFolderId===folder.id?'bg-muted/70':'hover:bg-muted/60')}>
-                <div className="group/folder flex min-h-8 items-center">
-                  <button type="button" onClick={()=>{setActiveFolderId(folder.id);setChatsExpanded(true);}}
-                    className={cn('flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left text-xs',activeFolderId===folder.id?'text-foreground':'text-muted-foreground')}>
-                    <Folder className="h-3.5 w-3.5 shrink-0" style={{color:folder.color}}/>
-                    <span className="truncate">{folder.name}</span><span className="ml-auto text-[10px] opacity-70">{folderChats.length}</span>
-                  </button>
-                  <button type="button" onClick={()=>setExpandedFolderIds(old=>old.includes(folder.id)?old.filter(id=>id!==folder.id):[...old,folder.id])}
-                    className="rounded p-1 text-muted-foreground hover:text-primary" aria-label={isExpanded?'Collapse folder chats':'Expand folder chats'} title={isExpanded?'Collapse chats':'Expand chats'}>
-                    {isExpanded?<ChevronDown className="h-3.5 w-3.5"/>:<ChevronRight className="h-3.5 w-3.5"/>}
-                  </button>
-                  <div className="mr-1 flex items-center md:opacity-0 md:group-hover/folder:opacity-100 md:group-focus-within/folder:opacity-100">
-                    <button type="button" onClick={()=>cycleFolderColor(folder)} className="rounded p-1 text-muted-foreground hover:text-primary" title="Change folder colour" aria-label="Change folder colour"><span className="block h-2.5 w-2.5 rounded-full" style={{background:folder.color}}/></button>
-                    <button type="button" onClick={()=>renameFolder(folder)} className="rounded p-1 text-muted-foreground hover:text-primary" title="Rename folder" aria-label="Rename folder"><Pencil className="h-3 w-3"/></button>
-                    <button type="button" onClick={()=>deleteFolder(folder)} className="rounded p-1 text-danger/70 hover:text-danger" title="Delete folder" aria-label="Delete folder"><Trash2 className="h-3 w-3"/></button>
-                  </div>
-                </div>
-                {isExpanded&&<div className="mb-1 ml-5 space-y-0.5 border-l border-border pl-2">
-                  {folderChats.length===0?<p className="px-2 py-2 text-[11px] text-muted-foreground">No chats in this folder</p>:folderChats.map(chat=>(
-                    <Link key={chat.id} href={'/chat/'+chat.id} className={cn('block truncate rounded-md px-2 py-1.5 text-[11px]',activeId===chat.id?'bg-accent text-foreground':'text-muted-foreground hover:bg-muted hover:text-foreground')} dir="auto">
-                      {chat.pinned&&<Pin className="mr-1 inline h-3 w-3 text-primary"/>}{chat.title}
-                    </Link>
-                  ))}
-                </div>}
-              </div>;
-            })}
-          </div>}
-        </section>
+      <div className="relative mt-3 shrink-0 border-t border-border px-1 pt-2.5">
+        <Search className="pointer-events-none absolute left-3.5 top-[1.2rem] h-3.5 w-3.5 text-muted-foreground"/>
+        <input className="h-8 w-full rounded-lg border border-transparent bg-muted pl-8 pr-2 text-xs outline-none placeholder:text-muted-foreground focus:border-primary/50" placeholder="Search chats" value={q} onChange={(e)=>setQ(e.target.value)} aria-label="Search chats"/>
+      </div>
 
-        <section className="mt-3 border-t border-border pt-2">
-          <button type="button" onClick={()=>setChatsExpanded(value=>!value)} aria-expanded={chatsExpanded}
-            className="flex h-8 w-full items-center gap-2 rounded-lg px-2 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:bg-muted hover:text-foreground">
-            {chatsExpanded?<ChevronDown className="h-3.5 w-3.5"/>:<ChevronRight className="h-3.5 w-3.5"/>}
-            <span>{activeFolderId==='all'?'Chats':activeFolderId===null?'Unfiled chats':folders.find(f=>f.id===activeFolderId)?.name??'Chats'}</span>
-            <span className="ml-auto text-[10px] font-normal">{list.length}</span>
-          </button>
-          {chatsExpanded&&<>
-            <div className="mt-1 space-y-0.5">
-              <button type="button" onClick={()=>setActiveFolderId('all')} className={cn('flex h-8 w-full items-center gap-2 rounded-lg px-2.5 text-left text-xs',activeFolderId==='all'?'bg-muted text-foreground':'text-muted-foreground hover:bg-muted')}>
-                <FolderOpen className="h-3.5 w-3.5"/>All chats<span className="ml-auto text-[10px] opacity-70">{conversations.length}</span>
+      <div className="mt-2 min-h-0 flex-1 space-y-3 overflow-y-auto pr-0.5">
+        {(folders.length>0 || !search) && (
+          <section>
+            <div className="flex items-center gap-1 px-1">
+              <button type="button" onClick={()=>setFoldersExpanded((value)=>!value)} aria-expanded={foldersExpanded}
+                className="flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-lg px-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:bg-muted hover:text-foreground">
+                {foldersExpanded?<ChevronDown className="h-3.5 w-3.5"/>:<ChevronRight className="h-3.5 w-3.5"/>}
+                <span>Folders</span><span className="ml-auto text-[10px] font-normal">{folders.length}</span>
               </button>
-              {unfiledCount>0&&<button type="button" onClick={()=>setActiveFolderId(null)} className={cn('flex h-8 w-full items-center gap-2 rounded-lg px-2.5 text-left text-xs',activeFolderId===null?'bg-muted text-foreground':'text-muted-foreground hover:bg-muted')}>
-                <FolderInput className="h-3.5 w-3.5"/>Unfiled chats<span className="ml-auto text-[10px] opacity-70">{unfiledCount}</span>
-              </button>}
+              <button type="button" onClick={createFolder} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-primary" aria-label="Create folder" title="Create folder"><FolderPlus className="h-4 w-4"/></button>
             </div>
-            <div className="relative mb-2 mt-2 px-1">
-              <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-muted-foreground"/>
-              <input className="h-8 w-full rounded-lg border border-transparent bg-muted pl-8 pr-2 text-xs outline-none placeholder:text-muted-foreground focus:border-primary/50" placeholder="Search chats" value={q} onChange={(e)=>setQ(e.target.value)}/>
-            </div>
-            <div className="space-y-0.5">
-              {list.length===0&&<p className="px-2 py-4 text-xs text-muted-foreground">{q?'No chats found':'No chats in this view yet'}</p>}
-              {list.map((chat)=>(
-                <div key={chat.id} className={cn('group relative rounded-lg transition',activeId===chat.id?'bg-muted text-foreground':'text-muted-foreground hover:bg-muted hover:text-foreground')}>
-                  <Link href={'/chat/'+chat.id} className="block truncate px-2.5 py-2 pr-24 text-xs" dir="auto">
-                    {chat.pinned&&<Pin className="mr-1 inline h-3 w-3 text-primary"/>}{chat.title}
-                  </Link>
-                  <div className="absolute right-1 top-1 flex items-center gap-0.5 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
-                    <button className="rounded-md p-1.5 hover:bg-background" onClick={()=>act(chat.id,'pin',chat)} aria-label="Pin chat" title="Pin chat"><Pin className="h-3 w-3"/></button>
-                    <button className="rounded-md p-1.5 hover:bg-background" onClick={()=>act(chat.id,'rename',chat)} aria-label="Rename chat" title="Rename chat"><Pencil className="h-3 w-3"/></button>
-                    <button className="rounded-md p-1.5 hover:bg-background" onClick={()=>setMoveChatId(moveChatId===chat.id?null:chat.id)} aria-label="Move chat to folder" title="Move chat to folder"><FolderInput className="h-3 w-3"/></button>
-                    <button className="rounded-md p-1.5 text-danger hover:bg-background" onClick={()=>act(chat.id,'delete',chat)} aria-label="Delete chat" title="Delete chat"><Trash2 className="h-3 w-3"/></button>
+            {foldersExpanded && <div className="mt-1 space-y-0.5">
+              {folders.length===0&&<p className="px-3 py-2 text-xs text-muted-foreground">No folders yet. Tap + to create one.</p>}
+              {folders.map(folder=>{
+                const folderChats=conversations.filter(c=>c.folder_id===folder.id&&matches(c));
+                const isExpanded=expandedFolderIds.includes(folder.id)||(!!search&&folderChats.length>0);
+                return <div key={folder.id} className="rounded-lg">
+                  <div className="group/folder flex min-h-8 items-center rounded-lg hover:bg-muted/60">
+                    <button type="button" onClick={()=>setExpandedFolderIds(old=>old.includes(folder.id)?old.filter(id=>id!==folder.id):[...old,folder.id])} aria-expanded={isExpanded}
+                      className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left text-xs text-muted-foreground group-hover/folder:text-foreground">
+                      {isExpanded?<ChevronDown className="h-3 w-3 shrink-0"/>:<ChevronRight className="h-3 w-3 shrink-0"/>}
+                      <Folder className="h-3.5 w-3.5 shrink-0" style={{color:folder.color}}/>
+                      <span className="truncate">{folder.name}</span><span className="ml-auto text-[10px] opacity-70">{folderChats.length}</span>
+                    </button>
+                    <div className="mr-1 flex items-center md:opacity-0 md:group-hover/folder:opacity-100 md:group-focus-within/folder:opacity-100">
+                      <button type="button" onClick={()=>cycleFolderColor(folder)} className="rounded p-1 text-muted-foreground hover:text-primary" title="Change folder colour" aria-label="Change folder colour"><span className="block h-2.5 w-2.5 rounded-full" style={{background:folder.color}}/></button>
+                      <button type="button" onClick={()=>renameFolder(folder)} className="rounded p-1 text-muted-foreground hover:text-primary" title="Rename folder" aria-label="Rename folder"><Pencil className="h-3 w-3"/></button>
+                      <button type="button" onClick={()=>deleteFolder(folder)} className="rounded p-1 text-danger/70 hover:text-danger" title="Delete folder" aria-label="Delete folder"><Trash2 className="h-3 w-3"/></button>
+                    </div>
                   </div>
-                  {moveChatId===chat.id&&<div className="absolute right-1 top-9 z-30 w-44 rounded-xl border border-border bg-card p-2 shadow-xl">
-                    <label className="mb-1 block text-[10px] font-semibold text-muted-foreground">Move to</label>
-                    <select autoFocus className="input h-8 py-1 text-xs" value={chat.folder_id??''} onChange={e=>moveChat(chat.id,e.target.value)}>
-                      <option value="">All chats (unfiled)</option>
-                      {folders.map(folder=><option key={folder.id} value={folder.id}>{folder.name}</option>)}
-                    </select>
+                  {isExpanded&&<div className="mb-1 ml-4 space-y-0.5 border-l border-border pl-2">
+                    {folderChats.length===0?<p className="px-2 py-2 text-[11px] text-muted-foreground">No chats in this folder</p>:folderChats.map(chat=>renderChatRow(chat,true))}
                   </div>}
-                </div>
-              ))}
+                </div>;
+              })}
+            </div>}
+          </section>
+        )}
+
+        <section className="space-y-2">
+          {chatGroups.length===0&&<p className="px-2 py-4 text-xs text-muted-foreground">{search?'No chats found':'No chats yet. Start a new chat!'}</p>}
+          {chatGroups.map(group=>(
+            <div key={group.label}>
+              <p className="px-2.5 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/80">{group.label}</p>
+              <div className="space-y-0.5">{group.items.map(chat=>renderChatRow(chat))}</div>
             </div>
-          </>}
+          ))}
         </section>
       </div>
 
-      <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
-        <Link href="/pricing" className="mb-1 flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"><CreditCard className="h-3.5 w-3.5"/>Pricing & plans</Link>
-        <Link href="/settings" className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1.5 py-1.5 hover:bg-muted" title="Open account settings">
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-muted text-xs font-bold text-primary">{(user.name || user.email || 'A').slice(0, 1).toUpperCase()}</span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-xs font-semibold text-foreground">{user.name || 'Account'}</span>
-            <span className="block truncate text-[10px] text-muted-foreground">{user.email}</span>
-            <span className="block text-[10px] text-muted-foreground">{user.isAdmin ? 'Unlimited' : fmtNum(credits) + ' credits'} · {user.plan.toUpperCase()}</span>
-          </span>
-        </Link>
-        <button type="button" onClick={onCollapse} className="hidden h-8 w-8 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-primary lg:grid" title="Collapse sidebar" aria-label="Collapse sidebar"><PanelLeftClose className="h-4 w-4"/></button>
-        {user.isAdmin && <Link href="/admin" className="btn-ghost h-8 w-8 !p-0" title="Admin panel"><ShieldCheck className="h-4 w-4 text-primary" /></Link>}
+      <div className="mt-3 shrink-0 space-y-2 border-t border-border pt-3">
+        <Link href="/pricing" className="flex h-9 items-center gap-2 rounded-lg px-2.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"><CreditCard className="h-3.5 w-3.5"/>Pricing &amp; plans</Link>
+        <div className="flex items-center gap-1.5">
+          <Link href="/settings" className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl px-1.5 py-1.5 hover:bg-muted" title="Open account settings">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/15 text-sm font-bold text-primary">{(user.name || user.email || 'A').slice(0, 1).toUpperCase()}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[13px] font-semibold leading-tight text-foreground">{user.name || 'Account'}</span>
+              <span className="block truncate text-[11px] leading-tight text-muted-foreground">{user.email}</span>
+            </span>
+          </Link>
+          {user.isAdmin && <Link href="/admin" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-primary hover:bg-muted" title="Admin panel" aria-label="Admin panel"><ShieldCheck className="h-4 w-4" /></Link>}
+          <button type="button" onClick={onCollapse} className="hidden h-8 w-8 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-primary lg:grid" title="Collapse sidebar" aria-label="Collapse sidebar"><PanelLeftClose className="h-4 w-4"/></button>
+        </div>
+        <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-muted/50 px-3 py-2" title="Your remaining credits">
+          <span className="flex min-w-0 items-center gap-1.5 text-xs font-semibold text-foreground"><Coins className="h-3.5 w-3.5 shrink-0 text-primary"/><span className="truncate">{user.isAdmin ? 'Unlimited' : fmtNum(credits)}</span><span className="font-normal text-muted-foreground">credits</span></span>
+          <span className="badge shrink-0 !px-2 !py-0 text-[10px] uppercase">{user.plan}</span>
+        </div>
       </div>
     </div>
   );

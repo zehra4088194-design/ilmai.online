@@ -3,6 +3,9 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Copy, Check, AlertTriangle, Pencil, RotateCcw } from 'lucide-react';
 import { LogoMark } from '@/components/ui/Logo';
+import { ProviderLogo } from '@/components/chat/ProviderLogo';
+import { LoadingIndicator } from '@/components/chat/LoadingIndicator';
+import { providerFromModelId } from '@/lib/provider-meta';
 import { Markdown } from '@/components/chat/Markdown';
 import { QuizCard } from '@/components/quiz/QuizCard';
 import { AttachmentLinks } from '@/components/AttachmentPicker';
@@ -13,19 +16,20 @@ const shortName = (id: string | null | undefined, names: Map<string, string>) =>
 
 function Answer({ m, label, boxed }: { m: Msg; label: string; boxed: boolean }) {
   const [copied, setCopied] = useState(false);
+  const provider = providerFromModelId(m.model);
   return (
     <div className={cn('group min-w-0', boxed ? 'card min-w-[86%] snap-center p-3.5 md:min-w-0' : 'flex gap-3')}>
       {!boxed && <div className="mt-0.5 shrink-0"><LogoMark className="h-8 w-8" /></div>}
       <div className="min-w-0 flex-1">
         <p className={cn('mb-1 flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground', boxed && 'border-b border-border pb-2')}>
-          {boxed && <LogoMark className="h-4 w-4" />}<span className="truncate">{label}</span>{m.streaming && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />}
+          {boxed && (provider ? <ProviderLogo provider={provider} className="!h-5 !w-5 !rounded-md" /> : <LogoMark className="h-4 w-4" />)}<span className="truncate">{label}</span>{m.streaming && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />}
         </p>
         {m.error ? (
           <div className="flex items-start gap-2 rounded-xl bg-danger/10 px-3.5 py-2.5 text-sm text-danger"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{m.content}</div>
         ) : m.content ? (
           <div className={cn(m.streaming && '[&>.md>*:last-child]:cursor')}><Markdown>{m.content}</Markdown></div>
         ) : (
-          <div className="flex items-center gap-1.5 py-2">{[0, 1, 2].map((i) => <motion.span key={i} className="h-2 w-2 rounded-full bg-primary" animate={{ y: [0, -6, 0], opacity: [0.4, 1, 0.4] }} transition={{ repeat: Infinity, duration: 0.9, delay: i * 0.15 }} />)}</div>
+          <LoadingIndicator />
         )}
         {!m.streaming && !m.error && m.content && (
           <button className="mt-1 flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-muted-foreground opacity-0 transition hover:bg-muted group-hover:opacity-100"
@@ -45,7 +49,7 @@ export function TurnView({ group, names, onAsk, onNewQuiz, onEdit }: { group: Gr
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
       {group.user && (
         <div className="mx-auto flex w-full max-w-3xl justify-end">
-          <div className="max-w-[88%] rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-[0.93rem] leading-relaxed text-primary-foreground shadow-soft">
+          <div className="max-w-[88%] rounded-2xl rounded-br-md bg-muted px-4 py-2.5 text-[0.93rem] leading-relaxed text-foreground">
             {group.user.content && <div dir="auto" className="whitespace-pre-wrap">{group.user.content}</div>}
             {group.user.attachments?.length ? <div className="mt-2"><AttachmentLinks value={group.user.attachments} /></div> : null}
           </div>

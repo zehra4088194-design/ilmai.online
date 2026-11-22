@@ -42,7 +42,7 @@ Last question: ${b.user.slice(0, 600)}
 Assistant's answer (may be truncated): ${b.assistant.slice(0, 1500)}
 
 Suggest 3 different follow-up messages the user might send next: (1) go deeper, (2) ask for an example or practice question, (3) a closely related topic.
-Each at most 12 words, written from the user's point of view, in the same language and script as the last question.`,
+Each at most 12 words, written from the user's point of view, in the same language and script as the last question (English, Urdu or Roman Urdu).`,
         },
       ],
       { userId: profile.id, maxTokens: 220, temperature: 0.8, timeoutMs: 20_000, tries: 3 },
@@ -53,7 +53,9 @@ Each at most 12 words, written from the user's point of view, in the same langua
     await logUsage({ userId: profile.id, kind: 'suggest', model: r.model, promptTokens: r.promptTokens, completionTokens: r.completionTokens, costUsd: r.cost, latencyMs: Date.now() - started });
     return json({ suggestions });
   } catch (e) {
-    await logUsage({ userId: profile.id, kind: 'suggest', status: 'error', error: e instanceof Error ? e.message : String(e), latencyMs: Date.now() - started });
-    return json({ suggestions: [] });
+    const reason = e instanceof Error ? e.message : String(e);
+    console.warn('[suggest] failed:', reason);
+    await logUsage({ userId: profile.id, kind: 'suggest', status: 'error', error: reason, latencyMs: Date.now() - started });
+    return json({ suggestions: [], reason: 'unavailable' });
   }
 });

@@ -2,6 +2,11 @@
 export async function api<T = unknown>(url: string, method: 'GET' | 'POST' | 'PATCH' | 'DELETE', body?: unknown): Promise<T> {
   const r = await fetch(url, { method, headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error((j as { error?: string }).error ?? `Request failed (${r.status})`);
+  if (!r.ok) {
+    const e = j as { error?: string; issues?: string[] };
+    // zod validation errors: show WHICH field is wrong instead of a bare "Invalid request"
+    if (e.error === 'Invalid request' && e.issues?.length) throw new Error(`Invalid request – ${e.issues[0]}`);
+    throw new Error(e.error ?? `Request failed (${r.status})`);
+  }
   return j as T;
 }

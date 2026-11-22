@@ -12,6 +12,7 @@ export type ModelInfo = {
   context: number;
   pricePromptPerM: number;     // USD per 1M input tokens
   priceCompletionPerM: number; // USD per 1M output tokens
+  pricePerRequest: number;     // USD flat fee per call (search / music / media models); NOT included in the per-token prices
   isFree: boolean;
   tier: Plan;
   enabled: boolean;
@@ -42,6 +43,13 @@ const getRows = unstable_cache(
   { tags: ['models'], revalidate: 30 },
 );
 
+/** Models that are not normal chat models (music, speech, embeddings…) must never reach the chat picker, Auto routing or helper tasks. */
+const NOT_CHAT = /lyria|music|\btts\b|speech|whisper|transcri|embed|rerank|moderat/i;
+export const isChatCapable = (m: Pick<ModelInfo, 'id' | 'name' | 'outputModalities'>) =>
+  m.outputModalities.includes('text') &&
+  !m.outputModalities.some((o) => o === 'audio' || o === 'video') &&
+  !NOT_CHAT.test(m.id) && !NOT_CHAT.test(m.name);
+
 const merge = (m: OrModel, row?: Row): ModelInfo => {
   const p = parseFloat(m.pricing?.prompt ?? '0') * 1e6;
   const c = parseFloat(m.pricing?.completion ?? '0') * 1e6;
@@ -53,7 +61,8 @@ const merge = (m: OrModel, row?: Row): ModelInfo => {
     context: m.context_length ?? 0,
     pricePromptPerM: p,
     priceCompletionPerM: c,
-    isFree: m.id.endsWith(':free') || (p === 0 && c === 0),
+    pricePerRequest: Math.max(0, parseFloat(m.pricing?.request ?? '0') || 0),
+    isFree: m.id.endsWith(':free') || (p === 0 && c === 0 && !(parseFloat(m.pricing?.request ?? '0') > 0)),
     tier: row?.tier ?? tierByPrice(avg),
     enabled: row?.enabled ?? true,
     isDefault: row?.is_default ?? false,
@@ -75,7 +84,7 @@ export async function getAllModels(): Promise<ModelInfo[]> {
 }
 
 export async function getAllTextModels(): Promise<ModelInfo[]> {
-  return (await getAllModels()).filter((m) => m.outputModalities.includes('text'));
+  return (await getAllModels()).filter(isChatCapable);
 }
 
 /** Models the end user may pick (enabled only). */

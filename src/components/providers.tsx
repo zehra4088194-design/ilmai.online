@@ -12,13 +12,25 @@ export type Appearance = {
   headingColor: string;
   headingStyle: 'auto' | 'handwritten' | 'serif' | 'minimal';
   font: 'sans' | 'serif' | 'mono';
+  loader: LoaderStyle;
 };
+export type LoaderStyle = 'logo' | 'dots' | 'orbit' | 'sparkle' | 'wave' | 'pulse';
+export const LOADERS: { id: LoaderStyle; label: string }[] = [
+  { id: 'logo', label: 'Ilm logo spin' },
+  { id: 'dots', label: 'Bouncing dots' },
+  { id: 'orbit', label: 'Orbit' },
+  { id: 'sparkle', label: 'Sparkle' },
+  { id: 'wave', label: 'Sound wave' },
+  { id: 'pulse', label: 'Soft pulse' },
+];
+/** 'neutral' = black in light mode, white in dark mode (the default, no colour). */
+export const NEUTRAL_ACCENT = 'neutral';
 export const DEFAULT_APPEARANCE: Appearance = {
-  family: 'classic', mode: 'system', accent: '#22c55e', monochrome: false,
-  headingColor: 'auto', headingStyle: 'auto', font: 'sans',
+  family: 'classic', mode: 'system', accent: NEUTRAL_ACCENT, monochrome: false,
+  headingColor: 'auto', headingStyle: 'auto', font: 'sans', loader: 'logo',
 };
 export const THEME_FAMILIES = [
-  { id: 'classic', label: 'Ilm Green', swatches: ['#080a09','#22c55e','#111713'] },
+  { id: 'classic', label: 'Ilm Mono', swatches: ['#0a0a0a','#f5f5f5','#171717'] },
   { id: 'violet', label: 'Violet Focus', swatches: ['#100c1b','#a78bfa','#211831'] },
   { id: 'rose', label: 'Rose Focus', swatches: ['#170d12','#f472b6','#2a1721'] },
   { id: 'blue', label: 'Blue Night', swatches: ['#0a101a','#60a5fa','#172336'] },
@@ -30,6 +42,7 @@ export const THEME_FAMILIES = [
   { id: 'ice', label: 'Ice Glass', swatches: ['#08131c','#22d3ee','#142633'] },
 ] as const;
 export const ACCENTS = [
+  { id: 'neutral', label: 'Black / White', swatch: '#171717' },
   { id: '#22c55e', label: 'Green', swatch: '#22c55e' },
   { id: '#a78bfa', label: 'Violet', swatch: '#a78bfa' },
   { id: '#f472b6', label: 'Pink', swatch: '#f472b6' },
@@ -63,7 +76,15 @@ function AppearanceRuntime({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     try {
       const stored=localStorage.getItem('ilm-appearance');
-      if(stored){const parsed=JSON.parse(stored);setAppearance({...DEFAULT_APPEARANCE,...parsed});setPersistReady(true);}
+      if(stored){
+        const parsed=JSON.parse(stored);
+        // v2: the old default accent (green) becomes the new neutral black/white default, once.
+        if(!localStorage.getItem('ilm-appearance-v2')){
+          if(parsed?.accent==='#22c55e'&&!parsed?.monochrome) parsed.accent=NEUTRAL_ACCENT;
+          localStorage.setItem('ilm-appearance-v2','1');
+        }
+        setAppearance({...DEFAULT_APPEARANCE,...parsed});setPersistReady(true);
+      }
     } catch { /* local storage can be unavailable */ }
     setLoaded(true);
   }, []);
@@ -74,10 +95,13 @@ function AppearanceRuntime({ children }: { children: React.ReactNode }) {
     root.dataset.headingStyle=appearance.headingStyle;
     root.dataset.fontStyle=appearance.font;
     root.dataset.monochrome=appearance.monochrome?'true':'false';
-    root.style.setProperty('--custom-primary',hexToHsl(appearance.monochrome?'#a1a1aa':appearance.accent));
+    const neutral=!appearance.monochrome&&!/^#[0-9a-fA-F]{6}$/.test(appearance.accent);
+    root.dataset.accentMode=neutral?'neutral':'color';
+    if(neutral) root.style.removeProperty('--custom-primary');
+    else root.style.setProperty('--custom-primary',hexToHsl(appearance.monochrome?'#a1a1aa':appearance.accent));
     root.style.setProperty('--heading-color',appearance.headingColor==='auto'?'hsl(var(--primary))':appearance.headingColor);
     setTheme(appearance.mode);
-    try{if(persistReady){localStorage.setItem('ilm-appearance',JSON.stringify(appearance));localStorage.setItem('ilm-accent',appearance.accent);}}catch{/* storage optional */}
+    try{if(persistReady){localStorage.setItem('ilm-appearance',JSON.stringify(appearance));localStorage.setItem('ilm-accent',appearance.accent);localStorage.setItem('ilm-appearance-v2','1');}}catch{/* storage optional */}
   },[appearance,loaded,persistReady,setTheme]);
   const updateAppearance=useCallback((patch:Partial<Appearance>)=>{setPersistReady(true);setAppearance(p=>({...p,...patch}));},[]);
   return <AppearanceCtx.Provider value={{appearance,updateAppearance,loaded}}><AccentCtx.Provider value={{accent:appearance.accent,setAccent:(accent)=>updateAppearance({accent})}}>{children}</AccentCtx.Provider></AppearanceCtx.Provider>;
