@@ -24,7 +24,7 @@ function Inner({ provider, className }: Props) {
     <span
       aria-hidden="true"
       className={cn(
-        'grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-xl bg-white p-[18%] ring-1 ring-border',
+        'grid !h-7 !w-7 !min-w-7 !max-w-7 shrink-0 place-items-center overflow-hidden rounded-lg bg-muted/30 p-1 ring-1 ring-border',
         className,
       )}
     >
@@ -36,7 +36,7 @@ function Inner({ provider, className }: Props) {
           alt=""
           loading="lazy"
           draggable={false}
-          className="block h-full w-full object-contain dark:hidden"
+          className="block h-full w-full max-h-full max-w-full object-contain dark:hidden"
           onError={() => setLightIndex((index) => index + 1)}
         />
       ) : (
@@ -52,7 +52,7 @@ function Inner({ provider, className }: Props) {
           alt=""
           loading="lazy"
           draggable={false}
-          className="hidden h-full w-full object-contain dark:block"
+          className="hidden h-full w-full max-h-full max-w-full object-contain dark:block"
           onError={() => setDarkIndex((index) => index + 1)}
         />
       ) : (
