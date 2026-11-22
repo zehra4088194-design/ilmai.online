@@ -199,7 +199,7 @@ begin
   insert into public.credit_transactions(
     user_id,delta,balance_after,reason,idempotency_key,wallet_delta,plan_delta,plan_bucket_id
   ) values (
-    p_user,-p_amount,p_new_wallet_balance,p_reason,p_idempotency_key,
+    p_user,-p_amount,v_new_wallet_balance,p_reason,p_idempotency_key,
     -v_wallet_used,-v_plan_used,case when v_plan_used>0 then v_bucket_id else null end
   );
 
