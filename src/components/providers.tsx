@@ -13,6 +13,7 @@ export type Appearance = {
   headingStyle: 'auto' | 'handwritten' | 'serif' | 'minimal';
   font: 'sans' | 'serif' | 'mono';
   loader: LoaderStyle;
+  codeFontSize: 'small' | 'medium' | 'large';
 };
 export type LoaderStyle = 'logo' | 'dots' | 'orbit' | 'sparkle' | 'wave' | 'pulse';
 export const LOADERS: { id: LoaderStyle; label: string }[] = [
@@ -27,7 +28,7 @@ export const LOADERS: { id: LoaderStyle; label: string }[] = [
 export const NEUTRAL_ACCENT = 'neutral';
 export const DEFAULT_APPEARANCE: Appearance = {
   family: 'classic', mode: 'system', accent: NEUTRAL_ACCENT, monochrome: false,
-  headingColor: 'auto', headingStyle: 'auto', font: 'sans', loader: 'logo',
+  headingColor: 'auto', headingStyle: 'auto', font: 'sans', loader: 'logo', codeFontSize: 'medium',
 };
 export const THEME_FAMILIES = [
   { id: 'classic', label: 'Ilm Mono', swatches: ['#0a0a0a','#f5f5f5','#171717'] },
@@ -94,6 +95,7 @@ function AppearanceRuntime({ children }: { children: React.ReactNode }) {
     root.dataset.themeFamily=appearance.family;
     root.dataset.headingStyle=appearance.headingStyle;
     root.dataset.fontStyle=appearance.font;
+    root.dataset.codeFontSize=appearance.codeFontSize ?? 'medium';
     root.dataset.monochrome=appearance.monochrome?'true':'false';
     const neutral=!appearance.monochrome&&!/^#[0-9a-fA-F]{6}$/.test(appearance.accent);
     root.dataset.accentMode=neutral?'neutral':'color';
