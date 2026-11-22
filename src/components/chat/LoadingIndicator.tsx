@@ -44,7 +44,7 @@ export function LoaderGraphic({ style, className }: { style: LoaderStyle; classN
     default:
       return (
         <span className={cn('ld-spin inline-grid h-8 w-8 place-items-center', className)} aria-hidden>
-          <Image src="/spin.webp" alt="" aria-hidden width={56} height={56} unoptimized className="h-7 w-7 object-contain" />
+          <Image src="/icon.png" alt="" aria-hidden width={56} height={56} unoptimized className="h-7 w-7 object-contain" />
         </span>
       );
   }
