@@ -93,10 +93,10 @@ describe('real PostgreSQL wallet transactions', () => {
     expect(charged.rows[0].result.planCreditsUsed).toBe(50);
     expect(charged.rows[0].result.walletCreditsUsed).toBe(30);
     expect((await db.query<{credits_balance:number}>('select credits_balance::int from profiles where id=$1',[user])).rows[0].credits_balance).toBe(20);
-    const duplicate = await db.query<{result:{duplicate:boolean}}>(
-      `select charge_credits($1,80,'direct-checkout','direct-charge-1') as result`,[user]
+    const duplicate = await db.query<{duplicate:boolean}>(
+      `select (charge_credits($1,80,'direct-checkout','direct-charge-1')->>'duplicate')::boolean as duplicate`,[user]
     );
-    expect(duplicate.rows[0].result.duplicate).toBe(true);
+    expect(duplicate.rows[0].duplicate).toBe(true);
     expect((await db.query('select count(*)::int from credit_transactions where user_id=$1 and idempotency_key=$2',[user,'direct-charge-1'])).rows[0].count).toBe(1);
   });
   it('RLS rejects cross-owner conversation references and private wallet RPC calls', async () => {
