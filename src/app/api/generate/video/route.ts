@@ -122,7 +122,7 @@ export const POST = handle(async (req: NextRequest) => {
   }
 
   const reservedAmount = isAdmin ? 0 : creditAmount;
-  const { data: queued, error: insertError } = await db.from('video_jobs').insert({
+  const { error: insertError } = await db.from('video_jobs').insert({
     id: reservationId,
     user_id: profile.id,
     request_key: body.requestId,
