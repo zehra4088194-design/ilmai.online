@@ -10,6 +10,7 @@ import { getImageModel, supports, enumValues } from '@/lib/image-models';
 import { validateAttachments } from '@/lib/attachments';
 import {
   buildPicsartParams,
+  picsartParamRange,
   downloadPicsartAsset,
   extractPicsartResponse,
   picsartExecuteModel,
@@ -113,6 +114,14 @@ export const POST = handle(async (req: NextRequest) => {
   requireCapability(model, 'output_format', body.outputFormat);
   if (body.count > 1 && !supports(model, 'n')) {
     throw new HttpError(400, 'This Picsart model only supports one image per request', 'image_count_unsupported');
+  }
+  const countOptions = enumValues(model, 'count');
+  const countRange = picsartParamRange(model, 'count');
+  if (countOptions.length && !countOptions.includes(String(body.count))) {
+    throw new HttpError(400, 'The selected model does not support requesting ' + body.count + ' images', 'image_count_invalid');
+  }
+  if (countRange && (body.count < countRange.min || body.count > countRange.max || (body.count - countRange.min) % countRange.step !== 0)) {
+    throw new HttpError(400, 'The requested image count is outside this model’s supported range', 'image_count_invalid');
   }
 
   const refs = body.referenceAssetIds.length ? await validateAttachments(body.referenceAssetIds, profile.id) : [];
