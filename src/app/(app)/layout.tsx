@@ -11,19 +11,15 @@ export const dynamic = 'force-dynamic';
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { profile, isAdmin } = await requireUserPage();
   const db=adminClient();
-  const [features, settings, bannerResult, walletResult, bucketResult] = await Promise.all([
+  const [features, settings, bannerResult, creditResult] = await Promise.all([
     featuresForUser(profile.plan, isAdmin), getSettings(),
-    db.from('site_creatives').select('title,alt_text,storage_path')
+    adminClient().from('site_creatives').select('title,alt_text,storage_path')
       .eq('location','banner').eq('is_active',true).order('sort_order').limit(1).maybeSingle(),
-    db.from('profiles').select('credits_balance,credits_reserved').eq('id',profile.id).single(),
-    db.from('plan_credit_buckets').select('credits_remaining,credits_reserved')
-      .eq('user_id',profile.id).eq('status','active').gt('period_end',new Date().toISOString())
-      .order('period_start',{ascending:false}).limit(1).maybeSingle(),
+    adminClient().rpc('get_credit_balances',{p_user:profile.id}),
   ]);
-  if(walletResult.error) throw walletResult.error;
-  if(bucketResult.error) throw bucketResult.error;
-  const walletAvailable=Math.max(0,Number(walletResult.data.credits_balance)-Number(walletResult.data.credits_reserved));
-  const planAvailable=bucketResult.data?Math.max(0,Number(bucketResult.data.credits_remaining)-Number(bucketResult.data.credits_reserved)):0;
+  if(creditResult.error) throw creditResult.error;
+  const walletAvailable=Math.max(0,Number(creditResult.data?.walletBalance??0)-Number(creditResult.data?.walletReserved??0));
+  const planAvailable=Math.max(0,Number(creditResult.data?.planBalance??0)-Number(creditResult.data?.planReserved??0));
   const availableCredits=walletAvailable+planAvailable;
   const banner = bannerResult.data ? {
     title: bannerResult.data.title,
