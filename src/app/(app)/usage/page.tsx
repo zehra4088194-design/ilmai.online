@@ -9,21 +9,17 @@ export default async function Page(){
   const {profile}=await requireUserPage();
   const since=new Date(Date.now()-30*24*60*60*1000).toISOString();
   const db=adminClient();
-  const [{data,error},{data:bucket,error:bucketError},{data:wallet,error:walletError}]=await Promise.all([
+  const [{data,error},{data:balances,error:balanceError}]=await Promise.all([
     db.from('usage_events')
       .select('id,kind,model,provider,prompt_tokens,completion_tokens,cost_usd,credits_used,plan_credits_used,wallet_credits_used,credit_multiplier,model_tier,provider_usage,usage_details,latency_ms,status,error,created_at')
       .eq('user_id',profile.id).gte('created_at',since).order('created_at',{ascending:false}).limit(100),
-    db.from('plan_credit_buckets').select('plan_id,credits_granted,credits_remaining,credits_reserved,period_start,period_end')
-      .eq('user_id',profile.id).eq('status','active').gt('period_end',new Date().toISOString())
-      .order('period_start',{ascending:false}).limit(1).maybeSingle(),
-    db.from('profiles').select('credits_balance,credits_reserved').eq('id',profile.id).single(),
+    db.rpc('get_credit_balances',{p_user:profile.id}),
   ]);
   if(error) throw error;
-  if(bucketError) throw bucketError;
-  if(walletError) throw walletError;
+  if(balanceError) throw balanceError;
   const rows=data??[];
-  const planAvailable=bucket?Math.max(0,Number(bucket.credits_remaining)-Number(bucket.credits_reserved)):0;
-  const walletAvailable=Math.max(0,Number(wallet.credits_balance)-Number(wallet.credits_reserved));
+  const planAvailable=Math.max(0,Number(balances?.planBalance??0)-Number(balances?.planReserved??0));
+  const walletAvailable=Math.max(0,Number(balances?.walletBalance??0)-Number(balances?.walletReserved??0));
   const totals=rows.reduce((sum,item)=>({
     credits:sum.credits+Number(item.credits_used??0),
     cost:sum.cost+Number(item.cost_usd??0),
@@ -39,7 +35,7 @@ export default async function Page(){
         <div className="card p-4"><p className="text-xs text-muted-foreground">Provider cost · 30 days</p><p className="text-2xl font-bold">{fmtUsd(totals.cost)}</p></div>
         <div className="card p-4"><p className="text-xs text-muted-foreground">Available credits</p><p className="text-2xl font-bold">{fmtNum(planAvailable+walletAvailable)}</p><p className="mt-1 text-xs text-muted-foreground">Monthly plan: {fmtNum(planAvailable)} · Wallet: {fmtNum(walletAvailable)}</p></div>
       </div>
-      {bucket&&<p className="text-xs text-muted-foreground">Your {bucket.plan_id.toUpperCase()} shared allowance refreshes on {fmtDate(bucket.period_end)}. Plan credits are used before wallet credits and expire at the end of the billing period.</p>}
+      {balances?.periodEnd&&<p className="text-xs text-muted-foreground">Your {String(balances.planId??profile.plan).toUpperCase()} shared allowance refreshes on {fmtDate(String(balances.periodEnd))}. Plan credits are used before wallet credits and expire at the end of the billing period.</p>}
       <div className="card overflow-hidden"><div className="overflow-x-auto"><table className="w-full text-sm">
         <thead className="bg-muted/60 text-left text-xs text-muted-foreground"><tr><th className="px-4 py-3">Date</th><th className="px-3">Feature</th><th className="px-3">Model / provider</th><th className="px-3">Tokens</th><th className="px-3">Cost</th><th className="px-3">Multiplier</th><th className="px-3">Plan / wallet</th><th className="px-4">Credits</th></tr></thead>
         <tbody className="divide-y divide-border">{rows.map((row)=>(
