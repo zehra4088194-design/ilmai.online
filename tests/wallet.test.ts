@@ -72,28 +72,28 @@ describe('real PostgreSQL wallet transactions', () => {
       [bucketId,user],
     );
     await db.query('select reserve_generation($1,$2,$3,$4,$5)', [id(41),user,'plan:first','image',180]);
-    expect((await db.query('select credits_reserved::int from profiles where id=$1',[user])).rows[0].credits_reserved).toBe(30);
-    expect((await db.query('select credits_reserved::int from plan_credit_buckets where id=$1',[bucketId])).rows[0].credits_reserved).toBe(150);
+    expect((await db.query<{credits_reserved:number}>('select credits_reserved::int from profiles where id=$1',[user])).rows[0].credits_reserved).toBe(30);
+    expect((await db.query<{credits_reserved:number}>('select credits_reserved::int from plan_credit_buckets where id=$1',[bucketId])).rows[0].credits_reserved).toBe(150);
 
     await db.query('select settle_generation($1,$2,$3,$4)', [id(41),user,100,usage]);
-    expect((await db.query('select credits_balance::int,credits_reserved::int from profiles where id=$1',[user])).rows[0])
+    expect((await db.query<{credits_balance:number;credits_reserved:number}>('select credits_balance::int,credits_reserved::int from profiles where id=$1',[user])).rows[0])
       .toEqual({credits_balance:50,credits_reserved:0});
-    expect((await db.query('select credits_remaining::int,credits_reserved::int from plan_credit_buckets where id=$1',[bucketId])).rows[0])
+    expect((await db.query<{credits_remaining:number;credits_reserved:number}>('select credits_remaining::int,credits_reserved::int from plan_credit_buckets where id=$1',[bucketId])).rows[0])
       .toEqual({credits_remaining:50,credits_reserved:0});
-    const logged = (await db.query(
+    const logged = (await db.query<{plan_credits_used:number;wallet_credits_used:number;provider_usage:Record<string,unknown>}>(
       'select plan_credits_used::int,wallet_credits_used::int,provider_usage from usage_events where request_id=$1',[id(41)]
     )).rows[0];
     expect(logged).toEqual({plan_credits_used:100,wallet_credits_used:0,provider_usage:{}});
   });
 
   it('direct charges consume remaining plan credits then wallet credits exactly once', async () => {
-    const charged = await db.query(
+    const charged = await db.query<{result:{planCreditsUsed:number;walletCreditsUsed:number}}>(
       `select charge_credits($1,80,'direct-checkout','direct-charge-1') as result`,[user]
     );
     expect(charged.rows[0].result.planCreditsUsed).toBe(50);
     expect(charged.rows[0].result.walletCreditsUsed).toBe(30);
-    expect((await db.query('select credits_balance::int from profiles where id=$1',[user])).rows[0].credits_balance).toBe(20);
-    const duplicate = await db.query(
+    expect((await db.query<{credits_balance:number}>('select credits_balance::int from profiles where id=$1',[user])).rows[0].credits_balance).toBe(20);
+    const duplicate = await db.query<{result:{duplicate:boolean}}>(
       `select charge_credits($1,80,'direct-checkout','direct-charge-1') as result`,[user]
     );
     expect(duplicate.rows[0].result.duplicate).toBe(true);
