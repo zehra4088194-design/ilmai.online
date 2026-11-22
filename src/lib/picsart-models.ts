@@ -214,6 +214,7 @@ export function buildPicsartParams(model: PicsartModel, values: Record<string, u
 export function imagePickerParameters(model: PicsartModel) {
   const values: Array<[string, string]> = [
     ['negativePrompt', 'negative_prompt'],
+    ['imageUrls', 'image_urls'],
     ['aspectRatio', 'aspect_ratio'],
     ['resolution', 'resolution'],
     ['quality', 'quality'],
