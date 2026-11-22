@@ -10,7 +10,6 @@ export const dynamic = 'force-dynamic';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { profile, isAdmin } = await requireUserPage();
-  const db=adminClient();
   const [features, settings, bannerResult, creditResult] = await Promise.all([
     featuresForUser(profile.plan, isAdmin), getSettings(),
     adminClient().from('site_creatives').select('title,alt_text,storage_path')
