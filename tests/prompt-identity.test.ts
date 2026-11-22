@@ -16,6 +16,7 @@ describe('model identity in the system prompt', () => {
     expect(prompt).not.toMatch(/You are Ilm AI/);
     expect(prompt).toContain('Reply in the same language');
   });
+
   it('works for Auto routing (no fixed model)', () => {
     const prompt = buildSystemPrompt({ settings, model: null });
     expect(prompt).toContain('real model name');
@@ -30,12 +31,16 @@ describe('provider helpers', () => {
     expect(providerName('~deepseek')).toBe('DeepSeek');
     expect(providerFromModelId('auto')).toBe('');
   });
+
   it('removes the "Provider: " prefix from model names', () => {
     expect(cleanModelName('OpenAI: GPT Luna Latest')).toBe('GPT Luna Latest');
     expect(cleanModelName('Sonar')).toBe('Sonar');
   });
-  it('only builds safe logo paths', () => {
-    expect(providerLogoSources('~google')[0]).toBe('/providers/google.svg');
+
+  it('resolves separate light and dark assets before the previous shared logo', () => {
+    expect(providerLogoSources('~google', 'light')[0]).toBe('/providers/google-light.svg');
+    expect(providerLogoSources('~google', 'dark')[0]).toBe('/providers/google-dark.svg');
+    expect(providerLogoSources('~google', 'light')[3]).toBe('/providers/google.svg');
     expect(providerLogoSources('../etc')).toEqual([]);
   });
 });
