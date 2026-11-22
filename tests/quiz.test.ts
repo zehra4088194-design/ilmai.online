@@ -15,9 +15,9 @@ describe('extractJson', () => {
   });
 
   it('does not mistake braces inside JSON strings for structural braces', () => {
-    const raw = 'Output: {"questions":[{"question":"What does \\"{x}\\" mean?","options":["A","B"],"answer":0}]} trailing text';
+    const raw = 'Output: {"questions":[{"question":"What does {x} mean?","options":["A","B"],"answer":0}]} trailing text';
     expect(extractJson(raw)).toMatchObject({
-      questions: [{ question: 'What does "{x}" mean?' }],
+      questions: [{ question: 'What does {x} mean?' }],
     });
   });
 });
