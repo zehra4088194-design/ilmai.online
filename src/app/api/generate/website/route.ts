@@ -37,7 +37,7 @@ const Body = z.object({
 
 const MAX_TOKENS = 14_000;
 
-export const POST = handle(async (req: NextRequest) => {
+const generateWebsite = handle(async (req: NextRequest) => {
   const { profile, isAdmin } = await requireUserApi();
   await requireFeature('text_chat', profile.plan, isAdmin);
   const body = Body.parse(await req.json());
@@ -169,3 +169,51 @@ export const POST = handle(async (req: NextRequest) => {
     throw new HttpError(502, error instanceof Error ? error.message : 'Website generation failed', 'website_generation_failed');
   }
 });
+
+/**
+ * Keep long-running website generation connections alive through reverse proxies.
+ * The JSON result is sent as one SSE data frame after generation completes;
+ * heartbeat comments are emitted every 10 seconds while the model is working.
+ */
+export async function POST(req: NextRequest) {
+  const encoder = new TextEncoder();
+  let disconnected = false;
+  let completed = false;
+  let heartbeat: ReturnType<typeof setInterval> | undefined;
+
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      const send = (frame: string) => {
+        if (disconnected || completed) return;
+        completed = true;
+        if (heartbeat) clearInterval(heartbeat);
+        controller.enqueue(encoder.encode(frame));
+        controller.close();
+      };
+
+      heartbeat = setInterval(() => {
+        if (!disconnected && !completed) controller.enqueue(encoder.encode(': keep-alive\\n\\n'));
+      }, 10_000);
+
+      void generateWebsite(req).then(async (response) => {
+        const body = await response.text();
+        send('data: ' + JSON.stringify({ status: response.status, body }) + '\\n\\n');
+      }).catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : 'Website generation failed';
+        send('data: ' + JSON.stringify({ status: 500, body: JSON.stringify({ error: message }) }) + '\\n\\n');
+      });
+    },
+    cancel() {
+      disconnected = true;
+      if (heartbeat) clearInterval(heartbeat);
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-cache, no-transform',
+      'X-Accel-Buffering': 'no',
+    },
+  });
+}
