@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { createClient } from '@/lib/supabase/client';
 import { Logo } from '@/components/ui/Logo';
 import { authCallbackPath } from '@/lib/auth-redirect';
+import { isTurnstileEnabled, TurnstileCaptcha } from '@/components/TurnstileCaptcha';
 
 export function PasswordForm({ mode }: { mode: 'request' | 'update' }) {
   const isRequest = mode === 'request';
@@ -21,10 +22,16 @@ export function PasswordForm({ mode }: { mode: 'request' | 'update' }) {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(searchParams.has('error') ? 'Your reset link is invalid or expired. Request a new one below.' : null);
+  const [captchaToken, setCaptchaToken] = useState('');
+  const [captchaResetNonce, setCaptchaResetNonce] = useState(0);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (inFlight.current || done) return;
+    if (isRequest && isTurnstileEnabled && !captchaToken) {
+      setError('Please complete the security check first.');
+      return;
+    }
     inFlight.current = true;
     setBusy(true); setError(null);
     try {
@@ -33,6 +40,7 @@ export function PasswordForm({ mode }: { mode: 'request' | 'update' }) {
         const address = z.string().trim().email('Enter a valid email address.').parse(email);
         const { error: resetError } = await supabase.auth.resetPasswordForEmail(address, {
           redirectTo: `${location.origin}${authCallbackPath('/reset-password')}`,
+          ...(isTurnstileEnabled ? { captchaToken } : {}),
         });
         if (resetError) throw new Error('Unable to send a reset link right now. Please try again later.');
       } else {
@@ -51,6 +59,10 @@ export function PasswordForm({ mode }: { mode: 'request' | 'update' }) {
     } finally {
       inFlight.current = false;
       setBusy(false);
+      if (isRequest && isTurnstileEnabled) {
+        setCaptchaToken('');
+        setCaptchaResetNonce((value) => value + 1);
+      }
     }
   }
 
@@ -83,8 +95,9 @@ export function PasswordForm({ mode }: { mode: 'request' | 'update' }) {
                 </label>
               </>
             )}
+            {isRequest && isTurnstileEnabled && <TurnstileCaptcha action="password_reset" onToken={setCaptchaToken} resetNonce={captchaResetNonce} />}
             {error && <p role="alert" className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
-            <button className="btn-primary w-full !py-3" disabled={busy}>
+            <button className="btn-primary w-full !py-3" disabled={busy || (isRequest && isTurnstileEnabled && !captchaToken)}>
               {busy && <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin motion-reduce:animate-none" />}
               {isRequest ? 'Send reset link' : 'Update password'}
             </button>
