@@ -8,6 +8,7 @@ import { authCallbackPath, safeAuthRedirect } from '@/lib/auth-redirect';
 import { Loader2, Mail, Lock, User } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Logo } from '@/components/ui/Logo';
+import { isTurnstileEnabled, TurnstileCaptcha } from '@/components/TurnstileCaptcha';
 
 export function AuthForm({ mode, signupsEnabled = true }: { mode: 'login' | 'signup'; signupsEnabled?: boolean }) {
   const router = useRouter();
@@ -21,11 +22,17 @@ export function AuthForm({ mode, signupsEnabled = true }: { mode: 'login' | 'sig
   const [busy, setBusy] = useState<'email' | 'google' | null>(null);
   const [err, setErr] = useState<string | null>(sp.get('banned') ? 'Your account is suspended.' : sp.get('error') === 'confirmation' ? 'This confirmation link is invalid or expired. Try signing in or request a password reset.' : sp.get('error') ? 'Sign-in failed. Please try again.' : null);
   const [info, setInfo] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState('');
+  const [captchaResetNonce, setCaptchaResetNonce] = useState(0);
   const isSignup = mode === 'signup';
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (inFlight.current || (isSignup && !signupsEnabled)) return;
+    if (isTurnstileEnabled && !captchaToken) {
+      setErr('Please complete the security check first.');
+      return;
+    }
     inFlight.current = true;
     setBusy('email'); setErr(null); setInfo(null);
     try {
@@ -37,26 +44,55 @@ export function AuthForm({ mode, signupsEnabled = true }: { mode: 'login' | 'sig
         z.string().min(8, 'Use at least 8 characters for your password.').parse(password);
         const { data, error } = await supabase.auth.signUp({
           email: parsedEmail, password,
-          options: { data: { full_name: fullName }, emailRedirectTo: `${location.origin}${authCallbackPath(next)}` },
+          options: {
+            data: { full_name: fullName },
+            emailRedirectTo: `${location.origin}${authCallbackPath(next)}`,
+            ...(isTurnstileEnabled ? { captchaToken } : {}),
+          },
         });
         if (error) throw error;
         if (!data.session) { setPassword(''); setInfo('Check your email for a confirmation link, then continue signing in.'); return; }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email: parsedEmail, password });
+        const { error } = await supabase.auth.signInWithPassword({
+          email: parsedEmail,
+          password,
+          options: isTurnstileEnabled ? { captchaToken } : undefined,
+        });
         if (error) throw error;
       }
       router.replace(next);
       router.refresh();
     } catch (e) {
       setErr(e instanceof z.ZodError ? e.issues[0].message : e instanceof Error ? e.message : 'Unable to sign in. Please try again.');
-    } finally { inFlight.current = false; setBusy(null); }
+    } finally {
+      inFlight.current = false;
+      setBusy(null);
+      if (isTurnstileEnabled) {
+        setCaptchaToken('');
+        setCaptchaResetNonce((value) => value + 1);
+      }
+    }
   }
 
   async function google() {
     if (inFlight.current || (isSignup && !signupsEnabled)) return;
+    if (isTurnstileEnabled && !captchaToken) {
+      setErr('Please complete the security check first.');
+      return;
+    }
     inFlight.current = true;
     setBusy('google'); setErr(null); setInfo(null);
     try {
+      if (isTurnstileEnabled) {
+        const response = await fetch('/api/auth/turnstile/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: captchaToken, action: 'login' }),
+        });
+        const result = await response.json().catch(() => ({})) as { error?: string };
+        if (!response.ok) throw new Error(result.error || 'Security verification failed. Please try again.');
+      }
+
       const supabase = createClient();
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -67,8 +103,13 @@ export function AuthForm({ mode, signupsEnabled = true }: { mode: 'login' | 'sig
       window.location.assign(data.url);
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Google sign-in failed. Please try again.');
+    } finally {
       inFlight.current = false;
       setBusy(null);
+      if (isTurnstileEnabled) {
+        setCaptchaToken('');
+        setCaptchaResetNonce((value) => value + 1);
+      }
     }
   }
 
@@ -100,6 +141,7 @@ export function AuthForm({ mode, signupsEnabled = true }: { mode: 'login' | 'sig
               <input className="input !pl-10" name="password" type="password" placeholder={isSignup ? 'Password (min 8 characters)' : 'Password'} minLength={isSignup ? 8 : undefined} autoComplete={isSignup ? 'new-password' : 'current-password'} value={password} onChange={(e) => setPassword(e.target.value)} disabled={!!busy} required />
             </label>
             {!isSignup && <div className="text-right text-sm"><Link href="/forgot-password" className="text-primary hover:underline">Forgot password?</Link></div>}
+            {isTurnstileEnabled && <TurnstileCaptcha action={isSignup ? 'signup' : 'login'} onToken={setCaptchaToken} resetNonce={captchaResetNonce} />}
             {err && <p role="alert" className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{err}</p>}
             {info && <p role="status" className="rounded-lg bg-accent px-3 py-2 text-sm text-accent-foreground">{info}</p>}
             <button className="btn-primary w-full !py-3" disabled={!!busy}>{busy === 'email' && <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin motion-reduce:animate-none" />}{isSignup ? 'Create account' : 'Sign in'}</button>
