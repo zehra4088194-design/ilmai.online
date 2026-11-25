@@ -15,10 +15,18 @@ async function keyRequest(env: Env, provider: 'groq'|'gemini', action: string, e
   });
   return { response, data: await response.json().catch(() => ({})) as Record<string, unknown> };
 }
-async function lease(env: Env, provider: 'groq'|'gemini'): Promise<KeyLease | null> {
+async function lease(env: Env, provider: 'groq'|'gemini'): Promise<{ key: KeyLease } | { failure: Response }> {
   const result = await keyRequest(env, provider, 'acquire');
-  if (!result.response.ok) return null;
-  return { provider, slot: Number(result.data.slot), key: String(result.data.key ?? '') };
+  if (!result.response.ok) {
+    const message = typeof result.data.error === 'string' ? result.data.error : 'Provider key pool could not issue a key';
+    return { failure: Response.json({ error: message, details: result.data }, { status: result.response.status }) };
+  }
+  const key = String(result.data.key ?? '');
+  const slot = Number(result.data.slot);
+  if (!key || !Number.isInteger(slot) || slot < 1 || slot > 10) {
+    return { failure: Response.json({ error: 'Provider key pool returned an invalid key lease' }, { status: 503 }) };
+  }
+  return { key: { provider, slot, key } };
 }
 async function report(env: Env, key: KeyLease, status: number) {
   await keyRequest(env, key.provider, 'report', { slot: key.slot, status }).catch(() => undefined);
@@ -44,8 +52,10 @@ export async function callChatProvider(env: Env, candidate: ModelCandidate, payl
   let last = new Response('Provider keys are not configured', { status: 503 });
   const attemptedSlots = new Set<number>();
   while (attempts < 10) {
-    const current = await lease(env, provider);
-    if (!current || attemptedSlots.has(current.slot)) return { response: last, model: candidate.id, provider, attempts };
+    const acquired = await lease(env, provider);
+    if ('failure' in acquired) return { response: acquired.failure, model: candidate.id, provider, attempts };
+    const current = acquired.key;
+    if (attemptedSlots.has(current.slot)) return { response: last, model: candidate.id, provider, attempts };
     attemptedSlots.add(current.slot);
     attempts++;
     const response = await fetch(providerUrl(provider), {
