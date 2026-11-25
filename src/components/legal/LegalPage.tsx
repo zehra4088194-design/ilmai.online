@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Logo } from '@/components/ui/Logo';
-export type LegalBlock = { heading:string; paragraphs?:string[]; bullets?:string[]; };
+export type LegalBlock = { heading:string; paragraphs?:string[]; bullets?:string[]; links?:{label:string;href:string}[]; };
 const LINKS=[['/privacy','Privacy'],['/terms','Terms'],['/refunds','Refunds'],['/cookies','Cookies'],['/acceptable-use','Acceptable use'],['/contact','Contact']] as const;
 export function LegalPage({title,description,blocks}:{title:string;description:string;blocks:LegalBlock[]}) {
   const support=process.env.SUPPORT_EMAIL?.trim()||'contact@ilmai.online';
