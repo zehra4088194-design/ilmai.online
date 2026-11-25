@@ -2,7 +2,7 @@
 
 The Worker is the **only provider-inference gateway** for the Next.js application. Coolify performs user authentication, plan/credit checks, prompt and conversation preparation, then sends signed requests to this Worker. The Worker verifies HMAC signatures, applies per-user replay/rate protection, and proxies to the configured provider without exposing provider credentials to the browser.
 
-**Provider topology:** OpenRouter remains the text-chat inference and text-model catalogue provider. Groq powers AI Suggestions and Gemini powers chat-image understanding. Picsart is the image/video generation provider and its live catalogue is the source of truth for media model IDs, parameter schemas and routing.
+**Provider topology:** OpenRouter handles normal text-chat inference, text-model catalogue discovery and utility suggestions. Groq is reserved for prompt enhancement, new-chat title generation and multi-model comparison summaries. Gemini handles chat-image understanding. Picsart is the image/video generation provider and its live catalogue is the source of truth for media model IDs, parameter schemas and routing.
 
 ## Configure Cloudflare
 
@@ -30,7 +30,7 @@ Run from the repository root, or use equivalent commands from `workers/ai-router
    npx wrangler secret list
    ```
 5. Wrangler prints the deployed Worker URL, normally `https://ilmai-ai-router.<account-subdomain>.workers.dev`. Copy the actual URL; do not use the example hostname.
-6. Optional secrets are added from Cloudflare Dashboard → Workers & Pages → `ilmai-ai-router` → Settings → Variables and Secrets → Add → Secret. Use names `GROQ_API_KEY_1` through `GROQ_API_KEY_10`, and `GEMINI_API_KEY_1` through `GEMINI_API_KEY_10`. The Suggestions endpoint uses Groq-hosted GPT-OSS/Qwen models only. For chat image attachments, Gemini extracts a text report; only that text reaches the selected answer model, while the original image remains visible beside the user's message.
+6. Optional secrets are added from Cloudflare Dashboard → Workers & Pages → `ilmai-ai-router` → Settings → Variables and Secrets → Add → Secret. Use names `GROQ_API_KEY_1` through `GROQ_API_KEY_10`, and `GEMINI_API_KEY_1` through `GEMINI_API_KEY_10`. Prompt enhancement, new-chat titles and comparison summaries use Groq-hosted GPT-OSS/Qwen models only; suggestions use the OpenRouter utility-model pool. For chat image attachments, Gemini extracts a text report; only that text reaches the selected answer model, while the original image remains visible beside the user's message.
 
 SQLite-backed Durable Objects are required for request replay/rate protection and key pools. Review Cloudflare plan limits and enable spend alerts before production usage.
 
