@@ -47,7 +47,15 @@ Suggestions aur quizzes **free models** se chalte hain (user ke credits nahi kat
 4. Optional Cloudflare Worker secrets: `GROQ_API_KEY_1` ... `GROQ_API_KEY_10` and `GEMINI_API_KEY_1` ... `GEMINI_API_KEY_10`. Groq keys are reserved for prompt enhancement, generating a new chat title from its first prompt, and summaries of multi-model comparisons. Suggestions and normal chat inference use OpenRouter; Auto chooses a suitable OpenRouter candidate deterministically. Gemini keys are used for chat-image understanding, not as general text-chat models.
 5. Never put provider keys or router secrets in browser-side `NEXT_PUBLIC_*` variables. Full deployment notes: `docs/AI-ROUTER-SETUP.md`.
 
-## 5. Backblaze B2
+## 5. Gamma API (Presentation Studio)
+1. Gamma API v1.0 use karne ke liye Gamma Pro, Ultra, Teams ya Business account par **Settings → My API keys** se API key banao.
+2. Coolify main app ke **Runtime Environment Variables** mein `GAMMA_API_KEY` add karo. Isay `NEXT_PUBLIC_*` ya Build Variable mat banana; key sirf server-side use hoti hai.
+3. Main app redeploy karo. Presentation Studio mein **Gamma** engine select karo, Gamma theme, visual style aur optional PPTX/PDF export choose karo.
+4. Gamma generation asynchronous hai: app status poll karti hai. Completed presentation Gamma workspace ke **API Generated** section mein milti hai.
+5. Gamma API credits tumhare Gamma account se alag deduct hote hain. Cards aur AI-generated images ki wajah se usage badal sakta hai; Gamma usage status response mein milta hai. Ilm AI users ke liye app ka `presentations.generation_cost` (aur optional `gamma_generation_cost`) alag set karo, taa-ke Gamma API cost ke mutabiq user pricing control kar sako.
+6. Gamma export link temporary hota hai (taqriban ek haftay ke aas paas); file jaldi download kar lo. Ek generation request mein sirf ek export format (PPTX ya PDF) select hota hai.
+
+## 6. Backblaze B2
 1. Buckets → Create bucket `ilmai-media`, **Private**.
 2. App Keys → Add key (sirf us bucket ke liye, Read & Write) → `keyID` = `B2_KEY_ID`, `applicationKey` = `B2_APPLICATION_KEY` (sirf ek baar dikhti hai).
 3. Bucket detail mein **Endpoint** dikhega (e.g. `s3.us-west-004.backblazeb2.com`) → `B2_ENDPOINT=https://s3.us-west-004.backblazeb2.com`, `B2_REGION=us-west-004`.
