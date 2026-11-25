@@ -192,15 +192,15 @@ export async function POST(req: NextRequest) {
       };
 
       heartbeat = setInterval(() => {
-        if (!disconnected && !completed) controller.enqueue(encoder.encode(': keep-alive\\n\\n'));
+        if (!disconnected && !completed) controller.enqueue(encoder.encode(': keep-alive\n\n'));
       }, 10_000);
 
       void generateWebsite(req).then(async (response) => {
         const body = await response.text();
-        send('data: ' + JSON.stringify({ status: response.status, body }) + '\\n\\n');
+        send('data: ' + JSON.stringify({ status: response.status, body }) + '\n\n');
       }).catch((error: unknown) => {
         const message = error instanceof Error ? error.message : 'Website generation failed';
-        send('data: ' + JSON.stringify({ status: 500, body: JSON.stringify({ error: message }) }) + '\\n\\n');
+        send('data: ' + JSON.stringify({ status: 500, body: JSON.stringify({ error: message }) }) + '\n\n');
       });
     },
     cancel() {
