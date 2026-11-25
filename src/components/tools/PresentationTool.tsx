@@ -59,6 +59,80 @@ export function PresentationTool() {
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/generate/presentation/gamma', { cache: 'no-store' })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => {
+        if (cancelled || !data) return;
+        setGammaConfigured(data.configured === true);
+        if (Array.isArray(data.themes)) setGammaThemes(data.themes);
+        if (data.configured === true) setEngine('gamma');
+      })
+      .catch(() => undefined);
+    try {
+      const saved = window.localStorage.getItem('ilm-gamma-presentation-pending');
+      if (saved && /^[0-9a-f-]{36}$/i.test(saved)) {
+        setGammaJobId(saved);
+        setBusy(true);
+        setAction('Resuming Gamma presentation…');
+      }
+    } catch { /* local storage may be unavailable */ }
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!gammaJobId) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const poll = async () => {
+      if (stopped) return;
+      try {
+        const response = await fetch('/api/generate/presentation/gamma/' + encodeURIComponent(gammaJobId), { cache: 'no-store' });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          if ([404, 409, 410].includes(response.status)) {
+            try { window.localStorage.removeItem('ilm-gamma-presentation-pending'); } catch { /* ignore */ }
+            setGammaJobId(null);
+            setBusy(false);
+            setAction('');
+            toast(data.error || 'This Gamma request is no longer available.', 'err');
+            return;
+          }
+          throw new Error(data.error || 'Could not check Gamma generation status.');
+        }
+        if (data.status === 'completed' && typeof data.gammaUrl === 'string') {
+          try { window.localStorage.removeItem('ilm-gamma-presentation-pending'); } catch { /* ignore */ }
+          setGammaResult(data as GammaResult);
+          setGammaJobId(null);
+          setBusy(false);
+          setAction('');
+          await refreshMe();
+          toast('Gamma presentation is ready', 'ok');
+          return;
+        }
+        if (data.status === 'failed') {
+          try { window.localStorage.removeItem('ilm-gamma-presentation-pending'); } catch { /* ignore */ }
+          setGammaJobId(null);
+          setBusy(false);
+          setAction('');
+          await refreshMe();
+          toast(data.error || 'Gamma could not complete this presentation.', 'err');
+          return;
+        }
+        setAction('Gamma is designing your slides…');
+      } catch {
+        setAction('Waiting for Gamma to finish…');
+      }
+      if (!stopped) timer = window.setTimeout(poll, 5000);
+    };
+    void poll();
+    return () => {
+      stopped = true;
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [gammaJobId, refreshMe, toast]);
+
   const presentationFeature = features.find((feature) => feature.key === 'presentations');
   const pdfEnabled = presentationFeature?.config?.pdf_export !== false;
   const slides = deck?.slides ?? [];
