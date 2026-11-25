@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 const Body = z.object({
   token: z.string().min(1).max(2048),
-  action: z.literal('login'),
+  action: z.enum(['login', 'signup']),
 });
 
 const expectedHostnames = new Set(
