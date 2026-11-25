@@ -84,7 +84,7 @@ export function PresentationTool() {
   useEffect(() => {
     if (!gammaJobId) return;
     let stopped = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
+    let timer: number | null = null;
     const poll = async () => {
       if (stopped) return;
       try {
