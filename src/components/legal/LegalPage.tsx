@@ -12,11 +12,12 @@ export function LegalPage({title,description,blocks}:{title:string;description:s
       <p className="text-xs font-semibold uppercase tracking-[.18em] text-primary">Ilm AI · Legal information</p>
       <h1 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">{title}</h1>
       <p className="mt-3 text-base leading-relaxed text-muted-foreground">{description}</p>
-      <p className="mt-3 text-xs text-muted-foreground">Last updated: 21 November 2026</p>
+      <p className="mt-3 text-xs text-muted-foreground">Last updated: 25 November 2026</p>
       <div className="mt-8 space-y-8">
         {blocks.map((block,index)=><section key={block.heading}>
           <h2 className="text-lg font-bold">{index+1}. {block.heading}</h2>
           {block.paragraphs?.map((paragraph,i)=><p key={i} className="mt-3 leading-7 text-muted-foreground">{paragraph}</p>)}
+          {block.links&&<ul className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm">{block.links.map((link,i)=><li key={i}><a href={link.href} target={link.href.startsWith('http')?'_blank':undefined} rel={link.href.startsWith('http')?'noopener noreferrer':undefined} className="font-semibold text-primary hover:underline">{link.label}</a></li>)}</ul>}
           {block.bullets&&<ul className="mt-3 list-disc space-y-2 pl-5 leading-7 text-muted-foreground">{block.bullets.map((item,i)=><li key={i}>{item}</li>)}</ul>}
         </section>)}
       </div>
