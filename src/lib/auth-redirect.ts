@@ -34,3 +34,26 @@ export function authCallbackPath(next: string | null | undefined): string {
 export function isAllowedOtpType(type: string | null): type is 'email' | 'recovery' {
   return type === 'email' || type === 'recovery';
 }
+
+/**
+ * Resolve auth return URLs against the canonical public app URL.
+ * Reverse proxies can expose an internal request URL (for example 0.0.0.0:3000);
+ * never redirect an OAuth callback to that bind address.
+ */
+export function authAppOrigin(fallback?: string): string {
+  const candidates = [process.env.NEXT_PUBLIC_SITE_URL, fallback];
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    try {
+      const url = new URL(candidate);
+      const host = url.hostname.toLowerCase();
+      if (host === '0.0.0.0' || host === '::' || host === '[::]') continue;
+      if (url.protocol === 'https:' || (url.protocol === 'http:' && (host === 'localhost' || host === '127.0.0.1'))) {
+        return url.origin;
+      }
+    } catch {
+      // Ignore malformed / untrusted origins and try the next candidate.
+    }
+  }
+  return 'https://ilmai.online';
+}
