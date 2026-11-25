@@ -2,7 +2,7 @@
 
 The Worker is the **only provider-inference gateway** for the Next.js application. Coolify performs user authentication, plan/credit checks, prompt and conversation preparation, then sends signed requests to this Worker. The Worker verifies HMAC signatures, applies per-user replay/rate protection, and proxies to the configured provider without exposing provider credentials to the browser.
 
-**Provider topology:** OpenRouter handles normal text-chat inference, text-model catalogue discovery and utility suggestions. Groq is reserved for prompt enhancement, new-chat title generation and multi-model comparison summaries. Gemini handles chat-image understanding. Picsart is the image/video generation provider and its live catalogue is the source of truth for media model IDs, parameter schemas and routing.
+**Provider topology:** OpenRouter handles normal text-chat inference, text-model catalogue discovery and utility suggestions. Groq is reserved for prompt enhancement, new-chat title generation and multi-model comparison summaries. Gemini handles chat-image understanding. Gamma handles presentation themes, generation and status polling. Picsart is the image/video generation provider and its live catalogue is the source of truth for media model IDs, parameter schemas and routing.
 
 ## Configure Cloudflare
 
@@ -22,7 +22,7 @@ Run from the repository root, or use equivalent commands from `workers/ai-router
    npx wrangler secret put AI_ROUTER_SECRET
    npx wrangler secret put OPENROUTER_API_KEY
    npx wrangler secret put PICSART_API_KEY
-npx wrangler secret put GAMMA_API_KEY
+   npx wrangler secret put GAMMA_API_KEY
    ```
    `AI_ROUTER_SECRET` must be a newly generated random secret. `OPENROUTER_API_KEY` is used for text inference. `PICSART_API_KEY` is the Picsart API Platform key used only for image/video catalogue and workflows. `GAMMA_API_KEY` is used for Gamma themes, presentation generation and status polling. It must be a Worker Secret, not a Coolify application variable. Never put secret values in source control, `.env.example`, Worker vars, Supabase, or browser-side `NEXT_PUBLIC_*` values.
 4. Deploy the repository's Worker code and inspect configured secret names (not values):
@@ -44,7 +44,7 @@ SQLite-backed Durable Objects are required for request replay/rate protection an
 - Provider-reported Picsart credits are recorded as provider usage metadata; they are **not** treated as Ilm AI wallet credits. The app retains its own admin-configured generation prices and reservation/refund logic.
 - Admin → Models → Picsart image & video models shows all non-deprecated models returned by the live catalogue. Enable/disable models and set an independent default for each mode. Newly published Picsart models appear after catalogue refresh; unsupported/custom IDs are not fabricated.
 
-If the Worker has no `PICSART_API_KEY` secret, the media catalogue returns a clear configuration error. Add the secret in Cloudflare and deploy the Worker before enabling image/video generation.
+If the Worker has no `PICSART_API_KEY` secret, the media catalogue and generation routes return a configuration error. The current connected Cloudflare account is missing this binding: add it as a Secret, then deploy and test before enabling image/video generation. The Gamma key binding is already present.
 
 ## Coolify Next.js variables
 
