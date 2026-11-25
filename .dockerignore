@@ -5,8 +5,14 @@ node_modules
 !.env.example
 docs
 *.md
-# Not needed by the Next.js production Docker build
+# Not needed by the Next.js production Docker build, except PDF renderer sources
 workers
+!workers/
+workers/*
+!workers/pdf-renderer/
+workers/pdf-renderer/*
+!workers/pdf-renderer/package.json
+!workers/pdf-renderer/server.js
 supabase
 scripts
 tests
