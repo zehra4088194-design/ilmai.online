@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { handle, HttpError, json } from '@/lib/http';
 import { requireUserApi } from '@/lib/auth';
+import { adminClient } from '@/lib/supabase/admin';
 import { requireFeature } from '@/lib/features';
 import { getSettings } from '@/lib/settings';
 import { signedDownloadUrl, deleteObject } from '@/lib/storage/b2';
