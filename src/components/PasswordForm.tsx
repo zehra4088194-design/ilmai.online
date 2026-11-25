@@ -8,7 +8,7 @@ import { Loader2 } from 'lucide-react';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/client';
 import { Logo } from '@/components/ui/Logo';
-import { authCallbackPath } from '@/lib/auth-redirect';
+import { authAppOrigin, authCallbackPath } from '@/lib/auth-redirect';
 import { isTurnstileEnabled, TurnstileCaptcha } from '@/components/TurnstileCaptcha';
 
 export function PasswordForm({ mode }: { mode: 'request' | 'update' }) {
@@ -39,7 +39,7 @@ export function PasswordForm({ mode }: { mode: 'request' | 'update' }) {
       if (isRequest) {
         const address = z.string().trim().email('Enter a valid email address.').parse(email);
         const { error: resetError } = await supabase.auth.resetPasswordForEmail(address, {
-          redirectTo: `${location.origin}${authCallbackPath('/reset-password')}`,
+          redirectTo: `${authAppOrigin(location.origin)}${authCallbackPath('/reset-password')}`,
           ...(isTurnstileEnabled ? { captchaToken } : {}),
         });
         if (resetError) throw new Error('Unable to send a reset link right now. Please try again later.');
