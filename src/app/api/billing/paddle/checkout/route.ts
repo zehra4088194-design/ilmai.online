@@ -9,6 +9,7 @@ export const dynamic='force-dynamic';
 const Body=z.object({
   requestId:z.string().uuid(),
   planId:z.enum(['pro','elite']),
+  acceptedPolicies:z.literal(true),
   discountCode:z.string().trim().max(40).optional(),
 }).strict();
 
@@ -36,6 +37,7 @@ async function paddleJson<T>(url:string,apiKey:string):Promise<T> {
 export const POST=handle(async(req:NextRequest)=>{
   const {profile,user}=await requireUserApi();
   const body=Body.parse(await req.json());
+  const policyAcceptance={termsVersion:'2026-11-25',refundPolicyVersion:'2026-11-25',acceptedAt:new Date().toISOString()};
   if(!user.email) throw new HttpError(400,'Your account needs a verified email before checkout');
 
   const environment=process.env.PADDLE_ENVIRONMENT;
@@ -88,7 +90,7 @@ export const POST=handle(async(req:NextRequest)=>{
     user_id:profile.id,provider:'paddle',plan_id:quote.plan.id,discount_id:quote.discount?.id??null,
     amount:quote.amount,currency:quote.plan.currency,credits_to_grant:quote.credits,
     status:'pending',customer_email:user.email,idempotency_key:body.requestId,
-    metadata:{request_id:body.requestId,expected_amount:quote.amount,paddle_price_id:quote.plan.paddle_price_id,period_days:quote.plan.period_days},
+    metadata:{request_id:body.requestId,expected_amount:quote.amount,paddle_price_id:quote.plan.paddle_price_id,period_days:quote.plan.period_days,policy_acceptance:policyAcceptance},
   }).select('id').single();
   if(insertError) throw insertError;
 
@@ -119,7 +121,7 @@ export const POST=handle(async(req:NextRequest)=>{
   }
   const {error:updateError}=await db.from('payments').update({
     provider_reference:transaction.id,
-    metadata:{request_id:body.requestId,checkout_url:transaction.checkout.url,customer_id:transaction.customer_id??null},
+    metadata:{request_id:body.requestId,checkout_url:transaction.checkout.url,customer_id:transaction.customer_id??null,policy_acceptance:policyAcceptance},
     updated_at:new Date().toISOString(),
   }).eq('id',payment.id);
   if(updateError) throw updateError;
