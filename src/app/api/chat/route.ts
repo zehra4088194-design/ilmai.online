@@ -258,8 +258,11 @@ export const POST = handle(async (req: NextRequest) => {
       } catch (e) {
         if (!ac.signal.aborted) errMsg = e instanceof Error ? e.message : 'Stream error';
       } finally {
+        // Persist each model answer and its usage before the client sees the stream as complete.
+        // This also makes post-comparison synthesis safe to run immediately after all streams finish.
+        try { await finalize(); }
+        catch (error) { console.error('[chat] finalization failed:', error); }
         try { controller.close(); } catch { /* already closed */ }
-        await finalize();
       }
     },
     cancel() { ac.abort(); },
