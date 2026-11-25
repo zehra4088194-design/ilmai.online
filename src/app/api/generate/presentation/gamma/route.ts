@@ -5,11 +5,11 @@ import { handle, HttpError, json } from '@/lib/http';
 import { requireUserApi } from '@/lib/auth';
 import { requireFeature } from '@/lib/features';
 import { adminClient } from '@/lib/supabase/admin';
+import { aiRouterFetch } from '@/lib/ai-router';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
-const GAMMA_API = 'https://public-api.gamma.app/v1.0';
 
 const Input = z.object({
   requestId: z.string().uuid(),
@@ -24,7 +24,7 @@ const Input = z.object({
 
 function apiError(status: number, data: Record<string, unknown>) {
   const message = typeof data.message === 'string' ? data.message.slice(0, 220) : '';
-  if (status === 401) return new HttpError(503, 'Gamma rejected the API key. Check GAMMA_API_KEY in Coolify.', 'gamma_unauthorized');
+  if (status === 401) return new HttpError(503, 'Gamma rejected the API key. Check the GAMMA_API_KEY secret in Cloudflare.', 'gamma_unauthorized');
   if (status === 403) return new HttpError(503, 'Gamma blocked the request. Check your Gamma plan and remaining API credits.', 'gamma_forbidden');
   if (status === 429) return new HttpError(429, 'Gamma is rate-limiting requests. Please try again shortly.', 'gamma_rate_limited');
   if (status === 400 || status === 422) return new HttpError(422, message || 'Gamma rejected the presentation settings.', 'gamma_invalid_request');
@@ -34,12 +34,12 @@ function apiError(status: number, data: Record<string, unknown>) {
 export const GET = handle(async (_req: NextRequest) => {
   const { profile, isAdmin } = await requireUserApi();
   await requireFeature('presentations', profile.plan, isAdmin);
-  const key = process.env.GAMMA_API_KEY;
-  if (!key) return json({ configured: false, themes: [] }, { headers: { 'Cache-Control': 'private, no-store' } });
   try {
-    const response = await fetch(GAMMA_API + '/themes?limit=50', {
-      headers: { 'X-API-KEY': key, Accept: 'application/json' },
-      signal: AbortSignal.timeout(12000), cache: 'no-store',
+    const response = await aiRouterFetch({
+      userId: profile.id,
+      path: '/gamma/v1.0/themes?limit=50',
+      method: 'GET',
+      signal: AbortSignal.timeout(12000),
     });
     if (!response.ok) return json({ configured: true, themes: [] }, { headers: { 'Cache-Control': 'private, no-store' } });
     const data = await response.json() as Record<string, unknown>;
@@ -59,9 +59,6 @@ export const POST = handle(async (req: NextRequest) => {
   const { profile, isAdmin } = await requireUserApi();
   const feature = await requireFeature('presentations', profile.plan, isAdmin);
   const body = Input.parse(await req.json());
-  const key = process.env.GAMMA_API_KEY;
-  if (!key) throw new HttpError(503, 'Gamma is not connected. Add GAMMA_API_KEY to the main Coolify app environment.', 'gamma_not_configured');
-
   const db = adminClient();
   const newId = randomUUID();
   const costValue = Number(feature.config?.gamma_generation_cost ?? feature.config?.generation_cost ?? 10);
@@ -120,11 +117,12 @@ export const POST = handle(async (req: NextRequest) => {
   let response: Response;
   let data: Record<string, unknown>;
   try {
-    response = await fetch(GAMMA_API + '/generations', {
+    response = await aiRouterFetch({
+      userId: profile.id,
+      path: '/gamma/v1.0/generations',
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-API-KEY': key, Accept: 'application/json' },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(30000), cache: 'no-store',
+      body: payload,
+      signal: AbortSignal.timeout(30000),
     });
     data = await response.json().catch(() => ({})) as Record<string, unknown>;
   } catch {
