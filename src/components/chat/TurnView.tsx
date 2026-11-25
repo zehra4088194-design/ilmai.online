@@ -12,14 +12,21 @@ import { AttachmentLinks } from '@/components/AttachmentPicker';
 import { cn } from '@/lib/utils';
 import type { Group, Msg } from '@/components/chat/types';
 
+type ComparisonLayout = 'portrait' | 'landscape';
+
 const shortName = (id: string | null | undefined, names: Map<string, string>) => (id ? (names.get(id) ?? id.split('/').pop() ?? id) : '');
 
-function Answer({ m, label, boxed, prompt, onRetry, onDifferentModel }: { m: Msg; label: string; boxed: boolean; prompt: string; onRetry: (text:string)=>void; onDifferentModel: (text:string)=>void }) {
+function Answer({ m, label, boxed, layout, prompt, onRetry, onDifferentModel }: { m: Msg; label: string; boxed: boolean; layout: ComparisonLayout; prompt: string; onRetry: (text:string)=>void; onDifferentModel: (text:string)=>void }) {
   const [copied, setCopied] = useState(false);
   const [feedback, setFeedback] = useState<'up'|'down'|null>(null);
   const provider = providerFromModelId(m.model);
   return (
-    <div className={cn('group min-w-0', boxed ? 'card min-w-[86%] snap-center p-3.5 md:min-w-0' : 'flex gap-3')}>
+    <div className={cn(
+      'group min-w-0',
+      boxed
+        ? cn('card min-w-0 p-3.5', layout === 'landscape' && 'w-[min(88vw,36rem)] max-w-[36rem] shrink-0 snap-start')
+        : 'flex gap-3',
+    )}>
       {!boxed && <div className="mt-0.5 shrink-0"><LogoMark className="h-8 w-8" /></div>}
       <div className="min-w-0 flex-1">
         <p className={cn('mb-1 flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground', boxed && 'border-b border-border pb-2')}>
@@ -47,6 +54,7 @@ function Answer({ m, label, boxed, prompt, onRetry, onDifferentModel }: { m: Msg
 }
 
 export function TurnView({ group, names, onAsk, onNewQuiz, onDifferentModel }: { group: Group; names: Map<string, string>; onAsk: (t: string) => void; onNewQuiz: (topic: string) => void; onDifferentModel: (t: string) => void }) {
+  const [comparisonLayout, setComparisonLayout] = useState<ComparisonLayout>('portrait');
   if (group.quiz?.meta?.quiz_id) return <QuizCard quizId={group.quiz.meta.quiz_id} onAsk={onAsk} onNewQuiz={onNewQuiz} />;
   const n = group.answers.length;
   return (
@@ -59,13 +67,31 @@ export function TurnView({ group, names, onAsk, onNewQuiz, onDifferentModel }: {
           </div>
         </div>
       )}
-      {n === 1 && <div className="mx-auto w-full"><Answer m={group.answers[0]} label={shortName(group.answers[0].model, names)} boxed={false} prompt={group.user?.content ?? ''} onRetry={onAsk} onDifferentModel={onDifferentModel} /></div>}
+      {n === 1 && <div className="mx-auto w-full"><Answer m={group.answers[0]} label={shortName(group.answers[0].model, names)} boxed={false} layout="portrait" prompt={group.user?.content ?? ''} onRetry={onAsk} onDifferentModel={onDifferentModel} /></div>}
       {n > 1 && (
-        <div className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2 md:grid md:overflow-visible md:[grid-template-columns:repeat(var(--cols),minmax(0,1fr))]" style={{ ['--cols' as string]: Math.min(n, 4) }}>
-          {group.answers.map((a) => <Answer key={a.id} m={a} label={shortName(a.model, names)} boxed prompt={group.user?.content ?? ''} onRetry={onAsk} onDifferentModel={onDifferentModel} />)}
-        </div>
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-xs font-semibold text-foreground">Comparison layout</p>
+              <p className="text-[11px] text-muted-foreground">Change the layout for this comparison only</p>
+            </div>
+            <div role="group" aria-label="Comparison layout" className="flex items-center rounded-xl border border-border bg-muted/50 p-1">
+              <button type="button" onClick={() => setComparisonLayout('portrait')} aria-pressed={comparisonLayout === 'portrait'}
+                className={cn('rounded-lg px-3 py-1.5 text-xs font-semibold transition', comparisonLayout === 'portrait' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>Portrait</button>
+              <button type="button" onClick={() => setComparisonLayout('landscape')} aria-pressed={comparisonLayout === 'landscape'}
+                className={cn('rounded-lg px-3 py-1.5 text-xs font-semibold transition', comparisonLayout === 'landscape' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>Landscape</button>
+            </div>
+          </div>
+          <div className={cn(
+            '-mx-1 flex gap-3 px-1 pb-2',
+            comparisonLayout === 'portrait'
+              ? 'flex-col'
+              : 'flex-nowrap snap-x snap-mandatory overflow-x-auto overscroll-x-contain pb-3',
+          )}>
+            {group.answers.map((a) => <Answer key={a.id} m={a} label={shortName(a.model, names)} boxed layout={comparisonLayout} prompt={group.user?.content ?? ''} onRetry={onAsk} onDifferentModel={onDifferentModel} />)}
+          </div>
+        </>
       )}
-
     </motion.div>
   );
 }
