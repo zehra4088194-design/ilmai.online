@@ -31,12 +31,15 @@ async function authenticate(request: Request, env: Env, rawBody: string) {
 async function handleChat(request: Request, env: Env, bodyText: string) {
   let input: Record<string, unknown>;
   try { input = JSON.parse(bodyText); } catch { return errorResponse(400, 'Invalid JSON body', 'invalid_json'); }
-  const routing = (input.routing ?? {}) as { provider?: Provider|'auto'; model?: string; candidates?: ModelCandidate[]; hints?: string };
+  const routing = (input.routing ?? {}) as { provider?: Provider|'auto'; model?: string; candidates?: ModelCandidate[]; hints?: string; task?: string };
   delete input.routing;
   const modelId = typeof input.model === 'string' ? input.model : routing.model;
+  const approvedGroqTasks = ['prompt-enhancement', 'conversation-title', 'comparison-summary'];
+  if (routing.provider === 'groq' && !approvedGroqTasks.includes(String(routing.task ?? '')))
+    return errorResponse(403, 'Groq is reserved for prompt enhancement, chat titles and comparison summaries', 'groq_task_not_allowed');
   const candidates = Array.isArray(routing.candidates)
     ? routing.candidates.filter((item) => item && typeof item.id === 'string' && item.id.length <= 200 &&
-      ['openrouter','groq','gemini'].includes(item.provider ?? 'openrouter')).slice(0, 30)
+      ['openrouter','gemini'].includes(item.provider ?? 'openrouter')).slice(0, 30)
     : [];
   let chosen: ModelCandidate | undefined;
   if (routing.provider === 'auto') {
