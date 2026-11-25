@@ -87,7 +87,7 @@ export function AuthForm({ mode, signupsEnabled = true }: { mode: 'login' | 'sig
         const response = await fetch('/api/auth/turnstile/verify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: captchaToken, action: 'login' }),
+          body: JSON.stringify({ token: captchaToken, action: isSignup ? 'signup' : 'login' }),
         });
         const result = await response.json().catch(() => ({})) as { error?: string };
         if (!response.ok) throw new Error(result.error || 'Security verification failed. Please try again.');
@@ -144,9 +144,9 @@ export function AuthForm({ mode, signupsEnabled = true }: { mode: 'login' | 'sig
             {isTurnstileEnabled && <TurnstileCaptcha action={isSignup ? 'signup' : 'login'} onToken={setCaptchaToken} resetNonce={captchaResetNonce} />}
             {err && <p role="alert" className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{err}</p>}
             {info && <p role="status" className="rounded-lg bg-accent px-3 py-2 text-sm text-accent-foreground">{info}</p>}
-            <button className="btn-primary w-full !py-3" disabled={!!busy}>{busy === 'email' && <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin motion-reduce:animate-none" />}{isSignup ? 'Create account' : 'Sign in'}</button>
+            <button className="btn-primary w-full !py-3" disabled={!!busy || (isTurnstileEnabled && !captchaToken)}>{busy === 'email' && <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin motion-reduce:animate-none" />}{isSignup ? 'Create account' : 'Sign in'}</button>
             <div className="relative py-1 text-center text-xs text-muted-foreground"><span className="relative z-10 bg-card px-3">or</span><div className="absolute inset-x-0 top-1/2 h-px bg-border" /></div>
-            <button type="button" onClick={google} className="btn-outline w-full !py-3" disabled={!!busy}>
+            <button type="button" onClick={google} className="btn-outline w-full !py-3" disabled={!!busy || (isTurnstileEnabled && !captchaToken)}>
               {busy === 'google' && <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin motion-reduce:animate-none" />}
               <svg className="h-4 w-4" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.5 12.27c0-.85-.08-1.67-.22-2.45H12v4.64h6.45a5.5 5.5 0 0 1-2.39 3.61v3h3.86c2.26-2.08 3.58-5.15 3.58-8.8z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.07 7.93-2.91l-3.86-3c-1.07.72-2.45 1.15-4.07 1.15-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09A12 12 0 0 0 12 24z"/><path fill="#FBBC05" d="M5.27 14.28a7.2 7.2 0 0 1 0-4.56V6.63H1.29a12 12 0 0 0 0 10.74l3.98-3.09z"/><path fill="#EA4335" d="M12 4.76c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0A12 12 0 0 0 1.29 6.63l3.98 3.09C6.22 6.87 8.87 4.76 12 4.76z"/></svg>
               Continue with Google
