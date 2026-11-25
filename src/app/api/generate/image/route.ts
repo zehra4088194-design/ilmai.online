@@ -5,13 +5,13 @@ import { handle, HttpError, json } from '@/lib/http';
 import { requireUserApi } from '@/lib/auth';
 import { requireFeature } from '@/lib/features';
 import { adminClient } from '@/lib/supabase/admin';
-import { putObject, signedDownloadUrl } from '@/lib/storage/b2';
+import { signedDownloadUrl, deleteObject } from '@/lib/storage/b2';
 import { getImageModel, supports, enumValues } from '@/lib/image-models';
 import { validateAttachments } from '@/lib/attachments';
 import {
   buildPicsartParams,
   picsartParamRange,
-  downloadPicsartAsset,
+  transferPicsartAsset,
   extractPicsartResponse,
   picsartExecuteModel,
   picsartPollModel,
@@ -42,29 +42,6 @@ function requireCapability(model: Awaited<ReturnType<typeof getImageModel>>, fie
   const allowed = enumValues(model, field);
   if (allowed.length && !allowed.includes(value))
     throw new HttpError(400, 'The selected model does not support ' + value + ' for ' + field, 'image_parameter_invalid');
-}
-
-function mimeAndExtension(contentType: string, bytes: Buffer) {
-  const mime = contentType === 'image/png' ? 'image/png'
-    : contentType === 'image/jpeg' ? 'image/jpeg'
-    : contentType === 'image/webp' ? 'image/webp'
-    : contentType === 'image/avif' ? 'image/avif'
-    : bytes.length > 8 && bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])) ? 'image/png'
-    : bytes.length > 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff ? 'image/jpeg'
-    : bytes.length > 12 && bytes.toString('ascii',0,4) === 'RIFF' && bytes.toString('ascii',8,12) === 'WEBP' ? 'image/webp'
-    : bytes.length > 12 && bytes.toString('ascii',4,8) === 'ftyp' && bytes.toString('ascii',8,12).includes('avif') ? 'image/avif'
-    : null;
-  if (!mime) throw new HttpError(502, 'Picsart returned a file that is not a supported image format', 'invalid_image_output');
-  const valid = mime === 'image/png'
-    ? bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))
-    : mime === 'image/jpeg'
-      ? bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
-      : mime === 'image/webp'
-        ? bytes.toString('ascii',0,4) === 'RIFF' && bytes.toString('ascii',8,12) === 'WEBP'
-        : bytes.toString('ascii',4,8) === 'ftyp' && bytes.toString('ascii',8,12).includes('avif');
-  if (!valid) throw new HttpError(502, 'Picsart returned an image with an invalid file signature', 'invalid_image_output');
-  const ext = mime === 'image/jpeg' ? 'jpg' : mime === 'image/webp' ? 'webp' : mime === 'image/avif' ? 'avif' : 'png';
-  return { mime, ext };
 }
 
 function imageUrlsFrom(result: unknown): string[] {
@@ -188,14 +165,11 @@ export const POST = handle(async (req: NextRequest) => {
     if (imageUrls.length < body.count) throw new HttpError(502, 'Picsart returned fewer images than requested', 'incomplete_image_response');
 
     const saved = await Promise.all(imageUrls.slice(0, body.count).map(async (url, index) => {
-      const downloaded = await downloadPicsartAsset(url, 20 * 1024 * 1024);
-      const { mime, ext } = mimeAndExtension(downloaded.mime, downloaded.bytes);
-      const storageKey = 'generated/' + profile.id + '/image/' + randomUUID() + '.' + ext;
-      await putObject(storageKey, downloaded.bytes, mime);
-      createdStorageKeys.push(storageKey);
+      const transferred = await transferPicsartAsset(profile.id, url, 20 * 1024 * 1024, 'image');
+      createdStorageKeys.push(transferred.storageKey);
       const insert = await db.from('media_assets').insert({
-        user_id: profile.id, kind: 'image', storage_key: storageKey, mime,
-        size_bytes: downloaded.bytes.length, prompt: body.prompt, model: model.id, status: 'ready',
+        user_id: profile.id, kind: 'image', storage_key: transferred.storageKey, mime: transferred.mime,
+        size_bytes: transferred.sizeBytes, prompt: body.prompt, model: model.id, status: 'ready',
         meta: {
           request_id: requestId, index: index + 1, aspect_ratio: body.aspectRatio ?? null,
           resolution: body.resolution ?? null, quality: body.quality ?? null,
@@ -240,7 +214,7 @@ export const POST = handle(async (req: NextRequest) => {
     return json(output, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) {
     for (const key of createdStorageKeys) {
-      try { await (await import('@/lib/storage/b2')).deleteObject(key); } catch { /* best-effort cleanup */ }
+      try { await deleteObject(key); } catch { /* best-effort cleanup */ }
     }
     if (!settled) {
       try { await db.rpc('release_generation', { p_id: requestId, p_user: profile.id, p_cancelled: false }); }
