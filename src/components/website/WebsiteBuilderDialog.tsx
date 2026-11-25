@@ -19,6 +19,64 @@ type WebsiteProject = {
 type WebsiteBuildCheck = { status: 'pending' | 'passed' | 'failed' | 'unavailable'; phase: 'sandbox' | 'runtime' | 'dependencies' | 'production'; durationMs: number; summary: string; details?: string; repairAttempts?: number };
 type WebsiteResponse = { project: WebsiteProject; model: string; creditsCharged: number; buildCheck: WebsiteBuildCheck; createdAt: string };
 
+async function generateWebsiteRequest(payload: Record<string, unknown>): Promise<WebsiteResponse> {
+  let response: Response;
+  try {
+    response = await fetch('/api/generate/website', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+      body: JSON.stringify(payload),
+      cache: 'no-store',
+    });
+  } catch {
+    throw new Error('Ilm AI server se connection toot gaya. Ho sakta hai deployment/reverse-proxy ne long request close kar di ho. Coolify app logs check karo; phir dobara try karo.');
+  }
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    throw new Error(body.slice(0, 500) || `Website API returned HTTP ${response.status}`);
+  }
+  if (!response.body) throw new Error('Website generation connection closed before the server returned progress.');
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let packet: { status: number; body: string } | null = null;
+
+  const readFrame = (frame: string) => {
+    const line = frame.split(/\\r?\\n/).find((item) => item.startsWith('data: '));
+    if (!line) return;
+    try { packet = JSON.parse(line.slice(6)) as { status: number; body: string }; }
+    catch { throw new Error('Website server returned an invalid response frame.'); }
+  };
+
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true }).replace(/\\r\\n/g, '\\n');
+      const frames = buffer.split('\\n\\n');
+      buffer = frames.pop() ?? '';
+      for (const frame of frames) readFrame(frame);
+    }
+    buffer += decoder.decode();
+    if (buffer.trim()) readFrame(buffer);
+  } catch (error) {
+    await reader.cancel().catch(() => {});
+    if (error instanceof Error) throw error;
+    throw new Error('Website generation connection was interrupted.');
+  }
+
+  if (!packet) throw new Error('Connection closed before website files were ready. Check the Coolify app logs for the generation request.');
+  let body: Record<string, unknown>;
+  try { body = JSON.parse(packet.body) as Record<string, unknown>; }
+  catch { throw new Error('Website server returned an unreadable response.'); }
+  if (packet.status < 200 || packet.status >= 300) {
+    throw new Error(typeof body.error === 'string' ? body.error : `Website generation failed (HTTP ${packet.status})`);
+  }
+  return body as unknown as WebsiteResponse;
+}
+
 const PAGE_OPTIONS = ['Home', 'About', 'Services', 'Products', 'Pricing', 'Portfolio', 'Gallery', 'Blog', 'FAQ', 'Contact'];
 const FEATURE_OPTIONS = ['Contact form', 'WhatsApp call-to-action', 'Product search', 'Shopping cart UI', 'Testimonials', 'FAQ accordion', 'Newsletter signup', 'Dashboard UI', 'Booking form', 'Search and filters'];
 const CODE_FAMILIES = /deepseek|qwen|yi-|glm|zhipu|kimi|moonshot|minimax|stepfun|internlm|baichuan|doubao|hunyuan/i;
@@ -100,7 +158,7 @@ export function WebsiteBuilderDialog({ open, onClose, models, preferredModel }: 
     setBusy(true);
     const requestId = crypto.randomUUID();
     try {
-      const response = await api<WebsiteResponse>('/api/generate/website', 'POST', {
+      const response = await generateWebsiteRequest({
         requestId,
         model: modelId,
         ...form,
