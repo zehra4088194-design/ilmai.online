@@ -44,6 +44,7 @@ export function FeaturesAdmin({ initial }: { initial: Flag[] }) {
       {flags.map((f) => {
         const Icon = iconFor(f.icon);
         const st = status(f);
+        const supportsPdfExport = f.key === 'presentations' || f.key === 'teacher_tests';
         return (
           <div key={f.key} className="card overflow-hidden">
             <div className="flex flex-wrap items-center gap-4 p-4">
@@ -64,10 +65,18 @@ export function FeaturesAdmin({ initial }: { initial: Flag[] }) {
               </div>
             </div>
             {open === f.key && (
-              <div className="space-y-2 border-t border-border bg-muted/40 p-4">
+              <div className="space-y-3 border-t border-border bg-muted/40 p-4">
+                {supportsPdfExport && (
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-background p-3">
+                    <div><p className="text-sm font-semibold">PDF export</p><p className="text-xs text-muted-foreground">Enable PDF downloads after the private renderer is healthy and configured in the main app.</p></div>
+                    <label className="flex items-center gap-2 text-sm font-medium"><Switch checked={f.config?.pdf_export === true} onChange={(v) => patch(f.key, { config: { ...f.config, pdf_export: v } })} label="PDF export" />{f.config?.pdf_export === true ? 'Enabled' : 'Disabled'}</label>
+                  </div>
+                )}
+                <div className="space-y-2">
                 <p className="text-xs text-muted-foreground">Advanced JSON config (e.g. <code>{'{"default_model": "google/gemini-2.5-flash-image"}'}</code> for image generation)</p>
                 <textarea className="input min-h-24 font-mono text-xs" value={cfg[f.key] ?? JSON.stringify(f.config, null, 2)} onChange={(e) => setCfg((c) => ({ ...c, [f.key]: e.target.value }))} />
                 <button className="btn-primary !py-1.5" onClick={() => saveCfg(f)}><Save className="h-4 w-4" />Save config</button>
+                </div>
               </div>
             )}
           </div>
