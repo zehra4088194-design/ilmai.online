@@ -116,7 +116,7 @@ export function ModelBar({
             {selected.slice(0, 2).map((id) => (
               <motion.span key={id} layout initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.85 }}
                 className="flex max-w-[min(42vw,13rem)] min-w-0 shrink items-center gap-1 rounded-full border border-primary/30 bg-accent py-1 pl-1.5 pr-2 text-[11px] font-semibold text-accent-foreground">
-                <ProviderLogo provider={byId.get(id)?.provider} className="!h-4 !w-4 !shrink-0 !rounded-md" />
+                <ProviderLogo provider={byId.get(id)?.provider} className="!h-4 !w-4 !shrink-0" />
                 <span className="truncate">{short(byId.get(id)) || id}</span>
                 {compareMode && selected.length > 1 && !disabled && <button type="button" onClick={() => onToggle(id)} aria-label={'Remove ' + (short(byId.get(id)) || id)} className="grid h-4 w-4 shrink-0 place-items-center rounded-full hover:bg-primary/20"><X className="h-3 w-3" /></button>}
               </motion.span>
@@ -170,7 +170,7 @@ export function ModelBar({
                   <button type="button" onClick={() => { setSelectedProvider(null); setQ(''); }} className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground">
                     <ChevronLeft className="h-3.5 w-3.5" />All providers
                   </button>
-                  <ProviderLogo provider={selectedProvider} className="!h-6 !w-6 !min-w-6 !max-w-6 !rounded-lg" /><span className="text-xs font-semibold text-foreground">{providerName(selectedProvider)}</span>
+                  <ProviderLogo provider={selectedProvider} className="!h-6 !w-6 !min-w-6 !max-w-6" /><span className="text-xs font-semibold text-foreground">{providerName(selectedProvider)}</span>
                   <span className="ml-auto text-[10px] text-muted-foreground">Select a model</span>
                 </div>
                 {compareMode && selected.length >= actualCompareLimit && <p className="mb-2 shrink-0 rounded-lg bg-primary/10 px-3 py-2 text-xs text-primary">You selected the maximum of {actualCompareLimit} models. Remove one above to add another.</p>}
@@ -185,7 +185,7 @@ export function ModelBar({
                       <button key={model.id} type="button" disabled={locked || disabled} onClick={() => chooseModel(model.id)}
                         className={cn('flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2.5 text-left transition', active ? 'bg-accent' : 'hover:bg-muted', locked && 'cursor-not-allowed opacity-55')}>
                         <span className={cn('grid h-5 w-5 shrink-0 place-items-center rounded-md border transition', active ? 'border-primary bg-primary text-primary-foreground' : 'border-border')}>{active && <Check className="h-3.5 w-3.5" />}</span>
-                        <ProviderLogo provider={model.provider} className="!h-7 !w-7 !min-w-7 !max-w-7 !rounded-lg" />
+                        <ProviderLogo provider={model.provider} className="!h-7 !w-7 !min-w-7 !max-w-7" />
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-semibold">{cleanModelName(model.name) || model.name}</span>
                           <span className="block truncate text-[11px] text-muted-foreground">{fmtNum(model.context)} context · {model.isFree ? 'Free provider rate' : 'Input ' + perMillion(model.pricePromptPerM) + ' · Output ' + perMillion(model.priceCompletionPerM)}</span>
@@ -222,7 +222,7 @@ export function ModelBar({
                     return (
                       <button key={group.id} type="button" onClick={() => chooseProvider(group.id)}
                         className="flex w-full items-center gap-2.5 rounded-lg border border-transparent px-2 py-1.5 text-left transition hover:border-border hover:bg-muted">
-                        <ProviderLogo provider={group.id} className="!h-7 !w-7 !rounded-lg" />
+                        <ProviderLogo provider={group.id} className="!h-7 !w-7" />
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-[13px] font-semibold">{providerName(group.id)}</span>
                           <span className="block text-[11px] text-muted-foreground">{group.items.length} models · {availableCount} available on your plan{selectedCount ? ' · ' + selectedCount + ' selected' : ''}</span>
