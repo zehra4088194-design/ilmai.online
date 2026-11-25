@@ -27,7 +27,7 @@ export function ChatView() {
 
   const { user, features, featureOn, refreshConversations, refreshMe } = useApp();
   const toast = useToast();
-  const { models, selected, toggle, maxParallel, multi: compareAvailable, compareMode, setCompareMode, loading: modelsLoading } = useModels();
+  const { models, selected, toggle, maxParallel, multi: compareAvailable, compareMode, setCompareMode, loading: modelsLoading, error: modelsError, retry: retryModels } = useModels();
 
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
@@ -384,6 +384,12 @@ export function ChatView() {
           features={features} onQuiz={quizOn ? () => setQuizDlg({}) : undefined}
           modelSlot={<>
             {modelsLoading ? <div className="h-7 w-48 animate-pulse rounded-full bg-muted" /> : <ModelBar models={models} selected={selected} onToggle={toggle} max={maxParallel} compareAvailable={compareAvailable} compareMode={compareMode} onCompareModeChange={setCompareMode} disabled={busy} />}
+            {!modelsLoading && modelsError && (
+              <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-danger/20 bg-danger/5 px-3 py-2 text-xs text-danger">
+                <span className="min-w-0 flex-1">AI models unavailable: {modelsError}</span>
+                <button type="button" onClick={retryModels} className="shrink-0 rounded-md px-2 py-1 font-semibold underline underline-offset-2">Retry</button>
+              </div>
+            )}
           </>}
           thinking={thinking} onThinkingChange={setThinking} onEnhance={enhancePrompt} enhancing={enhancing}
           onBuildWebsite={() => setWebsiteBuilderOpen(true)} callActive={callActive} callStatus={callStatus} onToggleCall={toggleVoiceCall}

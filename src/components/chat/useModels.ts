@@ -13,7 +13,7 @@ export function useModels() {
   const [maxParallel, setMax] = useState(1);
   const [multi, setMulti] = useState(false);
   const [compareMode, setCompareModeState] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);\n  const [error, setError] = useState<string | null>(null);\n  const [retryKey, setRetryKey] = useState(0);\n\n  const retry = useCallback(() => setRetryKey((key) => key + 1), []);
 
   useEffect(() => {
     let alive = true;
@@ -47,10 +47,10 @@ export function useModels() {
           setSelectedState(fallback?[fallback]:[]);
         }
       })
-      .catch(()=>{if(alive)setModels([]);})
+      .catch((reason)=>{\n        if(alive) {\n          setModels([]);\n          setError(reason instanceof Error ? reason.message : 'Could not load the AI model catalogue.');\n        }\n      })
       .finally(()=>{if(alive)setLoading(false);});
     return ()=>{alive=false;};
-  }, []);
+  }, [retryKey]);
 
   const persist=(ids:string[])=>{
     setSelectedState(ids);
@@ -87,5 +87,5 @@ export function useModels() {
     });
   },[maxParallel,compareMode,multi]);
 
-  return {models,selected,setSelected:persist,toggle,maxParallel,multi,compareMode,setCompareMode,loading};
+  return {models,selected,setSelected:persist,toggle,maxParallel,multi,compareMode,setCompareMode,loading,error,retry};
 }

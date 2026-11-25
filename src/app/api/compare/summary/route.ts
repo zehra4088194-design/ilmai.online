@@ -4,7 +4,7 @@ import { handle, HttpError, json } from '@/lib/http';
 import { requireUserApi } from '@/lib/auth';
 import { requireFeature } from '@/lib/features';
 import { adminClient } from '@/lib/supabase/admin';
-import { groqTaskChat } from '@/lib/utility-ai';
+import { utilityChat } from '@/lib/utility-ai';
 import { logUsage } from '@/lib/usage';
 
 export const runtime = 'nodejs';
@@ -18,7 +18,7 @@ const Body = z.object({
     .refine((ids) => new Set(ids).size === ids.length, 'Duplicate answer IDs are not allowed'),
 });
 
-/** A Groq-only synthesis of the models that answered one comparison turn. */
+/** A Cloudflare Worker-routed synthesis of selected answers for one comparison turn. */
 export const POST = handle(async (req: NextRequest) => {
   const { profile, isAdmin } = await requireUserApi();
   await requireFeature('compare_models', profile.plan, isAdmin);
@@ -80,7 +80,7 @@ export const POST = handle(async (req: NextRequest) => {
         'Do not invent facts, do not declare a winner without explaining why, and do not simply repeat each answer. ' +
         'Use short headings and compact bullets. Return only the comparison summary.';
 
-    const result = await groqTaskChat(
+    const result = await utilityChat(
       [
         { role: 'system', content: systemPrompt },
         {
@@ -89,7 +89,14 @@ export const POST = handle(async (req: NextRequest) => {
             '\n\nSelected model responses (JSON):\n' + JSON.stringify(inputs),
         },
       ],
-      { userId: profile.id, task: 'comparison-summary', maxTokens: 850, temperature: 0.2, timeoutMs: 14_000 },
+      {
+        userId: profile.id,
+        maxTokens: 850,
+        temperature: 0.2,
+        timeoutMs: 12_000,
+        tries: 4,
+        deadlineMs: 48_000,
+      },
     );
 
     const summary = result.text.trim().slice(0, 7000);
@@ -116,7 +123,7 @@ export const POST = handle(async (req: NextRequest) => {
       userId: profile.id,
       kind: 'compare_summary',
       model: result.model,
-      provider: 'groq',
+      provider: 'openrouter',
       promptTokens: result.promptTokens,
       completionTokens: result.completionTokens,
       costUsd: result.cost,
