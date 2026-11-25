@@ -1,33 +1,63 @@
 import { LegalPage, type LegalBlock } from '@/components/legal/LegalPage';
-export const dynamic='force-dynamic';
-export const metadata={title:'Refunds & Cancellation | Ilm AI',description:'How Ilm AI handles payment issues, refunds and subscription cancellation.'};
-const blocks:LegalBlock[]=[
-{heading:'Scope',paragraphs:[
-'This policy applies to paid Ilm AI plans, credits and purchases processed through Paddle or PayPro. It should be read with the Terms of Service and the payment provider’s own terms. Mandatory consumer rights in your location take precedence where they cannot lawfully be waived.'
-]},
-{heading:'Before you pay',bullets:[
-'Review the selected plan, currency, price, billing period, AI credit allocation and included features on the Pricing page.',
-'Review the final amount shown by Paddle or PayPro before approving payment. A provider may calculate taxes or other checkout amounts.',
-'Do not approve a wallet request unless the merchant, amount and purchase details match the plan you selected.'
-]},
-{heading:'Refund requests',paragraphs:[
-'If you believe you were charged incorrectly, paid more than once, selected the wrong plan, did not receive the purchased access or experienced a material service issue, email contact@ilmai.online as soon as possible. Include your Ilm AI account email, plan, approximate payment date, payment provider and transaction reference. Do not send your card number, card security code, wallet PIN or password.',
-'Refunds are reviewed against the payment status, provider records, credits already granted or consumed, service access, the nature of the issue and applicable law. Where a refund is approved, it will normally be submitted through the original payment provider and returned using that provider’s available process. Processing times depend on the provider and payment method.',
-'Unused credits or a period with no usage do not automatically guarantee a refund. This does not limit any refund or cancellation right that applicable consumer law gives you. Fraudulent, unauthorised or duplicate charges will be investigated with the relevant provider.'
-]},
-{heading:'Cancellation of Paddle subscriptions',paragraphs:[
-'If a Paddle plan is recurring, you can use the billing area in your account to request cancellation at the end of the current billing period. The current billing period generally remains available until its end unless Paddle or applicable law requires otherwise. The cancellation state is confirmed by the provider and shown in the account.',
-'Cancelling a subscription prevents future renewal charges where the cancellation is accepted; it does not automatically refund a payment already collected. To request a refund for an earlier charge, contact support and follow the provider’s dispute process where appropriate.'
-]},
-{heading:'PayPro, JazzCash and Easypaisa',paragraphs:[
-'PayPro wallet payments in the current Ilm AI integration are term purchases and do not automatically renew. You must approve each new wallet payment to extend a plan. If a wallet request remains pending, check its status from your billing page before submitting another payment. A pending request is not a completed purchase.',
-'If your wallet was debited but Ilm AI still shows a pending or failed payment, contact support with the PayPro merchant and platform transaction references. We will compare the provider notification and payment status before changing credits or access.'
-]},
-{heading:'Chargebacks and payment disputes',paragraphs:[
-'Please contact support first when practical so we can review the payment and resolve a genuine service or billing issue. You may also contact your bank, card issuer or wallet provider in accordance with their dispute procedures. We may suspend access to a disputed purchase while the provider investigates, where permitted by law.'
-]},
-{heading:'Contact and legal rights',paragraphs:[
-'Send refund and cancellation requests to contact@ilmai.online. Include the transaction reference and enough information for us to locate the payment; never send passwords, card security codes or wallet PINs. Nothing in this policy takes away mandatory consumer rights or a dispute resolution option available under applicable law.'
-]}
+
+export const dynamic = 'force-dynamic';
+export const metadata = {
+  title: 'Refund & Cancellation Policy | Ilm AI',
+  description: 'How refunds, cancellations and payment issues are handled for Ilm AI plans and credits.',
+};
+
+const blocks: LegalBlock[] = [
+  { heading: 'Scope and payment providers', paragraphs: [
+    'This policy applies to paid Ilm AI plans, subscriptions and credit purchases made through ilmai.online. The payment route used for an order matters: Paddle handles Paddle checkout transactions, while PayPro is used for eligible JazzCash and Easypaisa payments.',
+    'Refund eligibility is always subject to applicable mandatory consumer-protection laws. Nothing on this page removes a right that cannot lawfully be waived.',
+  ]},
+  { heading: 'Paddle purchases and Merchant of Record', paragraphs: [
+    'For orders processed through Paddle, our order process is conducted by our online reseller Paddle.com. Paddle.com is the Merchant of Record for those orders. Paddle provides payment support and handles refunds and returns for Paddle transactions.',
+    'Paddle’s Buyer Terms and Refund Policy govern refund requests for Paddle transactions. Under Paddle’s published policy, transactions are generally non-refundable and non-exchangeable unless applicable law requires otherwise. Paddle may consider a discretionary refund request submitted within 14 days of the transaction date, but submitting a request within that period does not guarantee approval. Paddle may consider the product, the reason for the request, usage or consumption, and other relevant circumstances.',
+    'Country-specific statutory withdrawal or refund rights may apply and take priority where they provide stronger or non-waivable protection. Paddle’s policy in force for the transaction and the buyer terms presented for that purchase explain the applicable rules.',
+  ], links: [
+    { label: 'Paddle Buyer Refund Policy', href: 'https://www.paddle.com/legal/refund-policy' },
+    { label: 'Paddle Buyer Terms', href: 'https://www.paddle.com/legal/buyer-terms' },
+  ]},
+  { heading: 'How to request a Paddle refund', paragraphs: [
+    'Use the support or refund link in your Paddle transaction receipt, visit the Paddle Buyer Support site and choose “Request refund”, or use the billing/support link shown in your Ilm AI account where available. Paddle uses its transaction records to check the order and refund eligibility.',
+    'Include the email address used at checkout and your Paddle transaction or order reference. Briefly explain the reason for the request and include relevant details if the issue relates to access, a technical defect or a duplicate charge.',
+  ], links: [
+    { label: 'Open Paddle Buyer Support', href: 'https://paddle.net' },
+    { label: 'Paddle refund help for buyers', href: 'https://www.paddle.com/help/manage/your-customers/how-do-i-issue-refunds' },
+  ]},
+  { heading: 'Technical problems and incorrect charges', paragraphs: [
+    'If a paid Ilm AI feature is unavailable, a material technical problem prevents you from using what was purchased, or you believe you were charged incorrectly, contact us first at contact@ilmai.online. Include your account email, approximate purchase date, payment reference and a description of the problem. We will review the service or account issue and try to help resolve it.',
+    'For a Paddle transaction, if the issue cannot be resolved or you want to make a formal refund request, submit the request to Paddle through the buyer-support route above. Paddle determines and processes refunds for its transactions, subject to its policy and applicable law.',
+  ]},
+  { heading: 'Subscription cancellation', paragraphs: [
+    'Cancelling a subscription and requesting a refund are different actions. You can cancel an eligible Paddle subscription through the “Manage subscription” link in your Paddle confirmation email or through Paddle Buyer Support. Cancellation normally takes effect at the end of the current billing period and prevents future renewal charges; it does not automatically refund a payment that has already been made.',
+    'Check the subscription status and next billing date in the Paddle customer portal after submitting a cancellation request. Any statutory cancellation or withdrawal right that applies to your transaction remains unaffected.',
+  ], links: [
+    { label: 'Paddle Buyer Support', href: 'https://paddle.net' },
+    { label: 'Paddle Buyer Terms — cancellations and refunds', href: 'https://www.paddle.com/legal/buyer-terms' },
+  ]},
+  { heading: 'PayPro, JazzCash and Easypaisa payments', paragraphs: [
+    'For a payment made through PayPro using JazzCash or Easypaisa, contact Ilm AI at contact@ilmai.online with your account email, PayPro trade or transaction reference, purchase date and reason for the request. We will check the payment status and the related plan or credits.',
+    'PayPro payments are separate from Paddle transactions and are not covered by Paddle’s Buyer Refund Policy. Any refund or reversal for a PayPro payment is reviewed through the applicable payment channel, our transaction records and mandatory law. Do not send wallet PINs, passwords or one-time verification codes to support.',
+  ]},
+  { heading: 'Credits, digital access and refunded orders', paragraphs: [
+    'AI credits are usage units for Ilm AI features; they are not cash, a bank balance or a transferable payment instrument. Credits may be used as soon as they are added to an account, and usage or consumption can be relevant when a payment provider assesses a discretionary refund request.',
+    'If a payment provider approves a refund, the related plan, subscription or paid access may be ended or adjusted in line with the provider’s decision, the transaction and applicable law. A cancellation by itself does not convert unused credits into cash or automatically create a refund.',
+  ]},
+  { heading: 'Chargebacks and payment disputes', paragraphs: [
+    'If you do not recognise a payment or believe there has been a billing error, contact the relevant payment provider and Ilm AI support before opening a bank or card dispute where possible. This can help identify the transaction and resolve an issue more quickly.',
+    'This request-first process does not limit any right you have to dispute an unauthorised or incorrect charge with your bank, card issuer, payment provider or under applicable law.',
+  ]},
+  { heading: 'Contact and policy updates', paragraphs: [
+    'For Ilm AI account, service or PayPro payment questions, email contact@ilmai.online. For a Paddle refund or subscription request, use Paddle Buyer Support or the links in your Paddle receipt. Please do not include full card numbers, security codes, wallet PINs or passwords in support messages.',
+    'We may update this policy when our products, payment methods or legal requirements change. The version published at the time of your transaction, the relevant payment provider terms and applicable mandatory law govern that transaction.',
+  ], links: [
+    { label: 'Contact Ilm AI support', href: 'mailto:contact@ilmai.online' },
+    { label: 'Paddle Buyer Support', href: 'https://paddle.net' },
+  ]},
 ];
-export default function Page(){return <LegalPage title="Refunds & Cancellation Policy" description="Understand payment verification, wallet purchases, subscription cancellation and how to request a refund." blocks={blocks}/>;}
+
+export default function RefundsPage() {
+  return <LegalPage title="Refund & Cancellation Policy" description="Read how refund requests, subscription cancellations and payment issues are handled for Ilm AI plans and credits." blocks={blocks} />;
+}
