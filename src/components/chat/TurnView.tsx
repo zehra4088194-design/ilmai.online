@@ -76,17 +76,19 @@ export function TurnView({
   const [selectedAnswerIds, setSelectedAnswerIds] = useState<string[]>(() => group.answers.map((answer) => answer.id));
   if (group.quiz?.meta?.quiz_id) return <QuizCard quizId={group.quiz.meta.quiz_id} onAsk={onAsk} onNewQuiz={onNewQuiz} />;
   const n = group.answers.length;
-  const summaryOwner = group.answers.find((answer) => typeof answer.meta?.comparison_summary === 'string' && answer.meta.comparison_summary.length > 0);
-  const comparisonSummary = typeof summaryOwner?.meta?.comparison_summary === 'string' ? summaryOwner.meta.comparison_summary : null;
-  const storedSummaryIds = summaryOwner?.meta?.comparison_summary_answer_ids;
-  const comparisonSummaryAnswerIds = Array.isArray(storedSummaryIds)
-    ? storedSummaryIds.filter((id): id is string => typeof id === 'string')
-    : null;
   const eligibleAnswers = group.answers.filter((answer) => !answer.streaming && !answer.error && answer.content.trim().length > 0);
   const selectedAnswers = eligibleAnswers.filter((answer) => selectedAnswerIds.includes(answer.id));
-  const summaryMatchesSelection = comparisonSummaryAnswerIds
-    ? selectedAnswers.length === comparisonSummaryAnswerIds.length && comparisonSummaryAnswerIds.every((id) => selectedAnswers.some((answer) => answer.id === id))
-    : selectedAnswers.length === eligibleAnswers.length;
+  const summaryOwner = group.answers.find((answer) => {
+    if (typeof answer.meta?.comparison_summary !== 'string' || answer.meta.comparison_summary.length === 0) return false;
+    const storedIds = answer.meta.comparison_summary_answer_ids;
+    if (Array.isArray(storedIds)) {
+      const ids = storedIds.filter((id): id is string => typeof id === 'string');
+      return ids.length === selectedAnswers.length && ids.every((id) => selectedAnswers.some((selected) => selected.id === id));
+    }
+    return selectedAnswers.length > 0 && selectedAnswers.length === eligibleAnswers.length;
+  });
+  const comparisonSummary = typeof summaryOwner?.meta?.comparison_summary === 'string' ? summaryOwner.meta.comparison_summary : null;
+  const summaryMatchesSelection = !!comparisonSummary;
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
       {group.user && (
