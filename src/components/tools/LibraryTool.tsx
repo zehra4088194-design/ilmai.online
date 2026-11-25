@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { FileText, Image, Presentation, Search, Video, Music, FolderKanban, RefreshCw, Link2 } from 'lucide-react';
+import { FileText, Image, Presentation, Search, Video, Music, FolderKanban, RefreshCw, Link2, Trash2 } from 'lucide-react';
 import { api } from '@/lib/client-api';
 import { useToast } from '@/components/providers';
 
@@ -55,6 +55,18 @@ export function LibraryTool() {
     finally { setBusyId(''); }
   }
 
+  async function deleteAsset(asset: Asset) {
+    if (busyId || !window.confirm('Permanently delete "' + asset.name + '" from your Library? This also removes it from linked projects.')) return;
+    setBusyId(asset.id);
+    try {
+      await api('/api/media/' + asset.id, 'DELETE');
+      setAssets((current) => current.filter((item) => item.id !== asset.id));
+      toast('File deleted from your Library', 'ok');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not delete this file');
+    } finally { setBusyId(''); }
+  }
+
   function icon(file: Asset) {
     if (file.kind === 'image') return Image;
     if (file.kind === 'video') return Video;
@@ -90,7 +102,11 @@ export function LibraryTool() {
                 <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{asset.name}</p><p className="text-[11px] text-muted-foreground">{asset.kind.toUpperCase()} · {niceSize(asset.sizeBytes)}</p><p className="mt-1 line-clamp-2 min-h-8 text-xs text-muted-foreground">{asset.prompt || asset.model || asset.mime}</p></div>
               </div>
               <div className="mt-3 flex items-center justify-between border-t border-border pt-2"><span className="text-[11px] text-muted-foreground">{new Date(asset.createdAt).toLocaleDateString()}</span>
-                <div className="flex gap-2"><a className="text-xs font-semibold text-primary underline" href={asset.downloadUrl} target="_blank" rel="noopener noreferrer">Download</a>{projectId && <button className="btn-ghost text-xs" disabled={busyId === asset.id} onClick={() => addToProject(asset)}><Link2 className="h-3.5 w-3.5" /> Add</button>}</div>
+                <div className="flex items-center gap-2">
+                  <a className="text-xs font-semibold text-primary underline" href={asset.downloadUrl} target="_blank" rel="noopener noreferrer">Download</a>
+                  {projectId && <button className="btn-ghost text-xs" disabled={!!busyId} onClick={() => addToProject(asset)}><Link2 className="h-3.5 w-3.5" /> Add</button>}
+                  <button className="btn-ghost text-xs text-danger hover:bg-danger/10" disabled={!!busyId} onClick={() => deleteAsset(asset)} title="Permanently delete file"><Trash2 className="h-3.5 w-3.5" /><span className="sr-only">Delete</span></button>
+                </div>
               </div>
             </article>;
           })}
