@@ -1,4 +1,6 @@
 import 'server-only';
+import { randomUUID } from 'crypto';
+import { deleteObject, signedGeneratedUploadUrl } from '@/lib/storage/b2';
 
 import { z } from 'zod';
 import { aiRouterFetch } from '@/lib/ai-router';
@@ -312,6 +314,57 @@ export async function picsartPollModel(userId: string, jobId: string, timeoutMs 
     timeoutMs,
   });
   return parseWorkflowResponse(response, 'Picsart generation status check');
+}
+
+export async function transferPicsartAsset(
+  userId: string,
+  sourceUrl: string,
+  maxBytes: number,
+  kind: 'image' | 'video',
+): Promise<{ storageKey: string; mime: string; sizeBytes: number }> {
+  const formats = kind === 'image'
+    ? [{ mime: 'image/png', ext: 'png' }, { mime: 'image/jpeg', ext: 'jpg' }, { mime: 'image/webp', ext: 'webp' }, { mime: 'image/avif', ext: 'avif' }]
+    : [{ mime: 'video/mp4', ext: 'mp4' }, { mime: 'video/webm', ext: 'webm' }];
+  const targets = Object.fromEntries(await Promise.all(formats.map(async (format) => {
+    const key = `generated/${userId}/${kind}/${randomUUID()}.${format.ext}`;
+    const url = await signedGeneratedUploadUrl(key, format.mime, 300);
+    return [format.mime, { key, url }];
+  })));
+  const cleanup = async () => {
+    await Promise.all(Object.values(targets).map((target) => deleteObject(target.key).catch(() => undefined)));
+  };
+
+  let response: Response;
+  try {
+    response = await aiRouterFetch({
+      userId,
+      path: '/media/picsart-transfer',
+      body: { sourceUrl, kind, maxBytes, targets },
+      signal: AbortSignal.timeout(kind === 'video' ? 240_000 : 90_000),
+    });
+  } catch (error) {
+    await cleanup();
+    if (error instanceof HttpError) throw error;
+    throw new HttpError(503, 'Cloudflare could not transfer the generated file to Backblaze', 'media_transfer_unavailable');
+  }
+
+  const data = await response.json().catch(() => ({})) as Record<string, unknown>;
+  if (!response.ok) {
+    await cleanup();
+    const message = typeof data.error === 'string' ? data.error : 'Generated media transfer failed';
+    throw new HttpError(response.status >= 500 ? 502 : response.status, message.slice(0, 400), typeof data.code === 'string' ? data.code : 'media_transfer_failed');
+  }
+
+  const mime = typeof data.mime === 'string' ? data.mime : '';
+  const target = targets[mime] as { key: string } | undefined;
+  const sizeBytes = Number(data.sizeBytes);
+  if (data.ok !== true || !target || data.storageKey !== target.key || !Number.isSafeInteger(sizeBytes) || sizeBytes <= 0 || sizeBytes > maxBytes) {
+    await cleanup();
+    throw new HttpError(502, 'Cloudflare returned invalid generated media transfer metadata', 'media_transfer_invalid_response');
+  }
+  await Promise.all(Object.values(targets).filter((candidate) => candidate.key !== target.key).map((candidate) =>
+    deleteObject(candidate.key).catch(() => undefined)));
+  return { storageKey: target.key, mime, sizeBytes };
 }
 
 export async function downloadPicsartAsset(url: string, maxBytes: number) {
