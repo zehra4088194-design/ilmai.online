@@ -49,7 +49,7 @@ export function ModelBar({
   const byId = useMemo(() => new Map(models.map((model) => [model.id, model])), [models]);
   const providerGroups = useMemo(() => {
     const groups = new Map<string, PickerModel[]>();
-    models.forEach((model) => {
+    models.filter((model) => model.id !== 'auto').forEach((model) => {
       const key = providerKey(model.provider);
       const current = groups.get(key) ?? [];
       current.push(model);
@@ -59,6 +59,7 @@ export function ModelBar({
       .map(([id, items]) => ({ id, items }))
       .sort((a, b) => providerName(a.id).localeCompare(providerName(b.id)));
   }, [models]);
+  const autoModel = byId.get('auto');
   const actualCompareLimit = Math.max(1, max);
 
   useEffect(() => { setVisibleLimit(100); }, [q, chip, selectedProvider]);
@@ -84,6 +85,7 @@ export function ModelBar({
   const list = useMemo(() => {
     const search = q.trim().toLowerCase();
     return models
+      .filter((model) => model.id !== 'auto')
       .filter((model) => providerKey(model.provider) === selectedProvider)
       .filter((model) => chip === 'free' ? model.isFree : chip === 'vision' ? model.vision : true)
       .filter((model) => !search || model.name.toLowerCase().includes(search) || model.id.toLowerCase().includes(search));
@@ -215,7 +217,21 @@ export function ModelBar({
                   <span className="text-[10px] text-muted-foreground">Models appear in the next step</span>
                 </div>
                 <div className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain pr-0.5">
-                  {filteredProviders.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">No providers match this search.</p>}
+                  {autoModel && chip !== 'free' && (!q.trim() || ['ilm ai auto','ilmai auto','auto','ai router'].some((term) => term.includes(q.trim().toLowerCase()) || q.trim().toLowerCase().includes(term))) && (
+                    <button type="button" disabled={autoModel.locked || disabled || (compareMode && selected.length >= actualCompareLimit && !selected.includes('auto'))}
+                      onClick={() => chooseModel('auto')}
+                      className={cn('mb-2 flex w-full items-center gap-2.5 rounded-xl border border-primary/20 bg-primary/5 px-2.5 py-2.5 text-left transition hover:bg-primary/10', selected.includes('auto') && 'border-primary/50 bg-accent')}>
+                      <span className={cn('grid h-5 w-5 shrink-0 place-items-center rounded-md border transition', selected.includes('auto') ? 'border-primary bg-primary text-primary-foreground' : 'border-border')}>{selected.includes('auto') && <Check className="h-3.5 w-3.5" />}</span>
+                      <ProviderLogo provider="ilmai" className="!h-7 !w-7 !min-w-7 !max-w-7" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-bold">Ilm AI Auto</span>
+                        <span className="block truncate text-[11px] text-muted-foreground">AI Router · Chooses the best available model automatically</span>
+                      </span>
+                      <span className="shrink-0 rounded-full bg-primary/10 px-2 py-1 text-[10px] font-bold text-primary">Auto</span>
+                      {selected.includes('auto') && <Check className="h-4 w-4 shrink-0 text-primary" />}
+                    </button>
+                  )}
+                  {filteredProviders.length === 0 && !autoModel && <p className="py-8 text-center text-sm text-muted-foreground">No providers match this search.</p>}
                   {filteredProviders.map((group) => {
                     const selectedCount = group.items.filter((model) => selected.includes(model.id)).length;
                     const availableCount = group.items.filter((model) => !model.locked).length;
