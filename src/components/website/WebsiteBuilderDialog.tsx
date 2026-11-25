@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   X, ArrowLeft, ArrowRight, Loader2, Download, Globe, Check, Code2,
@@ -16,7 +16,7 @@ type WebsiteProject = {
   files: { path: string; content: string }[];
   nextSteps: string[];
 };
-type WebsiteBuildCheck = { status: 'passed' | 'failed' | 'unavailable'; phase: 'sandbox' | 'runtime' | 'dependencies' | 'production'; durationMs: number; summary: string; details?: string; repairAttempts?: number };
+type WebsiteBuildCheck = { status: 'pending' | 'passed' | 'failed' | 'unavailable'; phase: 'sandbox' | 'runtime' | 'dependencies' | 'production'; durationMs: number; summary: string; details?: string; repairAttempts?: number };
 type WebsiteResponse = { project: WebsiteProject; model: string; creditsCharged: number; buildCheck: WebsiteBuildCheck; createdAt: string };
 
 const PAGE_OPTIONS = ['Home', 'About', 'Services', 'Products', 'Pricing', 'Portfolio', 'Gallery', 'Blog', 'FAQ', 'Contact'];
@@ -29,6 +29,8 @@ export function WebsiteBuilderDialog({ open, onClose, models, preferredModel }: 
   const toast = useToast();
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const verificationRun = useRef(0);
   const [result, setResult] = useState<WebsiteResponse | null>(null);
   const [fileFilter, setFileFilter] = useState('');
   const [form, setForm] = useState({
@@ -48,7 +50,7 @@ export function WebsiteBuilderDialog({ open, onClose, models, preferredModel }: 
   const [modelId, setModelId] = useState('');
 
   useEffect(() => {
-    if (!open) { setStep(0); setResult(null); setBusy(false); setFileFilter(''); return; }
+    if (!open) { verificationRun.current += 1; setStep(0); setResult(null); setBusy(false); setVerifying(false); setFileFilter(''); return; }
     setModelId((old) => old && available.some((model) => model.id === old)
       ? old
       : preferredModel && available.some((model) => model.id === preferredModel && CODE_FAMILIES.test(model.id))
@@ -65,7 +67,29 @@ export function WebsiteBuilderDialog({ open, onClose, models, preferredModel }: 
     }));
 
   function startOver() {
-    setStep(0); setResult(null); setBusy(false); setFileFilter('');
+    verificationRun.current += 1;
+    setStep(0); setResult(null); setBusy(false); setVerifying(false); setFileFilter('');
+  }
+
+  async function verifyBuild(project: WebsiteProject, requestId: string) {
+    const run = ++verificationRun.current;
+    setVerifying(true);
+    try {
+      const { buildCheck } = await api<{ buildCheck: WebsiteBuildCheck }>('/api/generate/website/verify', 'POST', { requestId, project });
+      if (verificationRun.current === run) {
+        setResult((current) => current ? { ...current, buildCheck } : current);
+      }
+    } catch (error) {
+      if (verificationRun.current === run) {
+        const message = error instanceof Error ? error.message : 'Production build verification could not be completed.';
+        setResult((current) => current ? {
+          ...current,
+          buildCheck: { status: 'unavailable', phase: 'sandbox', durationMs: 0, summary: 'Your website ZIP is ready, but the production build check could not finish.', details: message },
+        } : current);
+      }
+    } finally {
+      if (verificationRun.current === run) setVerifying(false);
+    }
   }
 
   async function generate() {
@@ -74,15 +98,18 @@ export function WebsiteBuilderDialog({ open, onClose, models, preferredModel }: 
       return;
     }
     setBusy(true);
+    const requestId = crypto.randomUUID();
     try {
       const response = await api<WebsiteResponse>('/api/generate/website', 'POST', {
-        requestId: crypto.randomUUID(),
+        requestId,
         model: modelId,
         ...form,
-        pages: [...form.pages, ...fileFilter.split(/[\n,]/).map((item) => item.trim()).filter(Boolean)].slice(0, 12),
+        pages: [...form.pages, ...fileFilter.split(/[\\n,]/).map((item) => item.trim()).filter(Boolean)].slice(0, 12),
       });
       setResult(response);
       setStep(4);
+      // Do not make the user wait for npm install / production build before they can download.
+      void verifyBuild(response.project, requestId);
     } catch (error) {
       toast(error instanceof Error ? error.message : 'Website generation failed', 'err');
     } finally {
@@ -234,13 +261,13 @@ export function WebsiteBuilderDialog({ open, onClose, models, preferredModel }: 
                     <p className="mt-1 text-sm text-muted-foreground">{result.project.summary}</p>
                     <p className="mt-2 text-xs text-muted-foreground">{result.project.files.length} files · Model: {result.model} · {result.creditsCharged} credits</p>
                   </div>
-                  <div className={'rounded-2xl border p-4 ' + (result.buildCheck.status === 'passed' ? 'border-primary/25 bg-primary/5' : 'border-warning/30 bg-warning/5')}>
+                  <div className={'rounded-2xl border p-4 ' + (result.buildCheck.status === 'passed' || result.buildCheck.status === 'pending' ? 'border-primary/25 bg-primary/5' : 'border-warning/30 bg-warning/5')}>
                     <p className="flex items-center gap-2 text-sm font-semibold">
-                      {result.buildCheck.status === 'passed' ? <Check className="h-4 w-4 text-primary" /> : <Code2 className="h-4 w-4 text-warning" />}
-                      {result.buildCheck.status === 'passed' ? 'E2B production build passed' : result.buildCheck.status === 'failed' ? 'Production build needs fixes' : 'Build verification unavailable'}
+                      {result.buildCheck.status === 'passed' ? <Check className="h-4 w-4 text-primary" /> : result.buildCheck.status === 'pending' ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : <Code2 className="h-4 w-4 text-warning" />}
+                      {result.buildCheck.status === 'passed' ? 'E2B production build passed' : result.buildCheck.status === 'failed' ? 'Production build needs fixes' : result.buildCheck.status === 'pending' ? 'Checking production build…' : 'Build verification unavailable'}
                     </p>
                     <p className="mt-1.5 text-sm text-muted-foreground">{result.buildCheck.summary}</p>
-                    {result.buildCheck.durationMs > 0 && <p className="mt-1 text-[11px] text-muted-foreground">Sandbox time: {(result.buildCheck.durationMs / 1000).toFixed(1)}s · Phase: {result.buildCheck.phase}</p>}\n                    {typeof result.buildCheck.repairAttempts === 'number' && <p className="mt-1 text-[11px] text-muted-foreground">Automatic repair attempts: {result.buildCheck.repairAttempts}</p>}
+                    {result.buildCheck.durationMs > 0 && <p className="mt-1 text-[11px] text-muted-foreground">Sandbox time: {(result.buildCheck.durationMs / 1000).toFixed(1)}s · Phase: {result.buildCheck.phase}</p>}\n                    {typeof result.buildCheck.repairAttempts === 'number' && result.buildCheck.status !== 'pending' && <p className="mt-1 text-[11px] text-muted-foreground">Automatic repair attempts: {result.buildCheck.repairAttempts}</p>}
                     {result.buildCheck.details && <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-black/40 p-3 font-mono text-[10px] leading-5 text-muted-foreground">{result.buildCheck.details}</pre>}
                   </div>
                   <button type="button" onClick={downloadZip} className="btn-primary flex h-12 w-full justify-center"><Download className="h-4 w-4" />Download complete website ZIP</button>
