@@ -5,3 +5,16 @@ node_modules
 !.env.example
 docs
 *.md
+# Not needed by the Next.js production Docker build
+workers
+supabase
+tests
+.github
+coverage
+.turbo
+playwright-report
+test-results
+storybook-static
+*.log
+*.tsbuildinfo
+.DS_Store
