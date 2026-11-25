@@ -150,7 +150,7 @@ export const GET = handle(async (_req: NextRequest, { params }: Ctx) => {
     }
 
     const settlement = await db.rpc('complete_video_job',{
-      p_job:id,p_user:profile.id,p_asset:media.id,p_charge:job.credits_reserved,
+      p_job:id,p_user:profile.id,p_asset:mediaInsert.data.id,p_charge:job.credits_reserved,
       p_usage:{
         model:job.model,provider:'picsart-video-api',
         prompt_tokens:0,completion_tokens:0,cost_usd:0,
