@@ -8,6 +8,7 @@ docs
 # Not needed by the Next.js production Docker build
 workers
 supabase
+scripts
 tests
 .github
 coverage
