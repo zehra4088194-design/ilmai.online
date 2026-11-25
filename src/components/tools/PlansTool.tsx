@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Check, CreditCard, RefreshCw, ShieldCheck, Wallet } from 'lucide-react';
+import Link from 'next/link';
 import { useApp } from '@/components/chat/AppShell';
 import { api } from '@/lib/client-api';
 import { useToast } from '@/components/providers';
@@ -27,6 +28,7 @@ export function PlansTool(){
   const [payments,setPayments]=useState<Payment[]>([]);
   const [subscriptions,setSubscriptions]=useState<Subscription[]>([]);
   const [discountCode,setDiscountCode]=useState('');
+  const [acceptedPolicies,setAcceptedPolicies]=useState(false);
   const [name,setName]=useState(user.name);
   const [mobile,setMobile]=useState('');
   const [paymentType,setPaymentType]=useState<'jazzcash'|'easypaisa'>('jazzcash');
@@ -46,17 +48,18 @@ export function PlansTool(){
 
   async function checkout(plan:Plan,provider:'paddle'|'paypro'){
     if(busy)return;
+    if(!acceptedPolicies){setError('Please read and accept the Terms of Service and Refund & Cancellation Policy before checkout.');return;}
     if(provider==='paypro'&&(!name.trim()||!mobile.trim())){setError('Enter the account holder name and JazzCash/EasyPaisa mobile number.');return;}
     setBusy(plan.id+provider);setError('');
     try{
       if(provider==='paddle'){
         const result=await api<{checkoutUrl:string}>('/api/billing/paddle/checkout','POST',{
-          requestId:crypto.randomUUID(),planId:plan.id,discountCode:discountCode.trim()||undefined,
+          requestId:crypto.randomUUID(),planId:plan.id,acceptedPolicies:true,discountCode:discountCode.trim()||undefined,
         });
         window.location.assign(result.checkoutUrl);
       }else{
         const result=await api<{paymentId:string;tradeNo:string;message:string}>('/api/billing/paypro/checkout','POST',{
-          requestId:crypto.randomUUID(),planId:plan.id,paymentType,name,mobile,email:user.email,
+          requestId:crypto.randomUUID(),planId:plan.id,acceptedPolicies:true,paymentType,name,mobile,email:user.email,
           discountCode:discountCode.trim()||undefined,
         });
         toast('Payment request sent. Approve it on your mobile wallet.','ok');
@@ -101,6 +104,14 @@ export function PlansTool(){
       <p className="text-xs text-muted-foreground">Discount eligibility and final price are checked on the server when checkout starts.</p>
     </section>
 
+    <section className="card p-4">
+      <label className="flex cursor-pointer items-start gap-3 text-sm">
+        <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 accent-primary" checked={acceptedPolicies} onChange={(event)=>setAcceptedPolicies(event.target.checked)} />
+        <span>I have read and agree to the <Link href="/terms" target="_blank" className="font-semibold text-primary hover:underline">Terms of Service</Link> and <Link href="/refunds" target="_blank" className="font-semibold text-primary hover:underline">Refund & Cancellation Policy</Link>.</span>
+      </label>
+      <p className="mt-2 pl-7 text-xs text-muted-foreground">You must accept these policies before continuing to a paid checkout.</p>
+    </section>
+
     <section className="grid gap-3 lg:grid-cols-3">
       {plans.map((plan)=>(
         <article key={plan.id} className="card flex flex-col gap-4 p-5">
@@ -109,8 +120,8 @@ export function PlansTool(){
           <ul className="flex-1 space-y-2 text-sm">{plan.display_features.map((item,i)=><li key={i} className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-primary"/>{item}</li>)}</ul>
           {plan.id==='free'?<span className="badge self-start">{user.plan==='free'?'Your current plan':'Free plan'}</span>:(
             <div className="space-y-2">
-              {plan.paddleAvailable&&<button className="btn-primary w-full" disabled={!!busy||user.plan===plan.id} onClick={()=>checkout(plan,'paddle')}><CreditCard className="h-4 w-4"/>{busy===plan.id+'paddle'?'Opening checkout…':'Pay securely with Paddle'}</button>}
-              {plan.payproAvailable&&<button className="btn-outline w-full" disabled={!!busy||user.plan===plan.id} onClick={()=>checkout(plan,'paypro')}><Wallet className="h-4 w-4"/>{busy===plan.id+'paypro'?'Sending request…':'JazzCash / Easypaisa'}</button>}
+              {plan.paddleAvailable&&<button className="btn-primary w-full" disabled={!!busy||user.plan===plan.id||!acceptedPolicies} onClick={()=>checkout(plan,'paddle')}><CreditCard className="h-4 w-4"/>{busy===plan.id+'paddle'?'Opening checkout…':'Pay securely with Paddle'}</button>}
+              {plan.payproAvailable&&<button className="btn-outline w-full" disabled={!!busy||user.plan===plan.id||!acceptedPolicies} onClick={()=>checkout(plan,'paypro')}><Wallet className="h-4 w-4"/>{busy===plan.id+'paypro'?'Sending request…':'JazzCash / Easypaisa'}</button>}
               {!plan.paddleAvailable&&!plan.payproAvailable&&<span className="block rounded-xl bg-muted p-3 text-xs text-muted-foreground">Checkout is not configured for this plan yet.</span>}
               {user.plan===plan.id&&<span className="block text-center text-xs text-muted-foreground">Your current plan</span>}
             </div>
