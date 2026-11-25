@@ -24,7 +24,7 @@ function Inner({ provider, className }: Props) {
     <span
       aria-hidden="true"
       className={cn(
-        'grid !h-7 !w-7 !min-w-7 !max-w-7 shrink-0 place-items-center overflow-hidden rounded-lg bg-white p-1 ring-1 ring-border dark:bg-slate-900',
+        'grid !h-7 !w-7 !min-w-7 !max-w-7 shrink-0 place-items-center',
         className,
       )}
     >
