@@ -1,4 +1,5 @@
 import 'server-only';
+import { unstable_cache } from 'next/cache';
 import { aiRouterFetch } from '@/lib/ai-router';
 
 export type OrModel = {
@@ -17,14 +18,22 @@ export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: stri
  * Catalogue-only OpenRouter access. All chat, image and video inference must go
  * through the signed Cloudflare AI Router (src/lib/ai-router.ts).
  */
+const fetchOrModelsCached = unstable_cache(
+  async (): Promise<OrModel[]> => {
+    const res = await aiRouterFetch({
+      userId: 'model-catalog',
+      path: '/openrouter/models',
+      method: 'GET',
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!res.ok) throw new Error(`OpenRouter /models via Cloudflare Worker failed: ${res.status}`);
+    const j = (await res.json()) as { data: OrModel[] };
+    return j.data ?? [];
+  },
+  ['openrouter-model-catalog-via-cloudflare'],
+  { revalidate: 3600, tags: ['or-models'] },
+);
+
 export async function fetchOrModels(): Promise<OrModel[]> {
-  const res = await aiRouterFetch({
-    userId: 'model-catalog',
-    path: '/openrouter/models',
-    method: 'GET',
-    signal: AbortSignal.timeout(20000),
-  });
-  if (!res.ok) throw new Error(`OpenRouter /models failed: ${res.status}`);
-  const j = (await res.json()) as { data: OrModel[] };
-  return j.data ?? [];
+  return fetchOrModelsCached();
 }
