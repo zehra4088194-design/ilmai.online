@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, useReducedMotion } from 'framer-motion';
 import { z } from 'zod';
-import { authCallbackPath, safeAuthRedirect } from '@/lib/auth-redirect';
+import { authAppOrigin, authCallbackPath, safeAuthRedirect } from '@/lib/auth-redirect';
 import { Loader2, Mail, Lock, User } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Logo } from '@/components/ui/Logo';
@@ -46,7 +46,7 @@ export function AuthForm({ mode, signupsEnabled = true }: { mode: 'login' | 'sig
           email: parsedEmail, password,
           options: {
             data: { full_name: fullName },
-            emailRedirectTo: `${location.origin}${authCallbackPath(next)}`,
+            emailRedirectTo: `${authAppOrigin(location.origin)}${authCallbackPath(next)}`,
             ...(isTurnstileEnabled ? { captchaToken } : {}),
           },
         });
@@ -96,7 +96,7 @@ export function AuthForm({ mode, signupsEnabled = true }: { mode: 'login' | 'sig
       const supabase = createClient();
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: `${location.origin}${authCallbackPath(next)}`, skipBrowserRedirect: true },
+        options: { redirectTo: `${authAppOrigin(location.origin)}${authCallbackPath(next)}`, skipBrowserRedirect: true },
       });
       if (error) throw error;
       if (!data.url) throw new Error('Google sign-in is unavailable. Please try again.');
