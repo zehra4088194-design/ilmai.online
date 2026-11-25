@@ -267,6 +267,7 @@ export function WebsiteBuilderDialog({ open, onClose, models, preferredModel }: 
                       {result.buildCheck.status === 'passed' ? 'E2B production build passed' : result.buildCheck.status === 'failed' ? 'Production build needs fixes' : result.buildCheck.status === 'pending' ? 'Checking production build…' : 'Build verification unavailable'}
                     </p>
                     <p className="mt-1.5 text-sm text-muted-foreground">{result.buildCheck.summary}</p>
+                    {result.buildCheck.status === 'pending' && <p className="mt-2 text-xs text-primary">{verifying ? 'Your ZIP is ready. E2B is checking dependencies and the production build separately.' : 'Your ZIP is ready. Build verification has not completed.'}</p>}
                     {result.buildCheck.durationMs > 0 && <p className="mt-1 text-[11px] text-muted-foreground">Sandbox time: {(result.buildCheck.durationMs / 1000).toFixed(1)}s · Phase: {result.buildCheck.phase}</p>}\n                    {typeof result.buildCheck.repairAttempts === 'number' && result.buildCheck.status !== 'pending' && <p className="mt-1 text-[11px] text-muted-foreground">Automatic repair attempts: {result.buildCheck.repairAttempts}</p>}
                     {result.buildCheck.details && <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-black/40 p-3 font-mono text-[10px] leading-5 text-muted-foreground">{result.buildCheck.details}</pre>}
                   </div>
