@@ -14,6 +14,8 @@ export const maxDuration = 60;
 const Body = z.object({
   conversationId: z.string().uuid(),
   userMessageId: z.string().uuid(),
+  answerIds: z.array(z.string().uuid()).min(1).max(25)
+    .refine((ids) => new Set(ids).size === ids.length, 'Duplicate answer IDs are not allowed'),
 });
 
 /** A Groq-only synthesis of the models that answered one comparison turn. */
@@ -53,30 +55,38 @@ export const POST = handle(async (req: NextRequest) => {
     .order('created_at', { ascending: true });
   if (answersError) throw answersError;
 
-  const answers = (rows ?? []).filter((row) => typeof row.content === 'string' && row.content.trim().length > 0);
-  if (answers.length < 2) throw new HttpError(409, 'At least two completed model answers are needed for a comparison summary');
+  const availableAnswers = (rows ?? []).filter((row) => typeof row.content === 'string' && row.content.trim().length > 0);
+  const availableById = new Map(availableAnswers.map((answer) => [answer.id, answer]));
+  const answers = body.answerIds.map((id) => availableById.get(id)).filter((answer): answer is NonNullable<typeof answer> => !!answer);
+  if (answers.length !== body.answerIds.length) {
+    throw new HttpError(400, 'One or more selected answers are unavailable for this comparison');
+  }
 
-  const inputs = answers.slice(0, 6).map((answer, index) => ({
+  const maxCharactersPerAnswer = Math.min(4500, Math.floor(24_000 / answers.length));
+  const inputs = answers.map((answer, index) => ({
     model: answer.model || 'AI model ' + (index + 1),
-    answer: String(answer.content).slice(0, 4500),
+    answer: String(answer.content).slice(0, maxCharactersPerAnswer),
   }));
   const started = Date.now();
   try {
+    const systemPrompt = inputs.length === 1
+      ? 'You are a clear, impartial summarizer. Summarize the selected AI response to the user prompt. ' +
+        'Preserve the key takeaways, useful details, important caveats and uncertainty. ' +
+        'Do not invent facts or add unsupported information. Write in the same language and script as the user prompt. ' +
+        'Use a short heading and compact bullets where useful. Return only the summary.'
+      : 'You are an impartial comparison editor. Compare the selected AI answers to the same user prompt. ' +
+        'Write a concise, useful summary in the same language and script as the user prompt. ' +
+        'Identify agreement, meaningful differences, missing details and any answer that appears unsupported or incorrect. ' +
+        'Do not invent facts, do not declare a winner without explaining why, and do not simply repeat each answer. ' +
+        'Use short headings and compact bullets. Return only the comparison summary.';
+
     const result = await groqTaskChat(
       [
-        {
-          role: 'system',
-          content:
-            'You are an impartial comparison editor. Compare the supplied AI answers to the same user prompt. ' +
-            'Write a concise, useful summary in the same language and script as the user prompt. ' +
-            'Identify agreement, meaningful differences, missing details and any answer that appears unsupported or incorrect. ' +
-            'Do not invent facts, do not declare a winner without explaining why, and do not simply repeat each answer. ' +
-            'Use short headings and compact bullets. Return only the comparison summary.',
-        },
+        { role: 'system', content: systemPrompt },
         {
           role: 'user',
           content: 'User prompt:\n' + String(userMessage.content).slice(0, 2500) +
-            '\n\nModel answers (JSON):\n' + JSON.stringify(inputs),
+            '\n\nSelected model responses (JSON):\n' + JSON.stringify(inputs),
         },
       ],
       { userId: profile.id, task: 'comparison-summary', maxTokens: 850, temperature: 0.2, timeoutMs: 14_000 },
@@ -91,7 +101,13 @@ export const POST = handle(async (req: NextRequest) => {
       : {};
     const { error: saveError } = await db
       .from('messages')
-      .update({ meta: { ...previousMeta, comparison_summary: summary } })
+      .update({
+        meta: {
+          ...previousMeta,
+          comparison_summary: summary,
+          comparison_summary_answer_ids: body.answerIds,
+        },
+      })
       .eq('id', summaryRow.id)
       .eq('user_id', profile.id);
     if (saveError) throw saveError;
@@ -105,9 +121,9 @@ export const POST = handle(async (req: NextRequest) => {
       completionTokens: result.completionTokens,
       costUsd: result.cost,
       latencyMs: Date.now() - started,
-      usageDetails: { helper: 'comparison-summary', comparedAnswers: inputs.length },
+      usageDetails: { helper: 'comparison-summary', comparedAnswers: inputs.length, selectedAnswerIds: body.answerIds },
     });
-    return json({ summary, messageId: summaryRow.id }, { headers: { 'Cache-Control': 'private, no-store' } });
+    return json({ summary, messageId: summaryRow.id, answerIds: body.answerIds }, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) {
     await logUsage({
       userId: profile.id,

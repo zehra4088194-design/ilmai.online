@@ -55,11 +55,38 @@ function Answer({ m, label, boxed, layout, prompt, onRetry, onDifferentModel }: 
   );
 }
 
-export function TurnView({ group, names, onAsk, onNewQuiz, onDifferentModel, comparisonSummaryLoading = false }: { group: Group; names: Map<string, string>; onAsk: (t: string) => void; onNewQuiz: (topic: string) => void; onDifferentModel: (t: string) => void; comparisonSummaryLoading?: boolean }) {
+export function TurnView({
+  group,
+  names,
+  onAsk,
+  onNewQuiz,
+  onDifferentModel,
+  onMakeComparisonSummary,
+  comparisonSummaryLoading = false,
+}: {
+  group: Group;
+  names: Map<string, string>;
+  onAsk: (t: string) => void;
+  onNewQuiz: (topic: string) => void;
+  onDifferentModel: (t: string) => void;
+  onMakeComparisonSummary: (turnId: string, answerIds: string[]) => void;
+  comparisonSummaryLoading?: boolean;
+}) {
   const [comparisonLayout, setComparisonLayout] = useState<ComparisonLayout>('portrait');
+  const [selectedAnswerIds, setSelectedAnswerIds] = useState<string[]>(() => group.answers.map((answer) => answer.id));
   if (group.quiz?.meta?.quiz_id) return <QuizCard quizId={group.quiz.meta.quiz_id} onAsk={onAsk} onNewQuiz={onNewQuiz} />;
   const n = group.answers.length;
-  const comparisonSummary = group.answers.map((answer) => answer.meta?.comparison_summary).find((value): value is string => typeof value === 'string' && value.length > 0);
+  const summaryOwner = group.answers.find((answer) => typeof answer.meta?.comparison_summary === 'string' && answer.meta.comparison_summary.length > 0);
+  const comparisonSummary = typeof summaryOwner?.meta?.comparison_summary === 'string' ? summaryOwner.meta.comparison_summary : null;
+  const storedSummaryIds = summaryOwner?.meta?.comparison_summary_answer_ids;
+  const comparisonSummaryAnswerIds = Array.isArray(storedSummaryIds)
+    ? storedSummaryIds.filter((id): id is string => typeof id === 'string')
+    : null;
+  const eligibleAnswers = group.answers.filter((answer) => !answer.streaming && !answer.error && answer.content.trim().length > 0);
+  const selectedAnswers = eligibleAnswers.filter((answer) => selectedAnswerIds.includes(answer.id));
+  const summaryMatchesSelection = comparisonSummaryAnswerIds
+    ? selectedAnswers.length === comparisonSummaryAnswerIds.length && comparisonSummaryAnswerIds.every((id) => selectedAnswers.some((answer) => answer.id === id))
+    : selectedAnswers.length === eligibleAnswers.length;
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
       {group.user && (
@@ -73,18 +100,6 @@ export function TurnView({ group, names, onAsk, onNewQuiz, onDifferentModel, com
       {n === 1 && <div className="mx-auto w-full"><Answer m={group.answers[0]} label={shortName(group.answers[0].model, names)} boxed={false} layout="portrait" prompt={group.user?.content ?? ''} onRetry={onAsk} onDifferentModel={onDifferentModel} /></div>}
       {n > 1 && (
         <>
-          {(comparisonSummary || comparisonSummaryLoading) && (
-            <section className="rounded-2xl border border-primary/20 bg-accent/40 p-4">
-              <div className="mb-2 flex items-center gap-2">
-                <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary/10 text-primary"><Sparkles className="h-4 w-4" /></span>
-                <h3 className="text-sm font-bold">Comparison summary</h3>
-                {comparisonSummaryLoading && <span className="ml-auto text-xs text-muted-foreground">Preparing…</span>}
-              </div>
-              {comparisonSummary
-                ? <div className="text-sm leading-relaxed"><Markdown>{comparisonSummary}</Markdown></div>
-                : <div className="h-10 animate-pulse rounded-lg bg-muted/70" />}
-            </section>
-          )}
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="text-xs font-semibold text-foreground">Comparison layout</p>
@@ -105,6 +120,64 @@ export function TurnView({ group, names, onAsk, onNewQuiz, onDifferentModel, com
           )}>
             {group.answers.map((a) => <Answer key={a.id} m={a} label={shortName(a.model, names)} boxed layout={comparisonLayout} prompt={group.user?.content ?? ''} onRetry={onAsk} onDifferentModel={onDifferentModel} />)}
           </div>
+
+          <section className="rounded-2xl border border-border bg-card/60 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+                  <Sparkles className="h-4 w-4 text-primary" /> Make a summary
+                </h3>
+                <p className="mt-1 text-xs text-muted-foreground">Use all responses or select only the answers you want to summarize.</p>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button type="button" onClick={() => setSelectedAnswerIds(eligibleAnswers.map((answer) => answer.id))}
+                  disabled={eligibleAnswers.length === 0 || comparisonSummaryLoading}
+                  className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-primary transition hover:bg-accent disabled:opacity-40">Select all</button>
+                <button type="button" onClick={() => setSelectedAnswerIds([])}
+                  disabled={selectedAnswerIds.length === 0 || comparisonSummaryLoading}
+                  className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition hover:bg-muted disabled:opacity-40">Clear</button>
+              </div>
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              {eligibleAnswers.map((answer) => {
+                const checked = selectedAnswerIds.includes(answer.id);
+                return (
+                  <label key={answer.id} className={cn(
+                    'flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition',
+                    checked ? 'border-primary/40 bg-accent text-foreground' : 'border-border text-muted-foreground hover:border-primary/30',
+                  )}>
+                    <input type="checkbox" checked={checked} disabled={comparisonSummaryLoading}
+                      onChange={(event) => setSelectedAnswerIds((current) => event.target.checked
+                        ? [...current, answer.id]
+                        : current.filter((id) => id !== answer.id))}
+                      className="h-3.5 w-3.5 accent-primary" />
+                    <span className="max-w-[14rem] truncate">{shortName(answer.model, names) || 'AI response'}</span>
+                  </label>
+                );
+              })}
+              {eligibleAnswers.length === 0 && (
+                <p className="text-xs text-muted-foreground">Your model responses will appear here when they finish.</p>
+              )}
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
+              <span className="text-xs text-muted-foreground">{selectedAnswers.length} of {eligibleAnswers.length} responses selected</span>
+              <button type="button" disabled={selectedAnswers.length === 0 || comparisonSummaryLoading}
+                onClick={() => onMakeComparisonSummary(group.key, selectedAnswers.map((answer) => answer.id))}
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
+                <Sparkles className="h-3.5 w-3.5" />
+                {comparisonSummaryLoading ? 'Making summary…' : summaryMatchesSelection ? 'Regenerate summary' : 'Make summary'}
+              </button>
+            </div>
+
+            {comparisonSummary && summaryMatchesSelection && (
+              <div className="mt-4 border-t border-border pt-4">
+                <h4 className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">Summary</h4>
+                <div className="text-sm leading-relaxed"><Markdown>{comparisonSummary}</Markdown></div>
+              </div>
+            )}
+          </section>
         </>
       )}
     </motion.div>
