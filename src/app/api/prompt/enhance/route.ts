@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { handle, HttpError, json } from '@/lib/http';
 import { requireUserApi } from '@/lib/auth';
 import { requireFeature } from '@/lib/features';
-import { groqUtilityChat } from '@/lib/utility-ai';
+import { groqTaskChat } from '@/lib/utility-ai';
 import { logUsage } from '@/lib/usage';
 
 export const runtime = 'nodejs';
@@ -36,7 +36,7 @@ export const POST = handle(async (req: NextRequest) => {
         userId: profile.id,
         maxTokens: 750,
         temperature: 0.2,
-        timeoutMs: 9_000,
+        timeoutMs: 12_000,
       },
     );
 
@@ -52,6 +52,8 @@ export const POST = handle(async (req: NextRequest) => {
       promptTokens: result.promptTokens,
       completionTokens: result.completionTokens,
       costUsd: result.cost,
+      provider: 'groq',
+      usageDetails: { helper: 'prompt-enhancement' },
       latencyMs: Date.now() - started,
     });
     return json(
