@@ -3,16 +3,17 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { FileText, ImageIcon, Paperclip, X } from 'lucide-react';
 import { api } from '@/lib/client-api';
 import { sanitizeFilename, type Attachment, type UploadLimits } from '@/lib/attachment-validation';
+import { useToast } from '@/components/providers';
 
 /** URLs live only in browser memory and are refreshed on every click, never in message metadata. */
 export function AttachmentLinks({ value, onRemove, disabled, previews = {} }: {
   value: Attachment[]; onRemove?: (id: string) => void; disabled?: boolean; previews?: Record<string, string>;
 }) {
-  const [error, setError] = useState('');
+  const toast = useToast();
   const [opening, setOpening] = useState<string | null>(null);
   async function open(file: Attachment) {
     if (opening) return;
-    setError(''); setOpening(file.asset_id);
+    setOpening(file.asset_id);
     const tab = window.open('about:blank', '_blank');
     if (tab) tab.opener = null;
     try {
@@ -21,7 +22,7 @@ export function AttachmentLinks({ value, onRemove, disabled, previews = {} }: {
       tab.location.replace(url);
     } catch (e) {
       tab?.close();
-      setError(e instanceof Error ? e.message : 'Could not open attachment');
+      toast(e instanceof Error ? e.message : 'Could not open attachment', 'err');
     } finally { setOpening(null); }
   }
   return <div>
@@ -39,7 +40,6 @@ export function AttachmentLinks({ value, onRemove, disabled, previews = {} }: {
         {onRemove && <button type="button" disabled={disabled} className="btn-ghost h-7 w-7 !p-0" aria-label={`Remove ${file.name}`} onClick={() => onRemove(file.asset_id)}><X className="h-3.5 w-3.5" /></button>}
       </div>)}
     </div>
-    {error && <p role="alert" className="mt-1 text-xs text-danger">{error}</p>}
   </div>;
 }
 
@@ -52,7 +52,7 @@ export function AttachmentPicker({ value, onChange, disabled = false, onUploadin
   compact?: boolean;
 }) {
   const [limits, setLimits] = useState<UploadLimits | null>(null);
-  const [error, setError] = useState('');
+  const toast = useToast();
   const [progress, setProgress] = useState<{ name: string; percent: number; stage: string } | null>(null);
   const [previews, setPreviews] = useState<Record<string, string>>({});
   const [dragging, setDragging] = useState(false);
@@ -71,7 +71,7 @@ export function AttachmentPicker({ value, onChange, disabled = false, onUploadin
     let cancelled = false;
     api<UploadLimits>('/api/media/upload-url', 'GET')
       .then((r) => { if (!cancelled) setLimits(r); })
-      .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : 'Could not load upload limits'); });
+      .catch((e) => { if (!cancelled) toast(e instanceof Error ? e.message : 'Could not load upload limits', 'err'); });
     return () => {
       cancelled = true; mounted.current = false;
       controller.current?.abort(); xhr.current?.abort();
@@ -91,8 +91,8 @@ export function AttachmentPicker({ value, onChange, disabled = false, onUploadin
     const remaining = Math.max(0, limits.maxFiles - values.current.length);
     const queue = files.slice(0, remaining);
     const errors: string[] = files.length > remaining ? [`You can attach at most ${limits.maxFiles} files.`] : [];
-    if (!queue.length) { setError(errors.join(' ')); return; }
-    active.current = true; uploadingChange.current?.(true); setError('');
+    if (!queue.length) { toast(errors.join(' '), 'err'); return; }
+    active.current = true; uploadingChange.current?.(true);
     const ac = new AbortController(); controller.current = ac;
     const request = async <T,>(url: string, method: string, body: unknown): Promise<T> => {
       const res = await fetch(url, { method, signal: ac.signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -145,7 +145,11 @@ export function AttachmentPicker({ value, onChange, disabled = false, onUploadin
       }
     } finally {
       active.current = false; xhr.current = null; controller.current = null;
-      if (mounted.current) { setProgress(null); setError(errors.join(' ')); uploadingChange.current?.(false); }
+      if (mounted.current) {
+        setProgress(null);
+        if (errors.length) toast(errors.join(' '), 'err');
+        uploadingChange.current?.(false);
+      }
     }
   }
 
@@ -169,6 +173,5 @@ export function AttachmentPicker({ value, onChange, disabled = false, onUploadin
       <progress aria-label="Upload progress" className="h-2 w-20 shrink-0 accent-primary" max={100} value={progress.percent} />
       <button type="button" className="btn-ghost text-xs" onClick={() => { controller.current?.abort(); xhr.current?.abort(); }}>Cancel</button>
     </div>}
-    {error && <p role="alert" className="mt-1 text-xs text-danger">{error}</p>}
   </div>;
 }
