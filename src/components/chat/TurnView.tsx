@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Copy, Check, AlertTriangle, RotateCcw, Shuffle, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Copy, Check, AlertTriangle, RotateCcw, Shuffle, ThumbsUp, ThumbsDown, Sparkles } from 'lucide-react';
 import { LogoMark } from '@/components/ui/Logo';
 import { ProviderLogo } from '@/components/chat/ProviderLogo';
 import { LoadingIndicator } from '@/components/chat/LoadingIndicator';
@@ -53,10 +53,11 @@ function Answer({ m, label, boxed, layout, prompt, onRetry, onDifferentModel }: 
   );
 }
 
-export function TurnView({ group, names, onAsk, onNewQuiz, onDifferentModel }: { group: Group; names: Map<string, string>; onAsk: (t: string) => void; onNewQuiz: (topic: string) => void; onDifferentModel: (t: string) => void }) {
+export function TurnView({ group, names, onAsk, onNewQuiz, onDifferentModel, comparisonSummaryLoading = false }: { group: Group; names: Map<string, string>; onAsk: (t: string) => void; onNewQuiz: (topic: string) => void; onDifferentModel: (t: string) => void; comparisonSummaryLoading?: boolean }) {
   const [comparisonLayout, setComparisonLayout] = useState<ComparisonLayout>('portrait');
   if (group.quiz?.meta?.quiz_id) return <QuizCard quizId={group.quiz.meta.quiz_id} onAsk={onAsk} onNewQuiz={onNewQuiz} />;
   const n = group.answers.length;
+  const comparisonSummary = group.answers.map((answer) => answer.meta?.comparison_summary).find((value): value is string => typeof value === 'string' && value.length > 0);
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
       {group.user && (
@@ -70,6 +71,18 @@ export function TurnView({ group, names, onAsk, onNewQuiz, onDifferentModel }: {
       {n === 1 && <div className="mx-auto w-full"><Answer m={group.answers[0]} label={shortName(group.answers[0].model, names)} boxed={false} layout="portrait" prompt={group.user?.content ?? ''} onRetry={onAsk} onDifferentModel={onDifferentModel} /></div>}
       {n > 1 && (
         <>
+          {(comparisonSummary || comparisonSummaryLoading) && (
+            <section className="rounded-2xl border border-primary/20 bg-accent/40 p-4">
+              <div className="mb-2 flex items-center gap-2">
+                <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary/10 text-primary"><Sparkles className="h-4 w-4" /></span>
+                <h3 className="text-sm font-bold">Comparison summary</h3>
+                {comparisonSummaryLoading && <span className="ml-auto text-xs text-muted-foreground">Preparing…</span>}
+              </div>
+              {comparisonSummary
+                ? <div className="text-sm leading-relaxed"><Markdown>{comparisonSummary}</Markdown></div>
+                : <div className="h-10 animate-pulse rounded-lg bg-muted/70" />}
+            </section>
+          )}
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="text-xs font-semibold text-foreground">Comparison layout</p>
