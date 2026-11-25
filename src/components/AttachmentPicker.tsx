@@ -126,7 +126,7 @@ export function AttachmentPicker({ value, onChange, disabled = false, onUploadin
             req.onload = () => req.status >= 200 && req.status < 300
               ? resolve()
               : reject(new Error(`Backblaze B2 rejected the upload (HTTP ${req.status}). Check the bucket CORS rule and Read/Write application key permissions.`));
-            req.onerror = () => reject(new Error(`Could not reach Backblaze B2. Check your connection and confirm bucket CORS allows ${window.location.origin} with s3_put.`));
+            req.onerror = () => reject(new Error(`Backblaze B2 upload was blocked before an HTTP response (usually CORS preflight or an unreachable endpoint). In bucket CORS, allow this exact origin: ${window.location.origin}; apply the rule to the S3-compatible API and allow S3 Put Object (PUT) plus the Content-Type header. Also verify B2_ENDPOINT matches the bucket's region.`));
             req.ontimeout = () => reject(new Error('Upload timed out'));
             req.onabort = () => reject(new Error('Upload cancelled'));
             req.send(file);
