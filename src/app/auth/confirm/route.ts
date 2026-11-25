@@ -1,9 +1,11 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { isAllowedOtpType, safeAuthRedirect } from '@/lib/auth-redirect';
+import { authAppOrigin, isAllowedOtpType, safeAuthRedirect } from '@/lib/auth-redirect';
 
 export async function GET(req: NextRequest) {
-  const { searchParams, origin } = new URL(req.url);
+  const requestUrl = new URL(req.url);
+  const { searchParams } = requestUrl;
+  const origin = authAppOrigin(requestUrl.origin);
   const type = searchParams.get('type');
   // Recovery must always land on the password screen, regardless of supplied `next`.
   const next = type === 'recovery' ? '/reset-password' : safeAuthRedirect(searchParams.get('next'));
