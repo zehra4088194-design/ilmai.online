@@ -136,7 +136,7 @@ export const POST = handle(async (req: NextRequest) => {
     const usage = totalUsage;
     const chargedByUsage = creditsFor(
       usage.cost ?? 0,
-      (usage.prompt_tokens ?? 0) + (usage.completion_tokens ?? MAX_TOKENS * (repairAttempts + 1)),
+      (usage.prompt_tokens ?? 0) + (usage.completion_tokens ?? 0),
       settings,
     );
     const charge = Math.min(maxCredits, chargedByUsage);
