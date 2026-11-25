@@ -41,12 +41,12 @@ async function generateWebsiteRequest(payload: Record<string, unknown>): Promise
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
-  let packet: { status: number; body: string } | null = null;
+  const packet: { current: { status: number; body: string } | null } = { current: null };
 
   const readFrame = (frame: string) => {
     const line = frame.split(/\r?\n/).find((item) => item.startsWith('data: '));
     if (!line) return;
-    try { packet = JSON.parse(line.slice(6)) as { status: number; body: string }; }
+    try { packet.current = JSON.parse(line.slice(6)) as { status: number; body: string }; }
     catch { throw new Error('Website server returned an invalid response frame.'); }
   };
 
@@ -67,12 +67,13 @@ async function generateWebsiteRequest(payload: Record<string, unknown>): Promise
     throw new Error('Website generation connection was interrupted.');
   }
 
-  if (!packet) throw new Error('Connection closed before website files were ready. Check the Coolify app logs for the generation request.');
+  const finalPacket = packet.current;
+  if (!finalPacket) throw new Error('Connection closed before website files were ready. Check the Coolify app logs for the generation request.');
   let body: Record<string, unknown>;
-  try { body = JSON.parse(packet.body) as Record<string, unknown>; }
+  try { body = JSON.parse(finalPacket.body) as Record<string, unknown>; }
   catch { throw new Error('Website server returned an unreadable response.'); }
-  if (packet.status < 200 || packet.status >= 300) {
-    throw new Error(typeof body.error === 'string' ? body.error : `Website generation failed (HTTP ${packet.status})`);
+  if (finalPacket.status < 200 || finalPacket.status >= 300) {
+    throw new Error(typeof body.error === 'string' ? body.error : `Website generation failed (HTTP ${finalPacket.status})`);
   }
   return body as unknown as WebsiteResponse;
 }
