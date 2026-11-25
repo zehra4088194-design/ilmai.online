@@ -62,36 +62,16 @@ export async function callChatProvider(env: Env, candidate: ModelCandidate, payl
   return { response: last, model: candidate.id, provider, attempts };
 }
 
-export async function routeAuto(env: Env, candidates: ModelCandidate[], messages: unknown[], hints: string) {
+/** Deterministic Auto selection: Groq is reserved for the three approved helper tasks. */
+export async function routeAuto(_env: Env, candidates: ModelCandidate[], _messages: unknown[], hints: string) {
   if (!candidates.length) throw new Error('No model candidates are available for Auto routing');
   const sorted = [...candidates].sort((a, b) => (a.priority ?? 100) - (b.priority ?? 100));
-  const routingModel = env.ROUTING_MODEL && !['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'].includes(env.ROUTING_MODEL)
-    ? env.ROUTING_MODEL
-    : 'openai/gpt-oss-120b';
-  const prompt = [
-    'Choose exactly one model ID from the candidate JSON. Return only the ID.',
-    'Choose the best capability fit. Respect vision and document requirements. Prefer low latency for simple requests and stronger quality for complex reasoning, mathematics and long writing.',
-    'Task hints: ' + hints,
-    'Candidates: ' + JSON.stringify(sorted),
-  ].join('\n');
-  const routed = await callChatProvider(env, { id: routingModel, provider: 'groq' }, {
-    messages: [{ role: 'system', content: prompt }, { role: 'user', content: JSON.stringify(messages).slice(0, 12_000) }],
-    temperature: 0,
-    max_tokens: 64,
-  }, undefined, Number(env.ROUTING_TIMEOUT_MS || 8000));
-  if (routed.response.ok) {
-    const json = await routed.response.json().catch(() => ({})) as { choices?: { message?: { content?: string } }[] };
-    const choice = (json.choices?.[0]?.message?.content ?? '').trim().replace(/^["']+|["']+$/g, '');
-    const match = sorted.find((item) => item.id === choice);
-    if (match) return match;
-  }
   const hint = hints.toLowerCase();
   const required = hint.includes('image') || hint.includes('vision') ? 'vision'
     : hint.includes('pdf') || hint.includes('document') ? 'document' : undefined;
   const capable = required ? sorted.filter((item) => item.modalities?.includes(required)) : sorted;
   return (capable.length ? capable : sorted)[0];
 }
-
 export async function fetchOpenRouter(env: Env, path: string, init: RequestInit = {}) {
   if (!env.OPENROUTER_API_KEY) return new Response('OpenRouter is not configured', { status: 503 });
   return fetch(OPENROUTER_BASE + path, {
