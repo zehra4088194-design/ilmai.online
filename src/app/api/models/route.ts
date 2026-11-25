@@ -17,7 +17,7 @@ export const GET = handle(async () => {
     maxParallel: multi ? Math.max(1, settings.max_parallel_models) : 1,
     models: [
       ...(env.aiRouterUrl ? [{
-        id: 'auto', name: 'Auto · best model for this task', provider: 'AI Router',
+        id: 'auto', name: 'Ilm AI Auto', provider: 'ilmai',
         context: 0, pricePromptPerM: 0, priceCompletionPerM: 0, isFree: false,
         tier: 'free', enabled: true, isDefault: false, vision: true, documents: true,
         outputModalities: ['text'], sort: -1, locked: false,
