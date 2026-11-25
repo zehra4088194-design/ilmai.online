@@ -178,6 +178,7 @@ export function WebsiteBuilderDialog({ open, onClose, models, preferredModel }: 
             )}
 
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
+              {busy && !result && <div role="status" className="mb-4 flex items-start gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-3 text-xs text-muted-foreground"><Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-primary" /><span><strong className="text-foreground">Generating your website files.</strong> The AI is writing the pages and components. The ZIP will appear as soon as the files are ready; production verification will run separately, so it will not hold up your download.</span></div>}
               {!result && step === 0 && (
                 <div className="space-y-4">
                   <div><h3 className="text-lg font-semibold">Tell us what you want to build</h3><p className="mt-1 text-sm text-muted-foreground">More detail now means a more complete first version.</p></div>
@@ -295,7 +296,7 @@ export function WebsiteBuilderDialog({ open, onClose, models, preferredModel }: 
                     <button type="button" onClick={() => setStep((current) => current + 1)} disabled={!validStep} className="btn-primary">Continue<ArrowRight className="h-4 w-4" /></button>
                   ) : (
                     <button type="button" onClick={generate} disabled={busy || !modelId} className="btn-primary">
-                      {busy ? <><Loader2 className="h-4 w-4 animate-spin" />Generating & testing…</> : <><Code2 className="h-4 w-4" />Generate Website</>}
+                      {busy ? <><Loader2 className="h-4 w-4 animate-spin" />Generating website files…</> : <><Code2 className="h-4 w-4" />Generate Website</>}
                     </button>
                   )}
                 </>
