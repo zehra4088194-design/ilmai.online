@@ -4,7 +4,7 @@ import { handle, HttpError, json } from '@/lib/http';
 import { requireUserApi } from '@/lib/auth';
 import { requireFeature } from '@/lib/features';
 import { adminClient } from '@/lib/supabase/admin';
-import { utilityChat } from '@/lib/utility-ai';
+import { groqTaskChat } from '@/lib/utility-ai';
 import { logUsage } from '@/lib/usage';
 
 export const runtime = 'nodejs';
@@ -80,7 +80,7 @@ export const POST = handle(async (req: NextRequest) => {
         'Do not invent facts, do not declare a winner without explaining why, and do not simply repeat each answer. ' +
         'Use short headings and compact bullets. Return only the comparison summary.';
 
-    const result = await utilityChat(
+    const result = await groqTaskChat(
       [
         { role: 'system', content: systemPrompt },
         {
@@ -91,16 +91,15 @@ export const POST = handle(async (req: NextRequest) => {
       ],
       {
         userId: profile.id,
+        task: 'comparison-summary',
         maxTokens: 850,
         temperature: 0.2,
-        timeoutMs: 12_000,
-        tries: 4,
-        deadlineMs: 48_000,
+        timeoutMs: 14_000,
       },
     );
 
     const summary = result.text.trim().slice(0, 7000);
-    if (!summary) throw new HttpError(502, 'The Worker utility model returned an empty summary');
+    if (!summary) throw new HttpError(502, 'Groq returned an empty comparison summary');
 
     const summaryRow = answers[0];
     const previousMeta = summaryRow.meta && typeof summaryRow.meta === 'object' && !Array.isArray(summaryRow.meta)
@@ -123,7 +122,7 @@ export const POST = handle(async (req: NextRequest) => {
       userId: profile.id,
       kind: 'compare_summary',
       model: result.model,
-      provider: 'openrouter',
+      provider: 'groq',
       promptTokens: result.promptTokens,
       completionTokens: result.completionTokens,
       costUsd: result.cost,

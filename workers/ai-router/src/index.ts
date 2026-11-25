@@ -34,9 +34,9 @@ async function handleChat(request: Request, env: Env, bodyText: string) {
   const routing = (input.routing ?? {}) as { provider?: Provider|'auto'; model?: string; candidates?: ModelCandidate[]; hints?: string; task?: string };
   delete input.routing;
   const modelId = typeof input.model === 'string' ? input.model : routing.model;
-  const approvedGroqTasks = ['prompt-enhancement', 'conversation-title'];
+  const approvedGroqTasks = ['prompt-enhancement', 'conversation-title', 'comparison-summary'];
   if (routing.provider === 'groq' && !approvedGroqTasks.includes(String(routing.task ?? '')))
-    return errorResponse(403, 'Groq is reserved for prompt enhancement and chat titles', 'groq_task_not_allowed');
+    return errorResponse(403, 'Groq is reserved for prompt enhancement, chat titles and comparison summaries', 'groq_task_not_allowed');
   const candidates = Array.isArray(routing.candidates)
     ? routing.candidates.filter((item) => item && typeof item.id === 'string' && item.id.length <= 200 &&
       ['openrouter','gemini'].includes(item.provider ?? 'openrouter')).slice(0, 30)
