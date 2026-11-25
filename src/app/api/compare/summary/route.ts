@@ -100,7 +100,7 @@ export const POST = handle(async (req: NextRequest) => {
     );
 
     const summary = result.text.trim().slice(0, 7000);
-    if (!summary) throw new HttpError(502, 'Groq returned an empty comparison summary');
+    if (!summary) throw new HttpError(502, 'The Worker utility model returned an empty summary');
 
     const summaryRow = answers[0];
     const previousMeta = summaryRow.meta && typeof summaryRow.meta === 'object' && !Array.isArray(summaryRow.meta)
@@ -135,7 +135,7 @@ export const POST = handle(async (req: NextRequest) => {
     await logUsage({
       userId: profile.id,
       kind: 'compare_summary',
-      provider: 'groq',
+      provider: 'openrouter',
       status: 'error',
       error: error instanceof Error ? error.message : String(error),
       latencyMs: Date.now() - started,
