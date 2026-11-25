@@ -1,9 +1,11 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { safeAuthRedirect } from '@/lib/auth-redirect';
+import { authAppOrigin, safeAuthRedirect } from '@/lib/auth-redirect';
 
 export async function GET(req: NextRequest) {
-  const { searchParams, origin } = new URL(req.url);
+  const requestUrl = new URL(req.url);
+  const { searchParams } = requestUrl;
+  const origin = authAppOrigin(requestUrl.origin);
   const next = safeAuthRedirect(searchParams.get('next'));
   const failure = next === '/reset-password'
     ? '/forgot-password?error=recovery'
