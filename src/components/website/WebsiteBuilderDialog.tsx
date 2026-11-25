@@ -44,7 +44,7 @@ async function generateWebsiteRequest(payload: Record<string, unknown>): Promise
   let packet: { status: number; body: string } | null = null;
 
   const readFrame = (frame: string) => {
-    const line = frame.split(/\\r?\\n/).find((item) => item.startsWith('data: '));
+    const line = frame.split(/\r?\n/).find((item) => item.startsWith('data: '));
     if (!line) return;
     try { packet = JSON.parse(line.slice(6)) as { status: number; body: string }; }
     catch { throw new Error('Website server returned an invalid response frame.'); }
@@ -54,8 +54,8 @@ async function generateWebsiteRequest(payload: Record<string, unknown>): Promise
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
-      buffer += decoder.decode(value, { stream: true }).replace(/\\r\\n/g, '\\n');
-      const frames = buffer.split('\\n\\n');
+      buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n');
+      const frames = buffer.split('\n\n');
       buffer = frames.pop() ?? '';
       for (const frame of frames) readFrame(frame);
     }
