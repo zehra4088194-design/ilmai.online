@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown, Search, Lock, Eye, Check } from 'lucide-react';
 import { cn, fmtNum } from '@/lib/utils';
+import { ProviderLogo } from '@/components/chat/ProviderLogo';
 
 export type PickerModel = {
   id: string; name: string; provider: string; context: number; isFree: boolean; tier: 'free' | 'pro' | 'elite';
@@ -27,6 +28,8 @@ export function ModelPicker({ models, value, onChange, compact = false, disabled
   const list = useMemo(() => {
     const s = q.toLowerCase();
     return models
+      .slice()
+      .sort((a, b) => Number(b.id === 'auto') - Number(a.id === 'auto') || a.name.localeCompare(b.name))
       .filter((m) => (chip === 'free' ? m.isFree : chip === 'vision' ? m.vision : true))
       .filter((m) => !s || m.name.toLowerCase().includes(s) || m.id.toLowerCase().includes(s))
       .slice(0, 80);
@@ -36,7 +39,7 @@ export function ModelPicker({ models, value, onChange, compact = false, disabled
     <div ref={ref} className="relative">
       <button disabled={disabled} onClick={() => setOpen((o) => !o)}
         className={cn('btn-outline max-w-full !justify-between gap-2 !rounded-xl', compact ? '!px-3 !py-1.5 text-xs' : '!px-3.5')}>
-        <span className="truncate font-semibold">{current?.name ?? 'Choose model'}</span>
+        <span className="flex min-w-0 items-center gap-2 truncate font-semibold">{current && <ProviderLogo provider={current.provider} className="!h-5 !w-5 !min-w-5 !max-w-5" />}<span className="truncate">{current?.name ?? 'Choose model'}</span></span>
         <ChevronDown className={cn('h-4 w-4 shrink-0 transition', open && 'rotate-180')} />
       </button>
       <AnimatePresence>
@@ -58,9 +61,10 @@ export function ModelPicker({ models, value, onChange, compact = false, disabled
               {list.map((m) => (
                 <button key={m.id} disabled={m.locked} onClick={() => { onChange(m.id); setOpen(false); }}
                   className={cn('flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition', m.id === value ? 'bg-accent' : 'hover:bg-muted', m.locked && 'cursor-not-allowed opacity-50')}>
+                                    <ProviderLogo provider={m.provider} className="!h-7 !w-7 !min-w-7 !max-w-7" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold">{m.name}</p>
-                    <p className="truncate text-xs text-muted-foreground">{m.provider} · {fmtNum(m.context)} ctx{m.isFree ? '' : ` · $${m.pricePromptPerM.toFixed(2)}/M in`}</p>
+                    <p className="truncate text-xs text-muted-foreground">{m.id === 'auto' ? 'Ilm AI · Automatically picks a suitable model' : m.provider + ' · ' + fmtNum(m.context) + ' ctx' + (m.isFree ? '' : ` · ${m.pricePromptPerM.toFixed(2)}/M in`)}</p>
                   </div>
                   {m.vision && <Eye className="h-3.5 w-3.5 text-muted-foreground" />}
                   {m.isFree ? <span className="badge">Free</span> : m.tier !== 'free' && <span className="badge uppercase">{m.tier}</span>}
