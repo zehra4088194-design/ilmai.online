@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Download, Loader2, Presentation, Plus, Trash2 } from 'lucide-react';
+import { Download, ExternalLink, Loader2, Presentation, Plus, Trash2 } from 'lucide-react';
 import { useApp } from '@/components/chat/AppShell';
 import { useToast } from '@/components/providers';
 import type { PresentationDeck, PresentationSlide } from '@/lib/presentation-schema';
@@ -10,6 +10,13 @@ import type { PresentationDeck, PresentationSlide } from '@/lib/presentation-sch
 type Format = 'pptx' | 'pdf';
 type Theme = 'emerald' | 'midnight' | 'sand';
 type PresentationModel = { id: string; name: string; provider?: string; locked?: boolean };
+type Engine = 'ilm' | 'gamma';
+type GammaTheme = { id: string; name: string };
+type GammaResult = {
+  gammaUrl: string; exportUrl?: string | null; exportAs?: 'pptx' | 'pdf' | null;
+  gammaCreditsDeducted?: number | null; gammaCreditsRemaining?: number | null;
+  creditsCharged: number; slideCount?: number | null;
+};
 
 const innerTypes = ['bullets','two_column','quote'] as const;
 const emptySlide = (type: PresentationSlide['type'] = 'bullets'): PresentationSlide => ({
@@ -34,6 +41,15 @@ export function PresentationTool() {
   const [lastDownload, setLastDownload] = useState<string | null>(null);
   const [models, setModels] = useState<PresentationModel[]>([]);
   const [model, setModel] = useState('auto');
+  const [engine, setEngine] = useState<Engine>('ilm');
+  const [gammaConfigured, setGammaConfigured] = useState(false);
+  const [gammaThemes, setGammaThemes] = useState<GammaTheme[]>([]);
+  const [gammaThemeId, setGammaThemeId] = useState('');
+  const [gammaImageStyle, setGammaImageStyle] = useState<'illustration'|'photorealistic'|'3D'|'lineArt'>('illustration');
+  const [gammaTextAmount, setGammaTextAmount] = useState<'brief'|'medium'|'detailed'|'extensive'>('detailed');
+  const [gammaExportAs, setGammaExportAs] = useState<''|'pptx'|'pdf'>('pptx');
+  const [gammaJobId, setGammaJobId] = useState<string | null>(null);
+  const [gammaResult, setGammaResult] = useState<GammaResult | null>(null);
 
   useEffect(() => {
     let cancelled = false;
