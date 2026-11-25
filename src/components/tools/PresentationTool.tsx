@@ -353,6 +353,25 @@ export function PresentationTool() {
         </button>
       </section>
 
+      {engine === 'gamma' && gammaResult && (
+        <section className="glass space-y-3 rounded-3xl p-4 sm:p-6">
+          <div className="flex items-center gap-2"><Presentation className="h-5 w-5 text-primary" /><h3 className="text-lg font-extrabold">Your Gamma presentation is ready</h3></div>
+          <p className="text-sm text-muted-foreground">Open it in Gamma to review, edit, collaborate and present. API-generated decks appear in the API Generated area of your Gamma workspace.</p>
+          <div className="flex flex-wrap gap-2">
+            <a className="btn-primary" href={gammaResult.gammaUrl} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4" /> Open in Gamma</a>
+            {gammaResult.exportUrl && <a className="btn-outline" href={gammaResult.exportUrl} target="_blank" rel="noopener noreferrer"><Download className="h-4 w-4" /> Download {gammaResult.exportAs?.toUpperCase() ?? 'export'}</a>}
+          </div>
+          <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground">
+            <span>Ilm AI credits used: {gammaResult.creditsCharged}</span>
+            {typeof gammaResult.gammaCreditsDeducted === 'number' && <span>Gamma credits used: {gammaResult.gammaCreditsDeducted}</span>}
+            {typeof gammaResult.gammaCreditsRemaining === 'number' && <span>Gamma credits remaining: {gammaResult.gammaCreditsRemaining}</span>}
+          </div>
+          {gammaResult.exportUrl
+            ? <p className="text-xs text-muted-foreground">Gamma export links expire after a limited period. Download the file soon.</p>
+            : <p className="text-xs text-muted-foreground">You can export PPTX or PDF from the Gamma editor.</p>}
+        </section>
+      )}
+
       {deck && (
         <section className="space-y-4">
           <div className="flex flex-wrap items-end justify-between gap-3">
