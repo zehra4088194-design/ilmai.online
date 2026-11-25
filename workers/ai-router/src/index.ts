@@ -88,7 +88,7 @@ async function proxyOpenRouter(request: Request, env: Env, path: string, bodyTex
 async function proxyGamma(request: Request, env: Env, path: string, bodyText: string) {
   if (!env.GAMMA_API_KEY) return errorResponse(503, 'Gamma API key is not configured in the AI Router', 'gamma_not_configured');
   const url = new URL(request.url);
-  const pathname = url.pathname;
+  const pathname = path;
   const themeRequest = request.method === 'GET' && pathname === '/gamma/v1.0/themes';
   const createRequest = request.method === 'POST' && pathname === '/gamma/v1.0/generations';
   const statusRequest = request.method === 'GET' && /^\/gamma\/v1\.0\/generations\/[A-Za-z0-9_-]{1,200}$/.test(pathname);
@@ -134,7 +134,7 @@ function assetMime(bytes: Uint8Array, kind: string): string | null {
  * The Worker only accepts server-HMAC-authenticated requests, trusted Picsart URLs,
  * bounded objects and pre-signed Backblaze S3 URLs. Media bytes never pass through Next.js.
  */
-async function transferPicsartAsset(request: Request, env: Env, bodyText: string) {
+async function transferPicsartAsset(request: Request, env: Env, bodyText: string, userId: string) {
   let input: {
     sourceUrl?: unknown;
     kind?: unknown;
@@ -158,7 +158,7 @@ async function transferPicsartAsset(request: Request, env: Env, bodyText: string
   for (const mime of allowedMimes) {
     const target = targets[mime];
     if (!target || typeof target.url !== 'string' || typeof target.key !== 'string' ||
-        !target.key.startsWith('generated/') || target.key.length > 512)
+        !target.key.startsWith('generated/' + userId + '/') || target.key.length > 512)
       return errorResponse(400, 'A pre-signed B2 upload target is missing', 'media_target_missing');
     try {
       const targetUrl = new URL(target.url);
@@ -336,7 +336,7 @@ export default {
     if (url.pathname.startsWith('/gamma/'))
       return proxyGamma(request, env, url.pathname, bodyText);
     if (url.pathname === '/media/picsart-transfer' && request.method === 'POST')
-      return transferPicsartAsset(request, env, bodyText);
+      return transferPicsartAsset(request, env, bodyText, auth.userId);
     if (url.pathname.startsWith('/picsart/')) {
       const upstreamPath = url.pathname.slice('/picsart'.length) + url.search;
       return proxyPicsart(request, env, upstreamPath, bodyText);
