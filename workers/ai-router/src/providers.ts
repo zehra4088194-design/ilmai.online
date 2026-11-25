@@ -48,6 +48,8 @@ export async function callChatProvider(env: Env, candidate: ModelCandidate, payl
     }).catch((error) => new Response(JSON.stringify({ error: String(error) }), { status: 502, headers: { 'Content-Type': 'application/json' } }));
     return { response, model: candidate.id, provider, attempts: 1 };
   }
+  const providerPayload = { ...payload, model: candidate.id };
+  delete providerPayload.usage;
   let attempts = 0;
   let last = new Response('Provider keys are not configured', { status: 503 });
   const attemptedSlots = new Set<number>();
@@ -61,7 +63,7 @@ export async function callChatProvider(env: Env, candidate: ModelCandidate, payl
     const response = await fetch(providerUrl(provider), {
       method: 'POST',
       headers: { Authorization: 'Bearer ' + current.key, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...payload, model: candidate.id }),
+      body: JSON.stringify(providerPayload),
       signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs),
     }).catch((error) => new Response(JSON.stringify({ error: String(error) }), { status: 502, headers: { 'Content-Type': 'application/json' } }));
     if (signal?.aborted) return { response, model: candidate.id, provider, attempts };
@@ -75,7 +77,8 @@ export async function callChatProvider(env: Env, candidate: ModelCandidate, payl
 /** Deterministic Auto selection: Groq is reserved for the three approved helper tasks. */
 export async function routeAuto(_env: Env, candidates: ModelCandidate[], _messages: unknown[], hints: string) {
   if (!candidates.length) throw new Error('No model candidates are available for Auto routing');
-  const sorted = [...candidates].sort((a, b) => (a.priority ?? 100) - (b.priority ?? 100));
+  const sorted = [...candidates].filter((item) => (item.provider ?? 'openrouter') !== 'groq').sort((a, b) => (a.priority ?? 100) - (b.priority ?? 100));
+  if (!sorted.length) throw new Error('Auto routing has no non-Groq candidates');
   const hint = hints.toLowerCase();
   const required = hint.includes('image') || hint.includes('vision') ? 'vision'
     : hint.includes('pdf') || hint.includes('document') ? 'document' : undefined;
