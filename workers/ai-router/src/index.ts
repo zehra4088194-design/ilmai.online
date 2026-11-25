@@ -216,6 +216,10 @@ async function transferPicsartAsset(request: Request, env: Env, bodyText: string
     const prefix = new Uint8Array(initialSize);
     let offset = 0;
     for (const part of initial) { prefix.set(part, offset); offset += part.byteLength; }
+    if (prefix.byteLength > maxBytes || prefix.byteLength > declaredLength) {
+      await reader.cancel().catch(() => undefined);
+      return errorResponse(413, 'Generated asset exceeded its declared size', 'picsart_asset_too_large');
+    }
     const mime = assetMime(prefix, kind);
     if (!mime || !allowedMimes.includes(mime)) {
       await reader.cancel().catch(() => undefined);
@@ -260,15 +264,22 @@ async function transferPicsartAsset(request: Request, env: Env, bodyText: string
     catch { await reader.cancel().catch(() => undefined); return errorResponse(400, 'Invalid private B2 upload URL', 'media_target_invalid'); }
     let uploaded: Response;
     try {
-      uploaded = await fetch(uploadUrl, {
+      // A FixedLengthStream makes Workers emit the exact Content-Length for a
+      // streamed request. A manually supplied Content-Length is ignored for a
+      // normal ReadableStream and falls back to chunked transfer encoding.
+      const fixedLength = new FixedLengthStream(declaredLength);
+      const pump = stream.pipeTo(fixedLength.writable);
+      const upload = fetch(uploadUrl, {
         method: 'PUT',
-        headers: { 'Content-Type': mime, 'Content-Length': String(declaredLength) },
-        body: stream,
+        headers: { 'Content-Type': mime },
+        body: fixedLength.readable,
         signal: request.signal,
         redirect: 'manual',
       });
+      [uploaded] = await Promise.all([upload, pump]);
     } catch {
-      return errorResponse(502, 'The Worker could not stream the Picsart file to private Backblaze storage', 'b2_stream_upload_failed');
+      await reader.cancel().catch(() => undefined);
+      return errorResponse(502, 'The Worker could not stream the exact-length Picsart file to private Backblaze storage', 'b2_stream_upload_failed');
     }
     if (!uploaded.ok)
       return errorResponse(502, 'Backblaze rejected the streamed generated file (' + uploaded.status + ')', 'b2_stream_upload_failed');
