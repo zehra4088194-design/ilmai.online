@@ -30,9 +30,7 @@ WORKDIR /app
 ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0 NEXT_TELEMETRY_DISABLED=1 NEXT_PUBLIC_SITE_URL=https://ilmai.online TURNSTILE_HOSTNAMES=ilmai.online
 # Blank placeholders only. Set actual values in Coolify (never bake secrets into image).
 ENV SUPABASE_SERVICE_ROLE_KEY="" \
-    OPENROUTER_API_KEY="" \
     TURNSTILE_SECRET="" \
-    GAMMA_API_KEY="" \
     ADMIN_EMAILS="ilmai.store2@gmail.com" \
     CRON_SECRET="" \
     EXCHANGE_RATE_API_KEY="" \
