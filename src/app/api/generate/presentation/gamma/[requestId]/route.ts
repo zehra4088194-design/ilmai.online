@@ -4,6 +4,7 @@ import { handle, HttpError, json } from '@/lib/http';
 import { requireUserApi } from '@/lib/auth';
 import { requireFeature } from '@/lib/features';
 import { adminClient } from '@/lib/supabase/admin';
+import { aiRouterFetch } from '@/lib/ai-router';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -11,7 +12,6 @@ export const maxDuration = 45;
 
 type Context = { params: Promise<{ requestId: string }> };
 const Params = z.object({ requestId: z.string().uuid() });
-const GAMMA_API = 'https://public-api.gamma.app/v1.0';
 
 function safeGammaUrl(value: unknown) {
   if (typeof value !== 'string') return null;
@@ -59,18 +59,17 @@ export const GET = handle(async (_req: NextRequest, context: Context) => {
     return json({ status: 'failed', error: message }, { headers: { 'Cache-Control': 'private, no-store' } });
   }
 
-  const apiKey = process.env.GAMMA_API_KEY;
-  if (!apiKey) throw new HttpError(503, 'Gamma API key is not configured on this deployment.', 'gamma_not_configured');
-
   let gamma: Record<string, unknown>;
   try {
-    const response = await fetch(GAMMA_API + '/generations/' + encodeURIComponent(gammaGenerationId), {
-      headers: { 'X-API-KEY': apiKey, Accept: 'application/json' },
-      signal: AbortSignal.timeout(15000), cache: 'no-store',
+    const response = await aiRouterFetch({
+      userId: profile.id,
+      path: '/gamma/v1.0/generations/' + encodeURIComponent(gammaGenerationId),
+      method: 'GET',
+      signal: AbortSignal.timeout(15000),
     });
     gamma = await response.json().catch(() => ({})) as Record<string, unknown>;
     if (!response.ok) {
-      if (response.status === 401) throw new HttpError(503, 'Gamma rejected the configured API key. Check GAMMA_API_KEY.', 'gamma_unauthorized');
+      if (response.status === 401) throw new HttpError(503, 'Gamma rejected the configured API key. Check the Cloudflare Worker GAMMA_API_KEY secret.', 'gamma_unauthorized');
       if (response.status === 429) throw new HttpError(429, 'Gamma is temporarily rate-limiting status checks. Please retry.', 'gamma_rate_limited');
       throw new HttpError(502, 'Gamma could not return this generation status. Please retry.', 'gamma_status_failed');
     }
