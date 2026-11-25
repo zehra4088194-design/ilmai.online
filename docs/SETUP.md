@@ -32,7 +32,7 @@
 6. Test all four paths on `https://ilmai.online` and, separately, on localhost during development. Tokens expire and are single-use; the widget resets after each attempt.
 
 ## 3. OpenRouter
-https://openrouter.ai/keys → key banao → `OPENROUTER_API_KEY`. Credits add karo. Settings → "Limits" mein monthly spend limit zaroor lagao.
+https://openrouter.ai/keys → key banao. Isay Coolify mein nahi, Cloudflare → Workers & Pages → `ilmai-ai-router` → Settings → Variables and Secrets → Add → Secret mein `OPENROUTER_API_KEY` naam se save karo. OpenRouter Settings → Limits mein monthly spend limit zaroor lagao.
 
 ### Free models (suggestions + quiz)
 Suggestions aur quizzes **free models** se chalte hain (user ke credits nahi katte). Dhyan rakho:
@@ -42,15 +42,15 @@ Suggestions aur quizzes **free models** se chalte hain (user ke credits nahi kat
 
 ## 4. Cloudflare AI Router (required for all AI inference)
 1. Worker `ilmai-ai-router` is deployed at `https://ilmai-ai-router.ilmai.workers.dev`; its `RequestGate` and `KeyPool` SQLite Durable Objects are provisioned.
-2. Cloudflare Worker secrets: `AI_ROUTER_SECRET` is already configured. **`OPENROUTER_API_KEY` is still required**: add the same OpenRouter key used in Coolify as a Worker Secret.
-3. In Coolify, set `AI_ROUTER_URL=https://ilmai-ai-router.ilmai.workers.dev`, set `AI_ROUTER_SECRET` to the exact same value as the Worker's secret, and keep `OPENROUTER_API_KEY` for model catalogue/pricing discovery. Redeploy the main app after adding variables.
+2. Cloudflare Worker secrets: `AI_ROUTER_SECRET` and `OPENROUTER_API_KEY` must be configured as Secrets. Add `GAMMA_API_KEY` as a Secret using the same Gamma key currently stored in Coolify; the Worker now proxies Gamma themes, generation and status checks. Keep `PICSART_API_KEY` as a Worker Secret too.
+3. In Coolify, set only `AI_ROUTER_URL=https://ilmai-ai-router.ilmai.workers.dev` and `AI_ROUTER_SECRET` to the exact same value as the Worker's secret. After the Worker has been deployed and Gamma verified, remove `OPENROUTER_API_KEY` and `GAMMA_API_KEY` from the Coolify app. Redeploy the main app after removing them.
 4. Optional Cloudflare Worker secrets: `GROQ_API_KEY_1` ... `GROQ_API_KEY_10` and `GEMINI_API_KEY_1` ... `GEMINI_API_KEY_10`. Groq keys are reserved for prompt enhancement, generating a new chat title from its first prompt, and summaries of multi-model comparisons. Suggestions and normal chat inference use OpenRouter; Auto chooses a suitable OpenRouter candidate deterministically. Gemini keys are used for chat-image understanding, not as general text-chat models.
 5. Never put provider keys or router secrets in browser-side `NEXT_PUBLIC_*` variables. Full deployment notes: `docs/AI-ROUTER-SETUP.md`.
 
 ## 5. Gamma API (Presentation Studio)
 1. Gamma API v1.0 use karne ke liye Gamma Pro, Ultra, Teams ya Business account par **Settings → My API keys** se API key banao.
-2. Coolify main app ke **Runtime Environment Variables** mein `GAMMA_API_KEY` add karo. Isay `NEXT_PUBLIC_*` ya Build Variable mat banana; key sirf server-side use hoti hai.
-3. Main app redeploy karo. Presentation Studio mein **Gamma** engine select karo, Gamma theme, visual style aur optional PPTX/PDF export choose karo.
+2. Cloudflare → Workers & Pages → `ilmai-ai-router` → Settings → Variables and Secrets → Add → Secret. Name `GAMMA_API_KEY` rakho aur Coolify mein pehle se configured Gamma key ki same value paste karo. Secret values chat/GitHub mein share mat karna.
+3. Worker redeploy karo. Presentation Studio mein **Gamma** engine select karo, Gamma theme, visual style aur optional PPTX/PDF export choose karo. App ke baad ke deployment mein `GAMMA_API_KEY` Coolify se remove kar dena.
 4. Gamma generation asynchronous hai: app status poll karti hai. Completed presentation Gamma workspace ke **API Generated** section mein milti hai.
 5. Gamma API credits tumhare Gamma account se alag deduct hote hain. Cards aur AI-generated images ki wajah se usage badal sakta hai; Gamma usage status response mein milta hai. Ilm AI users ke liye app ka `presentations.generation_cost` (aur optional `gamma_generation_cost`) alag set karo, taa-ke Gamma API cost ke mutabiq user pricing control kar sako.
 6. Gamma export link temporary hota hai (taqriban ek haftay ke aas paas); file jaldi download kar lo. Ek generation request mein sirf ek export format (PPTX ya PDF) select hota hai.
