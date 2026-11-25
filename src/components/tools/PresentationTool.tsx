@@ -281,27 +281,75 @@ export function PresentationTool() {
           <textarea dir="auto" className="input min-h-20" maxLength={2000} placeholder="e.g. The water cycle for Class 6, with a simple explanation and a short recap" value={topic} onChange={(e) => setTopic(e.target.value)} />
         </label>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="space-y-1 text-sm font-medium">Creation engine
+            <select className="input" value={engine} onChange={(e) => setEngine(e.target.value as Engine)}>
+              <option value="gamma" disabled={!gammaConfigured}>Gamma · design-first</option>
+              <option value="ilm">Ilm AI · editable slides</option>
+            </select>
+          </label>
           <label className="space-y-1 text-sm font-medium">Number of slides
             <input className="input" type="number" min={3} max={20} value={count} onChange={(e) => setCount(Math.max(3, Math.min(20, Number(e.target.value) || 3)))} />
           </label>
           <label className="space-y-1 text-sm font-medium">Language
             <select className="input" value={language} onChange={(e) => setLanguage(e.target.value as typeof language)}><option>English</option><option>Urdu</option><option>Roman Urdu</option></select>
           </label>
-          <label className="space-y-1 text-sm font-medium">AI model
-            <select className="input" value={model} onChange={(e) => setModel(e.target.value)}>
-              <option value="claude-auto">Claude · best available</option>
-              <option value="auto">Auto · choose a model</option>
-              {models.filter((item) => !item.locked).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </select>
-          </label>
-          <label className="space-y-1 text-sm font-medium">Design theme
-            <select className="input" value={theme} onChange={(e) => setTheme(e.target.value as Theme)}><option value="emerald">Emerald</option><option value="midnight">Midnight</option><option value="sand">Sand</option></select>
-          </label>
+          {engine === 'gamma' ? (
+            <>
+              <label className="space-y-1 text-sm font-medium">Gamma theme
+                <select className="input" value={gammaThemeId} onChange={(e) => setGammaThemeId(e.target.value)}>
+                  <option value="">Workspace default</option>
+                  {gammaThemes.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                </select>
+              </label>
+              <label className="space-y-1 text-sm font-medium">AI image style
+                <select className="input" value={gammaImageStyle} onChange={(e) => setGammaImageStyle(e.target.value as typeof gammaImageStyle)}>
+                  <option value="illustration">Modern illustration</option>
+                  <option value="photorealistic">Photorealistic</option>
+                  <option value="3D">3D rendered</option>
+                  <option value="lineArt">Line art</option>
+                </select>
+              </label>
+              <label className="space-y-1 text-sm font-medium">Text density
+                <select className="input" value={gammaTextAmount} onChange={(e) => setGammaTextAmount(e.target.value as typeof gammaTextAmount)}>
+                  <option value="brief">Brief</option>
+                  <option value="medium">Medium</option>
+                  <option value="detailed">Detailed</option>
+                  <option value="extensive">Extensive</option>
+                </select>
+              </label>
+              <label className="space-y-1 text-sm font-medium">Export with Gamma
+                <select className="input" value={gammaExportAs} onChange={(e) => setGammaExportAs(e.target.value as typeof gammaExportAs)}>
+                  <option value="pptx">PowerPoint (.pptx)</option>
+                  <option value="pdf">PDF</option>
+                  <option value="">Gamma link only</option>
+                </select>
+              </label>
+            </>
+          ) : (
+            <>
+              <label className="space-y-1 text-sm font-medium">AI model
+                <select className="input" value={model} onChange={(e) => setModel(e.target.value)}>
+                  <option value="claude-auto">Claude · best available</option>
+                  <option value="auto">Auto · choose a model</option>
+                  {models.filter((item) => !item.locked).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                </select>
+              </label>
+              <label className="space-y-1 text-sm font-medium">Design theme
+                <select className="input" value={theme} onChange={(e) => setTheme(e.target.value as Theme)}>
+                  <option value="emerald">Emerald</option>
+                  <option value="midnight">Midnight</option>
+                  <option value="sand">Sand</option>
+                </select>
+              </label>
+            </>
+          )}
         </div>
-        {models.length === 0 && <p className="text-xs text-muted-foreground">Claude models are not currently listed as enabled. Auto can still create the deck; an admin can enable Claude in Model Settings.</p>}
-        {models.length > 0 && models.every((item) => item.locked) && <p className="text-xs text-muted-foreground">Claude models are listed but unavailable on this plan. Ask an admin to enable plan access.</p>}
-        <button className="btn-primary" disabled={busy || topic.trim().length < 3} onClick={generate}>
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Presentation className="h-4 w-4" />} {busy ? action || 'Working…' : 'Create presentation'}
+        {engine === 'gamma' && !gammaConfigured && <p className="rounded-xl border border-border p-3 text-xs text-muted-foreground">Gamma is not connected yet. Add the server-side GAMMA_API_KEY to Coolify and redeploy the main app to enable this engine.</p>}
+        {engine === 'gamma' && <p className="text-xs text-muted-foreground">Gamma creates a designed presentation in your Gamma workspace. Gamma API credits are charged separately by Gamma; Ilm AI also applies the Presentation Studio credit price.</p>}
+        {engine === 'ilm' && models.length === 0 && <p className="text-xs text-muted-foreground">Claude models are not currently listed as enabled. Auto can still create the editable Ilm AI deck.</p>}
+        {engine === 'ilm' && models.length > 0 && models.every((item) => item.locked) && <p className="text-xs text-muted-foreground">Claude models are listed but unavailable on this plan. Ask an admin to enable plan access.</p>}
+        <button className="btn-primary" disabled={busy || topic.trim().length < 3 || (engine === 'gamma' && !gammaConfigured)} onClick={generate}>
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Presentation className="h-4 w-4" />} {busy ? action || 'Working…' : engine === 'gamma' ? 'Create with Gamma' : 'Create editable presentation'}
         </button>
       </section>
 
