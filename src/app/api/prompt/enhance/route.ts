@@ -34,6 +34,7 @@ export const POST = handle(async (req: NextRequest) => {
       ],
       {
         userId: profile.id,
+        task: 'prompt-enhancement',
         maxTokens: 750,
         temperature: 0.2,
         timeoutMs: 12_000,
