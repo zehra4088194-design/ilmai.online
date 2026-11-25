@@ -79,7 +79,7 @@ export const POST = handle(async (req: NextRequest) => {
             '\n\nModel answers (JSON):\n' + JSON.stringify(inputs),
         },
       ],
-      { userId: profile.id, maxTokens: 850, temperature: 0.2, timeoutMs: 14_000 },
+      { userId: profile.id, task: 'comparison-summary', maxTokens: 850, temperature: 0.2, timeoutMs: 14_000 },
     );
 
     const summary = result.text.trim().slice(0, 7000);
