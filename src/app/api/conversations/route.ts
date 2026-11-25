@@ -8,8 +8,11 @@ import { createClient } from '@/lib/supabase/server';
 import { truncate } from '@/lib/utils';
 import { AttachmentIds, validateAttachments } from '@/lib/attachments';
 import { ATTACHMENT_PROMPT } from '@/lib/attachment-validation';
+import { groqTaskChat } from '@/lib/utility-ai';
+import { logUsage } from '@/lib/usage';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 45;
 
 export const GET = handle(async () => {
   await requireUserApi();
@@ -39,7 +42,39 @@ export const POST = handle(async (req: NextRequest) => {
   const content = b.firstMessage?.trim() || (attachments.length ? ATTACHMENT_PROMPT : '');
   const mode = await getMode(b.mode);
   const supabase = await createClient();
-  const title = b.title ?? (content ? truncate(content.replace(/\s+/g, ' '), 60) : 'New chat');
+  let title = b.title?.trim();
+  const firstPrompt = b.firstMessage?.trim();
+  if (!title && firstPrompt) {
+    const started = Date.now();
+    try {
+      const result = await groqTaskChat(
+        [
+          {
+            role: 'system',
+            content: 'Create a concise chat title from the user\'s first message. Use the same language and script as the message. Return only a natural title of 2–6 words, no quotes, no punctuation at the end, maximum 55 characters.',
+          },
+          { role: 'user', content: firstPrompt.slice(0, 5000) },
+        ],
+        { userId: profile.id, maxTokens: 42, temperature: 0.2, timeoutMs: 7000 },
+      );
+      const generated = result.text.replace(/[\r\n]+/g, ' ').replace(/^[\"'“”]+|[\"'“”]+$/g, '').trim();
+      title = truncate(generated || firstPrompt.replace(/\s+/g, ' '), 60);
+      await logUsage({
+        userId: profile.id, kind: 'conversation_title', model: result.model, provider: 'groq',
+        promptTokens: result.promptTokens, completionTokens: result.completionTokens, costUsd: result.cost,
+        latencyMs: Date.now() - started, usageDetails: { helper: 'first-message-title' },
+      });
+    } catch (error) {
+      console.warn('[conversation-title] Groq title generation failed; using prompt fallback:', error);
+      title = truncate(firstPrompt.replace(/\s+/g, ' '), 60);
+      await logUsage({
+        userId: profile.id, kind: 'conversation_title', provider: 'groq', status: 'error',
+        error: error instanceof Error ? error.message : String(error), latencyMs: Date.now() - started,
+        usageDetails: { helper: 'first-message-title' },
+      });
+    }
+  }
+  title = title || (content ? truncate(content.replace(/\s+/g, ' '), 60) : 'New chat');
   const { data: conv, error } = await supabase.from('conversations')
     .insert({ user_id: profile.id, title, model: b.model ?? null, mode: mode?.slug ?? null }).select('id').single();
   if (error) throw error;
