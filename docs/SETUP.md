@@ -51,7 +51,7 @@ Suggestions aur quizzes **free models** se chalte hain (user ke credits nahi kat
 1. Buckets → Create bucket `ilmai-media`, **Private**.
 2. App Keys → Add key (sirf us bucket ke liye, Read & Write) → `keyID` = `B2_KEY_ID`, `applicationKey` = `B2_APPLICATION_KEY` (sirf ek baar dikhti hai).
 3. Bucket detail mein **Endpoint** dikhega (e.g. `s3.us-west-004.backblazeb2.com`) → `B2_ENDPOINT=https://s3.us-west-004.backblazeb2.com`, `B2_REGION=us-west-004`.
-4. Browser se direct upload (file upload feature) ke liye CORS: Bucket Settings → CORS Rules → "custom" → operations `s3_put, s3_get, s3_head`, allowed headers `*`, aur allowed origin sirf `https://ilmai.online` rakho. Origin mein trailing slash mat lagana; purane website origins remove kar do.
+4. App browser se AWS SDK ke presigned URLs par Backblaze **S3-Compatible API** ko direct `PUT` karti hai. Isliye CORS rule ko **S3-compatible API** (ya Both) par apply karo — sirf B2 Native API par nahi. Bucket Settings → CORS Rules → Custom rule mein origin sirf `https://ilmai.online` (no trailing slash), operation `S3 Put Object` / `s3_put` (PUT), allowed headers `*` (ya kam az kam `content-type`), aur `maxAgeSeconds=3600` rakho. Downloads ke liye `S3 Get Object` / `s3_get` aur `S3 Head Object` / `s3_head` bhi add kar sakte ho. Agar console API selector dikhaye to **S3-compatible API** select karo. Purane `.store` origins remove kar do. B2 Native API ki CORS rule alag hoti hai aur S3-compatible rule ki jagah nahi leti.
 
 ## 6. Local chalana
 ```bash
