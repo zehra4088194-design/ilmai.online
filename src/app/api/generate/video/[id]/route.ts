@@ -3,10 +3,10 @@ import { z } from 'zod';
 import { handle, HttpError, json } from '@/lib/http';
 import { requireUserApi } from '@/lib/auth';
 import { adminClient } from '@/lib/supabase/admin';
-import { saveMedia } from '@/lib/media';
+import { deleteObject } from '@/lib/storage/b2';
 import { signedDownloadUrl } from '@/lib/storage/b2';
 import {
-  downloadPicsartAsset,
+  transferPicsartAsset,
   picsartPollModel,
 } from '@/lib/picsart-models';
 
@@ -19,13 +19,6 @@ const Params = z.object({ id: z.string().uuid() });
 
 const TERMINAL = new Set(['ready','failed','cancelled','expired']);
 const MAX_VIDEO_BYTES = 150 * 1024 * 1024;
-
-function videoSignature(bytes: Buffer) {
-  return bytes.length > 12 && (
-    bytes.toString('ascii',4,8) === 'ftyp' ||
-    bytes.subarray(0,4).equals(Buffer.from([0x1a,0x45,0xdf,0xa3]))
-  );
-}
 
 function resultVideoUrl(result: unknown) {
   if (!result || typeof result !== 'object') return null;
@@ -135,21 +128,26 @@ export const GET = handle(async (_req: NextRequest, { params }: Ctx) => {
   try {
     const url = resultVideoUrl(provider.result);
     if (!url) throw new HttpError(502,'Picsart completed the job but returned no video URL','empty_video_result');
-    const downloaded = await downloadPicsartAsset(url, MAX_VIDEO_BYTES);
-    const mime = downloaded.mime === 'video/webm' ? 'video/webm' : downloaded.mime === 'video/mp4' || downloaded.mime === 'application/octet-stream' ? 'video/mp4' : '';
-    if (!mime || !videoSignature(downloaded.bytes)) {
-      throw new HttpError(502,'Picsart returned a file that is not a valid MP4 or WebM video','invalid_video_output');
-    }
-    const media = await saveMedia({
-      userId:profile.id,kind:'video',body:downloaded.bytes,mime,prompt:job.prompt,model:job.model,
+    const transferred = await transferPicsartAsset(profile.id, url, MAX_VIDEO_BYTES, 'video');
+    const mediaInsert = await db.from('media_assets').insert({
+      user_id:profile.id,kind:'video',storage_key:transferred.storageKey,mime:transferred.mime,
+      size_bytes:transferred.sizeBytes,prompt:job.prompt,model:job.model,status:'ready',
       meta:{video_job_id:id,provider_job_id:job.provider_job_id,provider:'picsart',provider_usage:provider.usage ?? {},config:job.config},
-    });
+    }).select('id').single();
+    if (mediaInsert.error) {
+      await deleteObject(transferred.storageKey).catch(() => undefined);
+      throw mediaInsert.error;
+    }
     const storing = await db.from('video_jobs').update({
-      status:'storing',media_asset_id:media.id,provider_usage:provider.usage ?? {},
+      status:'storing',media_asset_id:mediaInsert.data.id,provider_usage:provider.usage ?? {},
       last_polled_at:new Date().toISOString(),updated_at:new Date().toISOString(),
     }).eq('id',id).eq('user_id',profile.id).eq('status','downloading').select('id').maybeSingle();
     if (storing.error) throw storing.error;
-    if (!storing.data) throw new HttpError(409,'Video job changed while the completed file was stored','video_job_conflict');
+    if (!storing.data) {
+      await db.from('media_assets').delete().eq('id',mediaInsert.data.id).eq('user_id',profile.id).eq('status','ready');
+      await deleteObject(transferred.storageKey).catch(() => undefined);
+      throw new HttpError(409,'Video job changed while the completed file was stored','video_job_conflict');
+    }
 
     const settlement = await db.rpc('complete_video_job',{
       p_job:id,p_user:profile.id,p_asset:media.id,p_charge:job.credits_reserved,
