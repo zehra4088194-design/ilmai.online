@@ -41,6 +41,7 @@ export function ChatView() {
   const [websiteBuilderOpen, setWebsiteBuilderOpen] = useState(false);
   const [thinking, setThinking] = useState<'auto' | 'low' | 'medium' | 'high'>('auto');
   const [enhancing, setEnhancing] = useState(false);
+  const [summaryLoadingTurn, setSummaryLoadingTurn] = useState<string | null>(null);
   const [callActive, setCallActive] = useState(false);
   const [callStatus, setCallStatus] = useState<'idle'|'listening'|'thinking'|'speaking'>('idle');
 
@@ -64,7 +65,7 @@ export function ChatView() {
     aborts.current.forEach((a) => a.abort());
     convRef.current = routeId;
     sugToken.current++;
-    setBusy(false); setAttachments([]); setUploading(false); setSuggestions([]); setSugLoading(false);
+    setBusy(false); setAttachments([]); setUploading(false); setSuggestions([]); setSugLoading(false); setSummaryLoadingTurn(null);
     if (!routeId) { setMessages([]); return; }
     setLoadingChat(true);
     api<{ conversation: { mode: string | null }; messages: ServerMsg[] }>('/api/conversations/' + routeId, 'GET')
@@ -257,6 +258,23 @@ export function ChatView() {
     refreshConversations();
     refreshMe();
     const firstOk = results.find((r) => r.length > 0);
+
+    if (multi && results.filter((result) => result.trim().length > 0).length >= 2 && cid) {
+      setSummaryLoadingTurn(umid);
+      try {
+        const summary = await api<{ summary: string; messageId: string }>('/api/compare/summary', 'POST', {
+          conversationId: cid,
+          userMessageId: umid,
+        });
+        setMessages((current) => current.map((message) => message.id === summary.messageId
+          ? { ...message, meta: { ...(message.meta ?? {}), comparison_summary: summary.summary } }
+          : message));
+      } catch (error) {
+        toast(error instanceof Error ? error.message : 'Could not create comparison summary', 'info');
+      } finally {
+        setSummaryLoadingTurn((current) => current === umid ? null : current);
+      }
+    }
     if (firstOk && featureOn('suggestions')) loadSuggestions(t, firstOk);
     if (firstOk && callActiveRef.current && typeof window !== 'undefined' && window.speechSynthesis) {
       const resumeListening = () => {
@@ -336,7 +354,7 @@ export function ChatView() {
             <EmptyState onSend={send} showUpgrade={user.plan==='free'&&!user.isAdmin} />
           )}
           <div className="space-y-7">
-            {groups.map((g) => <TurnView key={g.key} group={g} names={names} onAsk={send} onDifferentModel={(text) => { setInput(text); toast('Prompt loaded. Choose another model above, then send.', 'info'); }} onNewQuiz={(topic) => setQuizDlg({ topic })} />)}
+            {groups.map((g) => <TurnView key={g.key} group={g} names={names} onAsk={send} onDifferentModel={(text) => { setInput(text); toast('Prompt loaded. Choose another model above, then send.', 'info'); }} onNewQuiz={(topic) => setQuizDlg({ topic })} comparisonSummaryLoading={summaryLoadingTurn === g.key} />)}
             {!busy && lastGroup && (suggestions.length > 0 || sugLoading) && (
               <Suggestions items={suggestions} loading={sugLoading} onPick={send}
                 onQuiz={quizOn ? () => setQuizDlg({
