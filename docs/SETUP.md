@@ -51,7 +51,7 @@ Suggestions aur quizzes **free models** se chalte hain (user ke credits nahi kat
 1. Buckets → Create bucket `ilmai-media`, **Private**.
 2. App Keys → Add key (sirf us bucket ke liye, Read & Write) → `keyID` = `B2_KEY_ID`, `applicationKey` = `B2_APPLICATION_KEY` (sirf ek baar dikhti hai).
 3. Bucket detail mein **Endpoint** dikhega (e.g. `s3.us-west-004.backblazeb2.com`) → `B2_ENDPOINT=https://s3.us-west-004.backblazeb2.com`, `B2_REGION=us-west-004`.
-4. Browser se direct upload (file upload feature) ke liye CORS: Bucket Settings → CORS Rules → "custom" → operations `s3_put, s3_get, s3_head`, allowed headers `*`, aur allowed origin sirf `https://ilmai.online` rakho. Origin mein trailing slash mat lagana; purane `.store` aur `www` origins remove kar do.
+4. Browser se direct upload (file upload feature) ke liye CORS: Bucket Settings → CORS Rules → "custom" → operations `s3_put, s3_get, s3_head`, allowed headers `*`, aur allowed origin sirf `https://ilmai.online` rakho. Origin mein trailing slash mat lagana; purane website origins remove kar do.
 
 ## 6. Local chalana
 ```bash
