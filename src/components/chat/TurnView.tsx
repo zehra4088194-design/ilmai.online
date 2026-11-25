@@ -5,7 +5,7 @@ import { Copy, Check, AlertTriangle, RotateCcw, Shuffle, ThumbsUp, ThumbsDown, S
 import { LogoMark } from '@/components/ui/Logo';
 import { ProviderLogo } from '@/components/chat/ProviderLogo';
 import { LoadingIndicator } from '@/components/chat/LoadingIndicator';
-import { providerFromModelId } from '@/lib/provider-meta';
+import { providerFromModelId, providerName } from '@/lib/provider-meta';
 import { Markdown } from '@/components/chat/Markdown';
 import { QuizCard } from '@/components/quiz/QuizCard';
 import { AttachmentLinks } from '@/components/AttachmentPicker';
@@ -20,6 +20,8 @@ function Answer({ m, label, boxed, layout, prompt, onRetry, onDifferentModel }: 
   const [copied, setCopied] = useState(false);
   const [feedback, setFeedback] = useState<'up'|'down'|null>(null);
   const provider = providerFromModelId(m.model);
+  const autoRouted = m.meta?.requested_model === 'auto';
+  const answerLogo = autoRouted ? 'ilmai' : provider;
   return (
     <div className={cn(
       'group min-w-0',
@@ -27,10 +29,10 @@ function Answer({ m, label, boxed, layout, prompt, onRetry, onDifferentModel }: 
         ? cn('card min-w-0 p-3.5', layout === 'landscape' && 'w-[min(88vw,36rem)] max-w-[36rem] shrink-0 snap-start')
         : 'flex gap-3',
     )}>
-      {!boxed && <div className="mt-0.5 shrink-0">{provider ? <ProviderLogo provider={provider} className="!h-8 !w-8" /> : <LogoMark className="h-8 w-8" />}</div>}
+      {!boxed && <div className="mt-0.5 shrink-0">{answerLogo ? <ProviderLogo provider={answerLogo} className="!h-8 !w-8" /> : <LogoMark className="h-8 w-8" />}</div>}
       <div className="min-w-0 flex-1">
         <p className={cn('mb-1 flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground', boxed && 'border-b border-border pb-2')}>
-          {boxed && (provider ? <ProviderLogo provider={provider} className="!h-5 !w-5" /> : <LogoMark className="h-4 w-4" />)}<span className="truncate">{label}</span>{m.streaming && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />}
+          {boxed && (answerLogo ? <ProviderLogo provider={answerLogo} className="!h-5 !w-5" /> : <LogoMark className="h-4 w-4" />)}<span className="truncate">{label}</span>{autoRouted && provider && <span className="shrink-0 font-medium normal-case">via {providerName(provider)}</span>}{m.streaming && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />}
         </p>
         {m.error ? (
           <div className="flex items-start gap-2 rounded-xl bg-danger/10 px-3.5 py-2.5 text-sm text-danger"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{m.content}</div>
