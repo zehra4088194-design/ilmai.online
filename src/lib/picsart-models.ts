@@ -325,7 +325,7 @@ export async function transferPicsartAsset(
   const formats = kind === 'image'
     ? [{ mime: 'image/png', ext: 'png' }, { mime: 'image/jpeg', ext: 'jpg' }, { mime: 'image/webp', ext: 'webp' }, { mime: 'image/avif', ext: 'avif' }]
     : [{ mime: 'video/mp4', ext: 'mp4' }, { mime: 'video/webm', ext: 'webm' }];
-  const targets = Object.fromEntries(await Promise.all(formats.map(async (format) => {
+  const targets: Record<string, { key: string; url: string }> = Object.fromEntries(await Promise.all(formats.map(async (format) => {
     const key = `generated/${userId}/${kind}/${randomUUID()}.${format.ext}`;
     const url = await signedGeneratedUploadUrl(key, format.mime, 300);
     return [format.mime, { key, url }];
