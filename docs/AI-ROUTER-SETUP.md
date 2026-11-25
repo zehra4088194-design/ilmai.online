@@ -3,8 +3,8 @@
 Ilm AI ka approved production design:
 
 - **Coolify / Next.js:** login, user plans, credits wallet, conversation history, prompt preparation, database writes aur usage settlement.
-- **Cloudflare Worker:** signed AI gateway, per-user rate limits, replay protection, routing aur provider response streaming.
-- **OpenRouter:** live model catalogue + base token prices ka source; initial production setup mein primary inference gateway bhi.
+- **Cloudflare Worker:** signed AI gateway, per-user rate limits, replay protection, routing, provider API calls, Gamma, OpenRouter model catalogue aur Picsart-to-B2 media streaming.
+- **OpenRouter / Gamma / Picsart:** provider APIs called from the Worker only; provider credentials are not needed by the Next.js app.
 
 Browser kabhi bhi OpenRouter, Groq ya Gemini ko direct call nahi karta. Provider keys sirf server-side secrets mein rehti hain.
 
@@ -16,7 +16,7 @@ Worker `ilmai-ai-router` is account par deploy ho chuka hai:
 
 Iske `RequestGate` aur `KeyPool` SQLite Durable Objects provision ho chuke hain. Live Cloudflare check ke mutabiq tamam 20 numbered Groq/Gemini key names maujood hain. In mein se 5 provider keys aur dono base keys Secret type mein hain; baqi 15 provider keys abhi plain-text Variables hain. Unki values ko is check mein read ya change nahi kiya gaya.
 
-Coolify main app ke variables abhi user ne configure nahi kiye: `AI_ROUTER_URL`, matching `AI_ROUTER_SECRET`, aur `OPENROUTER_API_KEY` add karna aur app redeploy karna baqi hai. Daily-credit cron ke liye `CRON_SECRET` aur Coolify Scheduled Task bhi alag se configure karne hain.
+Coolify main app par `AI_ROUTER_URL` aur matching `AI_ROUTER_SECRET` required hain. OpenRouter aur Gamma provider credentials Cloudflare Worker secrets mein rehte hain; unhein Coolify se remove karna hai after the Worker version is deployed and verified.
 
 Agar future mein Worker ko dobara deploy karna ho, repo ke `workers/ai-router` folder mein:
 ```bash
@@ -56,9 +56,9 @@ Coolify → main Ilm AI app → Environment Variables mein:
 |---|---|
 | `AI_ROUTER_URL` | `https://ilmai-ai-router.ilmai.workers.dev` (base URL only; endpoint path add nahi karna) |
 | `AI_ROUTER_SECRET` | Wahi random HMAC secret jo Worker par `AI_ROUTER_SECRET` ke naam se set kiya |
-| `OPENROUTER_API_KEY` | OpenRouter dashboard ki API key; catalogue aur prices fetch karne ke liye |
+| `AI_ROUTER_SECRET` | Wahi random HMAC secret jo Worker par `AI_ROUTER_SECRET` ke naam se set kiya |
 
-Important: OpenRouter API key ki **do server-side copies** hongi — ek Coolify app mein (model list/prices), ek Cloudflare Worker secret mein (inference). Dono same key ho sakti hain. `AI_ROUTER_SECRET` ki bhi Coolify aur Worker mein exact same value honi chahiye.
+Important: `OPENROUTER_API_KEY`, `GAMMA_API_KEY`, `PICSART_API_KEY`, Groq aur Gemini keys Cloudflare Worker Secrets mein hi rakho. Coolify app par sirf `AI_ROUTER_URL` aur matching `AI_ROUTER_SECRET` chahiye. `AI_ROUTER_SECRET` ki Coolify aur Worker mein exact same value honi chahiye.
 
 Ye variables kabhi `NEXT_PUBLIC_*` na banana. Coolify mein values set karne ke baad main Next.js app redeploy karo.
 
@@ -92,4 +92,4 @@ Manually selected text models and Auto mode inference use OpenRouter; Auto selec
 - Runtime variables template: `.env.example`
 - Architecture diagram/flow: `docs/ARCHITECTURE.md`
 
-OpenRouter catalogue fetch Coolify server se direct hota hai, lekin chat/image/video/quiz/suggestions/prompt-enhancer/presentation/test inference calls Cloudflare AI Router se guzarti hain. Next.js mein direct provider inference fallback add nahi karna.
+OpenRouter model catalogue, normal chat, quiz/test, suggestions, prompt enhancement, chat title, comparison summary, Gamma themes/generation/status, aur Picsart image/video API sab signed Cloudflare AI Router se guzarte hain. Generated Picsart media ko Worker direct private B2 presigned URLs par stream karta hai. Next.js user authentication, wallet/database operations aur metadata persistence hi handle karta hai; direct provider inference ya direct provider API keys app server par add nahi karna.
