@@ -58,7 +58,7 @@ export async function aiRouterChat(input: {
   max_tokens?: number;
   temperature?: number;
   response_format?: Record<string, unknown>;
-  routing?: { provider: RouterProvider; candidates?: RouterCandidate[]; hints?: string };
+  routing?: { provider: RouterProvider; candidates?: RouterCandidate[]; hints?: string; task?: 'prompt-enhancement'|'conversation-title'|'comparison-summary' };
   timeoutMs?: number;
 }) {
   const response = await aiRouterFetch({
