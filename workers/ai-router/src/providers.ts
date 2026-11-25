@@ -48,7 +48,7 @@ export async function callChatProvider(env: Env, candidate: ModelCandidate, payl
     }).catch((error) => new Response(JSON.stringify({ error: String(error) }), { status: 502, headers: { 'Content-Type': 'application/json' } }));
     return { response, model: candidate.id, provider, attempts: 1 };
   }
-  const providerPayload = { ...payload, model: candidate.id };
+  const providerPayload: Record<string, unknown> = { ...payload, model: candidate.id };
   delete providerPayload.usage;
   let attempts = 0;
   let last = new Response('Provider keys are not configured', { status: 503 });
