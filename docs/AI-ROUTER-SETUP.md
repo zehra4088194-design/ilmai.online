@@ -44,7 +44,7 @@ Current live types:
 Sensitive API keys ke liye plain-text Variable ke bajaye **Secret** type use karo. Existing entry ko same name aur same value ke saath Secret ke taur par dobara add karo; values GitHub ya chat mein share mat karo.
 
 Current code usage:
-- `GROQ_API_KEY_1` Auto mode ke smart model chooser ko Groq-powered selection deta hai; baqi Groq slots key rotation/pooling ke liye available hain.
+- `GROQ_API_KEY_1`–`GROQ_API_KEY_10` provide the round-robin key pool for prompt enhancement, first-message chat titles and comparison summaries. Auto model selection no longer uses Groq.
 - Worker mein Groq/Gemini direct provider calls ka support maujood hai, lekin current Next.js chat route candidates abhi `provider: 'openrouter'` set karta hai. Is liye keys add karne se Groq/Gemini models apne aap model picker mein appear nahi honge; model catalogue/picker aur provider mapping ka code integration abhi alag se karna hai.
 - Har provider ke maximum 10 numbered slots supported hain.
 
@@ -71,7 +71,7 @@ Ye variables kabhi `NEXT_PUBLIC_*` na banana. Coolify mein values set karne ke b
 5. Response Worker se Coolify aur phir browser tak stream hota hai.
 6. Coolify actual provider token usage/cost save karta hai aur wallet credits settle karta hai.
 
-Initial live route mein manually selected models OpenRouter se infer honge. Auto mode mein Groq key available ho to Worker suitable allowed candidate choose kar sakta hai; inference phir bhi OpenRouter se hoti hai. Manually selected model fail ho to app chupke se doosra model select nahi karti.
+Manually selected text models and Auto mode inference use OpenRouter; Auto selection is deterministic and does not call Groq. Groq is reserved for prompt enhancement, first-message chat titles and comparison summaries. Gemini remains dedicated to image understanding. Manually selected model fail ho to app chupke se doosra model select nahi karti.
 
 ## 5. Verification checklist
 
