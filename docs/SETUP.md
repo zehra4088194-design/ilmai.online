@@ -21,15 +21,15 @@
 
 ## 2. Cloudflare Turnstile + Supabase Auth (security)
 
-1. Cloudflare dashboard → **Turnstile** → widget **Ilm AI - Supabase Auth**. Widget mode **Managed**; allowed domains: `ilmai.online`, `ilmai.store`, `localhost`, `127.0.0.1`.
+1. Cloudflare dashboard → **Turnstile** → widget **Ilm AI - Supabase Auth**. Widget mode **Managed**; allowed domains: `ilmai.online`, `localhost`, `127.0.0.1`. (The production website hostname is `ilmai.online` only.)
 2. Coolify main app environment:
    - `NEXT_PUBLIC_TURNSTILE_SITE_KEY` = widget **Sitekey** (public; mark as a Build Variable too).
    - `TURNSTILE_SECRET` = widget **Secret key** (server-only; never use `NEXT_PUBLIC_*`).
-   - `TURNSTILE_HOSTNAMES=ilmai.online,ilmai.store` in production. For local development, use `localhost,127.0.0.1` in your local `.env.local`.
+   - `TURNSTILE_HOSTNAMES=ilmai.online` in production. For local development, use `localhost,127.0.0.1` in your local `.env.local`.
 3. Supabase dashboard → **Authentication → Settings → Bot and Abuse Protection → Enable CAPTCHA protection**. Select **Cloudflare Turnstile**, paste the same widget Secret key, and save.
 4. Redeploy the app after adding the Coolify variables. Keep Supabase CAPTCHA disabled until both the public sitekey is present in the deployed app and the secret is saved in Supabase; otherwise sign-in, sign-up and password reset requests can be rejected.
 5. The app sends `captchaToken` to Supabase for email/password sign-up, email/password sign-in and password-reset requests. Google OAuth is checked server-side against Cloudflare Siteverify before the OAuth redirect because Supabase's `signInWithOAuth` client method does not expose a `captchaToken` option.
-6. Test all four paths on both production domains. Tokens expire and are single-use; the widget resets after each attempt.
+6. Test all four paths on `https://ilmai.online` and, separately, on localhost during development. Tokens expire and are single-use; the widget resets after each attempt.
 
 ## 3. OpenRouter
 https://openrouter.ai/keys → key banao → `OPENROUTER_API_KEY`. Credits add karo. Settings → "Limits" mein monthly spend limit zaroor lagao.
@@ -51,7 +51,7 @@ Suggestions aur quizzes **free models** se chalte hain (user ke credits nahi kat
 1. Buckets → Create bucket `ilmai-media`, **Private**.
 2. App Keys → Add key (sirf us bucket ke liye, Read & Write) → `keyID` = `B2_KEY_ID`, `applicationKey` = `B2_APPLICATION_KEY` (sirf ek baar dikhti hai).
 3. Bucket detail mein **Endpoint** dikhega (e.g. `s3.us-west-004.backblazeb2.com`) → `B2_ENDPOINT=https://s3.us-west-004.backblazeb2.com`, `B2_REGION=us-west-004`.
-4. Browser se direct upload (file upload feature) ke liye CORS: Bucket Settings → CORS Rules → "custom" → operations `s3_put, s3_get, s3_head`, allowed headers `*`, aur allowed origins mein ye chaaron add karo: `https://ilmai.store`, `https://www.ilmai.store`, `https://ilmai.online`, `https://www.ilmai.online`. Origin mein trailing slash mat lagana. Dono domains CORS mein hon, kyunki `.store` par browser uploads bina is rule ke fail ho sakte hain.
+4. Browser se direct upload (file upload feature) ke liye CORS: Bucket Settings → CORS Rules → "custom" → operations `s3_put, s3_get, s3_head`, allowed headers `*`, aur allowed origin sirf `https://ilmai.online` rakho. Origin mein trailing slash mat lagana; purane `.store` aur `www` origins remove kar do.
 
 ## 6. Local chalana
 ```bash
