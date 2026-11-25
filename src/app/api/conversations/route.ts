@@ -55,7 +55,7 @@ export const POST = handle(async (req: NextRequest) => {
           },
           { role: 'user', content: firstPrompt.slice(0, 5000) },
         ],
-        { userId: profile.id, maxTokens: 42, temperature: 0.2, timeoutMs: 7000 },
+        { userId: profile.id, task: 'conversation-title', maxTokens: 42, temperature: 0.2, timeoutMs: 7000 },
       );
       const generated = result.text.replace(/[\r\n]+/g, ' ').replace(/^[\"'“”]+|[\"'“”]+$/g, '').trim();
       title = truncate(generated || firstPrompt.replace(/\s+/g, ' '), 60);
