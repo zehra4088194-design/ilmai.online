@@ -10,13 +10,13 @@ Browser kabhi bhi OpenRouter, Groq ya Gemini ko direct call nahi karta. Provider
 
 ## 1. Cloudflare Worker deployment status
 
-Worker `ilmai-ai-router` is account par deploy ho chuka hai:
+Baseline Worker `ilmai-ai-router` is account par pehle se deployed hai:
 
 `https://ilmai-ai-router.ilmai.workers.dev`
 
-Iske `RequestGate` aur `KeyPool` SQLite Durable Objects provision ho chuke hain. Live Cloudflare check ke mutabiq tamam 20 numbered Groq/Gemini key names maujood hain. In mein se 5 provider keys aur dono base keys Secret type mein hain; baqi 15 provider keys abhi plain-text Variables hain. Unki values ko is check mein read ya change nahi kiya gaya.
+Iske `RequestGate` aur `KeyPool` SQLite Durable Objects provision ho chuke hain. Latest live Cloudflare binding check mein `AI_ROUTER_SECRET`, `OPENROUTER_API_KEY`, `GAMMA_API_KEY` aur tamam 20 numbered Groq/Gemini keys **Secret** type mein present hain. `PICSART_API_KEY` binding abhi missing hai. GitHub ke current Worker code mein Gamma, catalogue aur media-stream routes add ho chuke hain, lekin in routes ko live use karne se pehle latest Worker deploy aur `PICSART_API_KEY` Secret add karna zaroori hai.
 
-Coolify main app par `AI_ROUTER_URL` aur matching `AI_ROUTER_SECRET` required hain. OpenRouter aur Gamma provider credentials Cloudflare Worker secrets mein rehte hain; unhein Coolify se remove karna hai after the Worker version is deployed and verified.
+Coolify main app par sirf `AI_ROUTER_URL` aur matching `AI_ROUTER_SECRET` required hain. Latest Worker deploy aur verification ke baad Coolify se old `OPENROUTER_API_KEY` aur `GAMMA_API_KEY` variables remove kar sakte ho.
 
 Agar future mein Worker ko dobara deploy karna ho, repo ke `workers/ai-router` folder mein:
 ```bash
@@ -35,11 +35,7 @@ Live Cloudflare check mein ye 20 numbered names present hain:
 - `GROQ_API_KEY_1`–`GROQ_API_KEY_10`
 - `GEMINI_API_KEY_1`–`GEMINI_API_KEY_10`
 
-Current live types:
-- Secret: `GROQ_API_KEY_1`, `GROQ_API_KEY_2`, `GEMINI_API_KEY_1`, `GEMINI_API_KEY_2`, `GEMINI_API_KEY_10`.
-- Plain-text Variable: `GROQ_API_KEY_3`–`GROQ_API_KEY_10`, `GEMINI_API_KEY_3`–`GEMINI_API_KEY_9`.
-
-`workers/ai-router/wrangler.jsonc` mein `keep_vars: true` set hai, taake future Wrangler deploy dashboard ke existing variables ko overwrite na kare. `secrets.required` filhal sirf 7 confirmed Secrets declare karta hai: `AI_ROUTER_SECRET`, `OPENROUTER_API_KEY`, `GROQ_API_KEY_1`, `GROQ_API_KEY_2`, `GEMINI_API_KEY_1`, `GEMINI_API_KEY_2`, `GEMINI_API_KEY_10`. Jab baqi 15 keys Secret type mein convert ho jayen, unke names bhi `secrets.required` mein add karne hain.
+Current live types: tamām numbered Groq aur Gemini keys Cloudflare par Secrets ke taur par maujood hain. `GAMMA_API_KEY` aur `OPENROUTER_API_KEY` bhi Secrets hain. `PICSART_API_KEY` missing hai; ise add kiye baghair image/video provider routes kaam nahi karenge.
 
 Sensitive API keys ke liye plain-text Variable ke bajaye **Secret** type use karo. Existing entry ko same name aur same value ke saath Secret ke taur par dobara add karo; values GitHub ya chat mein share mat karo.
 
@@ -55,7 +51,6 @@ Coolify → main Ilm AI app → Environment Variables mein:
 | Variable | Value kahan se aayegi |
 |---|---|
 | `AI_ROUTER_URL` | `https://ilmai-ai-router.ilmai.workers.dev` (base URL only; endpoint path add nahi karna) |
-| `AI_ROUTER_SECRET` | Wahi random HMAC secret jo Worker par `AI_ROUTER_SECRET` ke naam se set kiya |
 | `AI_ROUTER_SECRET` | Wahi random HMAC secret jo Worker par `AI_ROUTER_SECRET` ke naam se set kiya |
 
 Important: `OPENROUTER_API_KEY`, `GAMMA_API_KEY`, `PICSART_API_KEY`, Groq aur Gemini keys Cloudflare Worker Secrets mein hi rakho. Coolify app par sirf `AI_ROUTER_URL` aur matching `AI_ROUTER_SECRET` chahiye. `AI_ROUTER_SECRET` ki Coolify aur Worker mein exact same value honi chahiye.
@@ -76,8 +71,9 @@ Manually selected text models and Auto mode inference use OpenRouter; Auto selec
 ## 5. Verification checklist
 
 - [ ] Worker name `ilmai-ai-router` aur Durable Objects deploy successfully.
-- [x] Live Worker par `AI_ROUTER_SECRET`, `OPENROUTER_API_KEY` aur tamam 20 numbered provider key names present hain; abhi 15 provider entries plain-text Variables hain.
-- [ ] Coolify par `AI_ROUTER_URL`, matching `AI_ROUTER_SECRET` aur `OPENROUTER_API_KEY` configured hon; phir main app redeploy ho.
+- [x] Live Worker bindings mein `AI_ROUTER_SECRET`, `OPENROUTER_API_KEY`, `GAMMA_API_KEY` aur 20 numbered Groq/Gemini Secrets maujood hain.
+- [ ] Cloudflare Worker par `PICSART_API_KEY` Secret add karo, phir updated Worker deploy aur test karo.
+- [ ] Coolify par `AI_ROUTER_URL` aur matching `AI_ROUTER_SECRET` configured hon; Worker deploy hone ke baad app redeploy karo aur old `OPENROUTER_API_KEY` / `GAMMA_API_KEY` variables remove karo.
 - [ ] Main app redeploy ho aur signed chat request successful ho.
 - [ ] Admin → Usage mein model, input/output tokens, actual USD cost aur credits usage save ho.
 - [ ] Worker Cloudflare dashboard mein errors, CPU/time limits aur spend alerts monitor hon.
@@ -92,4 +88,4 @@ Manually selected text models and Auto mode inference use OpenRouter; Auto selec
 - Runtime variables template: `.env.example`
 - Architecture diagram/flow: `docs/ARCHITECTURE.md`
 
-OpenRouter model catalogue, normal chat, quiz/test, suggestions, prompt enhancement, chat title, comparison summary, Gamma themes/generation/status, aur Picsart image/video API sab signed Cloudflare AI Router se guzarte hain. Generated Picsart media ko Worker direct private B2 presigned URLs par stream karta hai. Next.js user authentication, wallet/database operations aur metadata persistence hi handle karta hai; direct provider inference ya direct provider API keys app server par add nahi karna.
+Updated code mein OpenRouter model catalogue, normal chat, quiz/test, suggestions, prompt enhancement, chat title, comparison summary, Gamma themes/generation/status, aur Picsart image/video API sab signed Cloudflare AI Router se guzarte hain. Generated Picsart media ko Worker direct private B2 presigned URLs par stream karta hai. Next.js user authentication, wallet/database operations aur metadata persistence hi handle karta hai; direct provider inference ya direct provider API keys app server par add nahi karna.
