@@ -16,7 +16,7 @@ function Inner({ provider, className }: Props) {
   const darkSrc = darkSources[darkIndex];
   const initials = providerName(provider).replace(/[^A-Z0-9]/gi, '').slice(0, 2).toUpperCase() || 'AI';
 
-  if (key === 'ai router' || key === 'auto') {
+  if (key === 'ilmai' || key === 'ai router' || key === 'auto') {
     return <LogoMark className={cn('h-8 w-8', className)} />;
   }
 
