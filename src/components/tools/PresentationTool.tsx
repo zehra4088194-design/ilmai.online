@@ -142,21 +142,63 @@ export function PresentationTool() {
   async function generate() {
     if (topic.trim().length < 3 || busy) return;
     const selectedClaude = model === 'claude-auto' ? models.find((item) => !item.locked) : models.find((item) => item.id === model && !item.locked);
-    if (model !== 'auto' && !selectedClaude) { toast('Claude is not enabled or available for your account. Choose Auto or ask admin to enable a Claude model.', 'err'); return; }
-    setBusy(true); setAction('Building complete presentation'); setLastDownload(null);
+    if (engine === 'ilm' && model !== 'auto' && !selectedClaude) {
+      toast('Claude is not enabled or available for your account. Choose Auto or ask admin to enable a Claude model.', 'err');
+      return;
+    }
+    if (engine === 'gamma' && !gammaConfigured) {
+      toast('Gamma is not connected yet. Add GAMMA_API_KEY in Coolify first.', 'err');
+      return;
+    }
+    setBusy(true);
+    setLastDownload(null);
+    setGammaResult(null);
+    let keepPolling = false;
     try {
-      const response = await fetch('/api/generate/presentation', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requestId: crypto.randomUUID(), topic, slides: count, language, ...(model === 'auto' ? {} : { model: selectedClaude?.id }) }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? 'Could not create the presentation');
-      setDeck(data.deck);
-      await refreshMe();
-      toast('Full presentation created', 'ok');
+      if (engine === 'gamma') {
+        setAction('Starting Gamma generation');
+        const response = await fetch('/api/generate/presentation/gamma', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            requestId: crypto.randomUUID(), topic, slides: count, language,
+            exportAs: gammaExportAs || null,
+            ...(gammaThemeId ? { themeId: gammaThemeId } : {}),
+            imageStyle: gammaImageStyle,
+            textAmount: gammaTextAmount,
+          }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error ?? 'Could not start Gamma presentation generation');
+        if (data.status === 'completed' && typeof data.gammaUrl === 'string') {
+          setGammaResult(data as GammaResult);
+          await refreshMe();
+          toast('Gamma presentation is ready', 'ok');
+        } else if (data.status === 'pending' && typeof data.generationRequestId === 'string') {
+          try { window.localStorage.setItem('ilm-gamma-presentation-pending', data.generationRequestId); } catch { /* polling continues in this tab */ }
+          setGammaJobId(data.generationRequestId);
+          setAction('Gamma is designing your slides…');
+          keepPolling = true;
+        } else {
+          throw new Error('Gamma did not return a generation request. Please try again.');
+        }
+      } else {
+        setAction('Building complete presentation');
+        const response = await fetch('/api/generate/presentation', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ requestId: crypto.randomUUID(), topic, slides: count, language, ...(model === 'auto' ? {} : { model: selectedClaude?.id }) }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error ?? 'Could not create the presentation');
+        setDeck(data.deck);
+        await refreshMe();
+        toast('Full presentation created', 'ok');
+      }
     } catch (error) {
       toast(error instanceof Error ? error.message : 'Could not create the presentation', 'err');
-    } finally { setBusy(false); setAction(''); }
+    } finally {
+      if (!keepPolling) { setBusy(false); setAction(''); }
+    }
   }
 
   function updateDeckTitle(title: string) {
