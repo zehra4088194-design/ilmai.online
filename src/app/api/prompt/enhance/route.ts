@@ -19,7 +19,7 @@ export const POST = handle(async (req: NextRequest) => {
   const started = Date.now();
 
   try {
-    const result = await groqUtilityChat(
+    const result = await groqTaskChat(
       [
         {
           role: 'system',
@@ -64,6 +64,8 @@ export const POST = handle(async (req: NextRequest) => {
     await logUsage({
       userId: profile.id,
       kind: 'prompt_enhance',
+      provider: 'groq',
+      usageDetails: { helper: 'prompt-enhancement' },
       status: 'error',
       error: error instanceof Error ? error.message : String(error),
       latencyMs: Date.now() - started,
