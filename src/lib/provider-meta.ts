@@ -7,6 +7,7 @@
  */
 
 const PROVIDER_NAMES: Record<string, string> = {
+  ilmai: 'Ilm AI',
   'ai router': 'Ilm AI Auto',
   openai: 'OpenAI',
   anthropic: 'Anthropic',
