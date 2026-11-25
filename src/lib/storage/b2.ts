@@ -40,6 +40,15 @@ export const signedUploadUrl = (key: string, contentType: string, expiresIn = 30
   return getSignedUrl(client(), new PutObjectCommand({ Bucket: env.b2.bucket, Key: key, ContentType: contentType }), { expiresIn });
 };
 
+/** Short-lived upload capability for a server-authorized generated asset; never exposed to browsers. */
+export const signedGeneratedUploadUrl = (key: string, contentType: string, expiresIn = 300) => {
+  if (!/^generated\/[0-9a-f-]{36}\/(image|video)\/[A-Za-z0-9-]{20,40}\.(png|jpg|webp|avif|mp4|webm)$/.test(key))
+    throw new Error('Generated upload keys must use an owned generated media path');
+  if (!['image/png','image/jpeg','image/webp','image/avif','video/mp4','video/webm'].includes(contentType))
+    throw new Error('Unsupported generated media content type');
+  return getSignedUrl(client(), new PutObjectCommand({ Bucket: env.b2.bucket, Key: key, ContentType: contentType }), { expiresIn });
+};
+
 export const headObject = (key: string) =>
   client().send(new HeadObjectCommand({ Bucket: env.b2.bucket, Key: key }));
 
