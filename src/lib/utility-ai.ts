@@ -148,24 +148,24 @@ export async function utilityChat(
 }
 
 
-/** Follow-up suggestions must use Groq only; retry is limited to Groq-hosted model IDs. */
-const GROQ_SUGGESTION_MODELS = ['openai/gpt-oss-120b', 'qwen/qwen3.8-27b'];
+/** Groq is intentionally reserved for prompt enhancement, first-chat titles and comparison summaries. */
+const GROQ_TASK_MODELS = ['openai/gpt-oss-20b', 'openai/gpt-oss-120b', 'qwen/qwen3.8-27b'];
 
-export async function groqUtilityChat(
+export async function groqTaskChat(
   messages: { role: 'system' | 'user' | 'assistant'; content: string | unknown[] }[],
   opts: { userId: string; maxTokens?: number; temperature?: number; timeoutMs?: number },
 ): Promise<UtilityResult> {
   let lastError = '';
-  for (const model of GROQ_SUGGESTION_MODELS) {
+  for (const model of GROQ_TASK_MODELS) {
     try {
       const response = await aiRouterChat({
         userId: opts.userId, model, routing: { provider: 'groq' }, messages,
         max_tokens: opts.maxTokens ?? 220,
         temperature: opts.temperature ?? 0.7,
-        timeoutMs: opts.timeoutMs ?? 12000,
+        timeoutMs: opts.timeoutMs ?? 9000,
       });
       const text = response.choices?.[0]?.message?.content?.trim();
-      if (!text) throw new Error('Groq returned an empty answer');
+      if (!text) throw new Error('Groq returned an empty answer for ' + model);
       return {
         text, model: response.routedModel, cost: response.usage?.cost ?? 0,
         promptTokens: response.usage?.prompt_tokens ?? 0,
@@ -173,8 +173,8 @@ export async function groqUtilityChat(
       };
     } catch (error) {
       lastError = error instanceof Error ? error.message : String(error);
-      console.warn('[groq-suggest] ' + model + ' failed:', lastError);
+      console.warn('[groq-task] ' + model + ' failed:', lastError);
     }
   }
-  throw new HttpError(503, 'Groq suggestions are temporarily unavailable.' + (lastError ? ' (' + lastError.slice(0, 120) + ')' : ''), 'groq_suggest_unavailable');
+  throw new HttpError(503, 'Groq task service is unavailable.' + (lastError ? ' (' + lastError.slice(0, 160) + ')' : ''), 'groq_task_unavailable');
 }
