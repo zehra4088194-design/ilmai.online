@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { LogOut, Save, Loader2, RotateCcw, Palette, Sun, Moon, Monitor, Type, Paintbrush2, UserRound, Volume2, Shield, Sparkles, Code2 } from 'lucide-react';
+import { LogOut, Save, Loader2, RotateCcw, Palette, Sun, Moon, Monitor, Paintbrush2, UserRound, Volume2, Shield } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/providers';
 import { ACCENTS, DEFAULT_APPEARANCE, LOADERS, NEUTRAL_ACCENT, THEME_FAMILIES, useAppearance, type Appearance } from '@/components/providers';
