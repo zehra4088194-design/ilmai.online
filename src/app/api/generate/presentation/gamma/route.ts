@@ -109,6 +109,7 @@ export const POST = handle(async (req: NextRequest) => {
       amount: body.textAmount,
       tone: 'professional, engaging, clear, visually confident and educational',
       audience: 'students, teachers and lifelong learners',
+      language: body.language === 'Urdu' ? 'ur' : 'en',
     },
     imageOptions: { source: 'aiGenerated', stylePreset: body.imageStyle },
     cardOptions: { dimensions: '16x9' },
