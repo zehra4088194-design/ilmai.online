@@ -153,13 +153,13 @@ const GROQ_TASK_MODELS = ['openai/gpt-oss-20b', 'openai/gpt-oss-120b', 'qwen/qwe
 
 export async function groqTaskChat(
   messages: { role: 'system' | 'user' | 'assistant'; content: string | unknown[] }[],
-  opts: { userId: string; maxTokens?: number; temperature?: number; timeoutMs?: number },
+  opts: { userId: string; task: 'prompt-enhancement'|'conversation-title'|'comparison-summary'; maxTokens?: number; temperature?: number; timeoutMs?: number },
 ): Promise<UtilityResult> {
   let lastError = '';
   for (const model of GROQ_TASK_MODELS) {
     try {
       const response = await aiRouterChat({
-        userId: opts.userId, model, routing: { provider: 'groq' }, messages,
+        userId: opts.userId, model, routing: { provider: 'groq', task: opts.task }, messages,
         max_tokens: opts.maxTokens ?? 220,
         temperature: opts.temperature ?? 0.7,
         timeoutMs: opts.timeoutMs ?? 9000,
