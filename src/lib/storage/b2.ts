@@ -10,7 +10,7 @@ function resolveB2Region(endpoint: string, configuredRegion: string) {
   let endpointRegion = '';
   try {
     const hostname = new URL(endpoint).hostname;
-    endpointRegion = hostname.match(/^s3\\.([a-z0-9-]+)\\.backblazeb2\\.com$/i)?.[1] ?? '';
+    endpointRegion = hostname.match(/^s3\.([a-z0-9-]+)\.backblazeb2\.com$/i)?.[1] ?? '';
   } catch {
     throw new HttpError(503, 'B2_ENDPOINT must be a valid regional S3 endpoint, for example https://s3.us-west-004.backblazeb2.com.', 'storage_endpoint_invalid');
   }
