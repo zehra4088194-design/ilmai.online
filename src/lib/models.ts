@@ -48,6 +48,9 @@ const NOT_CHAT = /lyria|music|\btts\b|speech|whisper|transcri|embed|rerank|moder
 export const isChatCapable = (m: Pick<ModelInfo, 'id' | 'name' | 'outputModalities'>) =>
   m.outputModalities.includes('text') &&
   !m.outputModalities.some((o) => o === 'audio' || o === 'video') &&
+  // OpenRouter :batch variants only work with its asynchronous Batch API,
+  // not the synchronous chat/completions endpoint used by Ilm AI.
+  !/:batch$/i.test(m.id) &&
   !NOT_CHAT.test(m.id) && !NOT_CHAT.test(m.name);
 
 const merge = (m: OrModel, row?: Row): ModelInfo => {
