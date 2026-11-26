@@ -59,7 +59,7 @@ Suggestions aur quizzes **free models** se chalte hain (user ke credits nahi kat
 1. Buckets → Create bucket `ilmai-media`, **Private**.
 2. App Keys → Add key (sirf us bucket ke liye, Read & Write) → `keyID` = `B2_KEY_ID`, `applicationKey` = `B2_APPLICATION_KEY` (sirf ek baar dikhti hai).
 3. Bucket detail mein **Endpoint** dikhega (e.g. `s3.us-west-004.backblazeb2.com`) → `B2_ENDPOINT=https://s3.us-west-004.backblazeb2.com`, `B2_REGION=us-west-004`.
-4. App browser se AWS SDK ke presigned URLs par Backblaze **S3-Compatible API** ko direct `PUT` karti hai. Isliye CORS rule ko **S3-compatible API** (ya Both) par apply karo — sirf B2 Native API par nahi. Bucket Settings → CORS Rules → Custom rule mein origin sirf `https://ilmai.online` (no trailing slash), operation `S3 Put Object` / `s3_put` (PUT), allowed headers `*` (ya kam az kam `content-type`), aur `maxAgeSeconds=3600` rakho. Downloads ke liye `S3 Get Object` / `s3_get` aur `S3 Head Object` / `s3_head` bhi add kar sakte ho. Agar console API selector dikhaye to **S3-compatible API** select karo. Purane `.store` origins remove kar do. B2 Native API ki CORS rule alag hoti hai aur S3-compatible rule ki jagah nahi leti.
+4. User attachments browser se same-origin Ilm AI API (`POST /api/media/:id/upload`) par upload hoti hain; app server un bytes ko AWS SDK ke zariye B2 mein store karta hai. Isliye attachment uploads ke liye browser-to-B2 CORS rule ki zaroorat nahi. B2 endpoint/region aur Read/Write application key phir bhi sahi honi chahiye. Direct browser uploads kisi future integration mein add hon to us integration ke origin ke liye S3-compatible API CORS rule alag se configure karna hoga.
 
 ## 6. Local chalana
 ```bash
