@@ -19,7 +19,7 @@ Done: see README table. Below is **what to build next**, in order, with enough d
 - Port the 10 theme families from the old `ilmAI` repo (`public/themes/*.css`, `lib/constants/themes.ts`) – currently there are 5 green accents + light/dark (`[data-accent]` in `globals.css`).
 
 ## 2. File & image upload + vision
-- Flag `file_upload`. API `/api/media/upload-url` + `/api/media/[id]` already exist (browser PUTs straight to B2; **add the CORS rule from docs/SETUP.md**).
+- Flag `file_upload`. API `/api/media/upload-url`, `/api/media/[id]/upload` and `/api/media/[id]` create staging records, proxy bytes server-to-server into B2, then validate and publish; browser-to-B2 CORS is not required.
 - UI: paperclip in `Composer` → upload → chip preview → send `attachments:[assetId]` with the message.
 - In `/api/chat`: for each attachment generate a signed URL and send OpenAI-style content parts `{type:'image_url', image_url:{url}}` (for PDFs use OpenRouter's `file` content part / plugin). Only allow when `model.vision`.
 
