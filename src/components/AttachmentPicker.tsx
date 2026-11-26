@@ -114,20 +114,28 @@ export function AttachmentPicker({ value, onChange, disabled = false, onUploadin
           const limit = isOffice ? limits.maxOfficeBytes : type.kind === 'file' ? limits.maxTextBytes : limits.maxBytes;
           if (!file.size || file.size > limit) throw new Error(`File must be between 1 byte and ${Math.round(limit / 1024)} KB`);
           setProgress({ name, percent: 0, stage: 'Preparing' });
-          const ticket = await request<{ assetId: string; uploadUrl: string }>('/api/media/upload-url', 'POST', { name, mime: type.mime, size: file.size });
+          const ticket = await request<{ assetId: string }>('/api/media/upload-url', 'POST', { name, mime: type.mime, size: file.size });
           if (ac.signal.aborted) break;
           await new Promise<void>((resolve, reject) => {
             const req = new XMLHttpRequest(); xhr.current = req;
-            req.open('PUT', ticket.uploadUrl); req.timeout = 120_000;
+            // Same-origin upload: the Ilm AI server streams the verified bytes to B2.
+            // This avoids browser-to-B2 CORS preflight and surfaces the real S3 error.
+            req.open('POST', `/api/media/${encodeURIComponent(ticket.assetId)}/upload`); req.timeout = 120_000;
             req.setRequestHeader('Content-Type', type.mime);
             req.upload.onprogress = (event) => {
               if (mounted.current) setProgress({ name, percent: event.lengthComputable ? Math.min(99, Math.round(event.loaded / event.total * 100)) : 0, stage: 'Uploading' });
             };
-            req.onload = () => req.status >= 200 && req.status < 300
-              ? resolve()
-              : reject(new Error(`Backblaze B2 rejected the upload (HTTP ${req.status}). Check the bucket CORS rule and Read/Write application key permissions.`));
-            req.onerror = () => reject(new Error(`Backblaze B2 upload was blocked before an HTTP response (usually CORS preflight or an unreachable endpoint). In bucket CORS, allow this exact origin: ${window.location.origin}; apply the rule to the S3-compatible API and allow S3 Put Object (PUT) plus the Content-Type header. Also verify B2_ENDPOINT matches the bucket's region.`));
-            req.ontimeout = () => reject(new Error('Upload timed out'));
+            req.onload = () => {
+              if (req.status >= 200 && req.status < 300) { resolve(); return; }
+              let message = `Ilm AI upload failed (HTTP ${req.status}).`;
+              try {
+                const data = JSON.parse(req.responseText) as { error?: string };
+                if (data.error) message = data.error;
+              } catch { /* keep HTTP fallback */ }
+              reject(new Error(message));
+            };
+            req.onerror = () => reject(new Error('Could not reach the Ilm AI upload server. Check your connection and Coolify app health.'));
+            req.ontimeout = () => reject(new Error('Upload timed out while sending the file to Ilm AI.'));
             req.onabort = () => reject(new Error('Upload cancelled'));
             req.send(file);
           });
