@@ -6,13 +6,34 @@ import { HttpError } from '@/lib/http';
 
 let _client: S3Client | null = null;
 
+function resolveB2Region(endpoint: string, configuredRegion: string) {
+  let endpointRegion = '';
+  try {
+    const hostname = new URL(endpoint).hostname;
+    endpointRegion = hostname.match(/^s3\\.([a-z0-9-]+)\\.backblazeb2\\.com$/i)?.[1] ?? '';
+  } catch {
+    throw new HttpError(503, 'B2_ENDPOINT must be a valid regional S3 endpoint, for example https://s3.us-west-004.backblazeb2.com.', 'storage_endpoint_invalid');
+  }
+
+  const configured = configuredRegion.trim();
+  if (!configured || configured.toLowerCase() === 'auto') return endpointRegion || 'us-west-004';
+  if (endpointRegion && configured !== endpointRegion) {
+    throw new HttpError(
+      503,
+      `B2_REGION (${configured}) does not match the region in B2_ENDPOINT (${endpointRegion}). Set both to the same bucket region.`,
+      'storage_region_mismatch',
+    );
+  }
+  return configured;
+}
+
 /** Backblaze B2 through its S3-compatible API. */
 function client() {
   if (!env.b2.endpoint || !env.b2.keyId || !env.b2.appKey || !env.b2.bucket)
     throw new HttpError(503, 'Backblaze B2 storage is not configured (B2_* env vars)', 'storage_not_configured');
   return (_client ??= new S3Client({
     endpoint: env.b2.endpoint,
-    region: env.b2.region || 'us-west-004',
+    region: resolveB2Region(env.b2.endpoint, env.b2.region),
     forcePathStyle: true,
     credentials: { accessKeyId: env.b2.keyId, secretAccessKey: env.b2.appKey },
     // B2 rejects the newer default CRC32 checksums – only send them when required
