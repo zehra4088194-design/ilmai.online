@@ -4,9 +4,9 @@ import { LogoMark } from '@/components/ui/Logo';
 import { cn } from '@/lib/utils';
 import { providerKey, providerLogoSources, providerName } from '@/lib/provider-meta';
 
-type Props = { provider: string | null | undefined; className?: string };
+type Props = { provider: string | null | undefined; className?: string; fallback?: 'initials' | 'brand' };
 
-function Inner({ provider, className }: Props) {
+function Inner({ provider, className, fallback = 'initials' }: Props) {
   const key = providerKey(provider);
   const [lightIndex, setLightIndex] = useState(0);
   const [darkIndex, setDarkIndex] = useState(0);
@@ -39,6 +39,8 @@ function Inner({ provider, className }: Props) {
           className="block h-full w-full max-h-full max-w-full object-contain dark:hidden"
           onError={() => setLightIndex((index) => index + 1)}
         />
+      ) : fallback === 'brand' ? (
+        <span className="block h-full w-full dark:hidden"><LogoMark className="!h-full !w-full" /></span>
       ) : (
         <span className="grid h-full w-full place-items-center text-[0.65rem] font-bold text-primary dark:hidden">
           {initials}
@@ -55,6 +57,8 @@ function Inner({ provider, className }: Props) {
           className="hidden h-full w-full max-h-full max-w-full object-contain dark:block"
           onError={() => setDarkIndex((index) => index + 1)}
         />
+      ) : fallback === 'brand' ? (
+        <span className="hidden h-full w-full dark:block"><LogoMark className="!h-full !w-full" /></span>
       ) : (
         <span className="hidden h-full w-full place-items-center text-[0.65rem] font-bold text-primary dark:grid">
           {initials}
@@ -64,7 +68,7 @@ function Inner({ provider, className }: Props) {
   );
 }
 
-/** Theme-aware provider logos with fallback to legacy single files and provider initials. */
+/** Theme-aware provider logos with legacy-file and configurable Ilm AI/initials fallback. */
 export function ProviderLogo(props: Props) {
   return <Inner key={providerKey(props.provider)} {...props} />;
 }
