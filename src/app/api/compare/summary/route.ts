@@ -4,7 +4,7 @@ import { handle, HttpError, json } from '@/lib/http';
 import { requireUserApi } from '@/lib/auth';
 import { requireFeature } from '@/lib/features';
 import { adminClient } from '@/lib/supabase/admin';
-import { groqTaskChat, utilityChat } from '@/lib/utility-ai';
+import { groqTaskChat, utilityChat, type UtilityResult } from '@/lib/utility-ai';
 import { logUsage } from '@/lib/usage';
 
 export const runtime = 'nodejs';
@@ -92,7 +92,7 @@ export const POST = handle(async (req: NextRequest) => {
 
     // Keep Groq as the preferred summarizer; fall back through enabled
     // OpenRouter utility models if its key pool or provider is unavailable.
-    let result;
+    let result: UtilityResult;
     try {
       result = await groqTaskChat(summaryMessages, {
         userId: profile.id,
