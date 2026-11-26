@@ -4,7 +4,7 @@ import { handle, HttpError, json } from '@/lib/http';
 import { requireUserApi } from '@/lib/auth';
 import { requireFeature } from '@/lib/features';
 import { adminClient } from '@/lib/supabase/admin';
-import { groqTaskChat } from '@/lib/utility-ai';
+import { groqTaskChat, utilityChat } from '@/lib/utility-ai';
 import { logUsage } from '@/lib/usage';
 
 export const runtime = 'nodejs';
@@ -68,6 +68,7 @@ export const POST = handle(async (req: NextRequest) => {
     answer: String(answer.content).slice(0, maxCharactersPerAnswer),
   }));
   const started = Date.now();
+  let summaryProvider: 'groq' | 'openrouter' = 'groq';
   try {
     const systemPrompt = inputs.length === 1
       ? 'You are a clear, impartial summarizer. Summarize the selected AI response to the user prompt. ' +
@@ -80,26 +81,41 @@ export const POST = handle(async (req: NextRequest) => {
         'Do not invent facts, do not declare a winner without explaining why, and do not simply repeat each answer. ' +
         'Use short headings and compact bullets. Return only the comparison summary.';
 
-    const result = await groqTaskChat(
-      [
-        { role: 'system', content: systemPrompt },
-        {
-          role: 'user',
-          content: 'User prompt:\n' + String(userMessage.content).slice(0, 2500) +
-            '\n\nSelected model responses (JSON):\n' + JSON.stringify(inputs),
-        },
-      ],
+    const summaryMessages = [
+      { role: 'system' as const, content: systemPrompt },
       {
+        role: 'user' as const,
+        content: 'User prompt:\n' + String(userMessage.content).slice(0, 2500) +
+          '\n\nSelected model responses (JSON):\n' + JSON.stringify(inputs),
+      },
+    ];
+
+    // Keep Groq as the preferred summarizer; fall back through enabled
+    // OpenRouter utility models if its key pool or provider is unavailable.
+    let result;
+    try {
+      result = await groqTaskChat(summaryMessages, {
         userId: profile.id,
         task: 'comparison-summary',
         maxTokens: 850,
         temperature: 0.2,
-        timeoutMs: 14_000,
-      },
-    );
+        timeoutMs: 7_500,
+      });
+    } catch (groqError) {
+      summaryProvider = 'openrouter';
+      console.warn('[compare-summary] Groq unavailable; using OpenRouter fallback:', groqError);
+      result = await utilityChat(summaryMessages, {
+        userId: profile.id,
+        maxTokens: 850,
+        temperature: 0.2,
+        timeoutMs: 7_000,
+        tries: 4,
+        deadlineMs: 24_000,
+      });
+    }
 
     const summary = result.text.trim().slice(0, 7000);
-    if (!summary) throw new HttpError(502, 'Groq returned an empty comparison summary');
+    if (!summary) throw new HttpError(502, 'The summary model returned an empty response');
 
     const summaryRow = answers[0];
     const previousMeta = summaryRow.meta && typeof summaryRow.meta === 'object' && !Array.isArray(summaryRow.meta)
@@ -122,7 +138,7 @@ export const POST = handle(async (req: NextRequest) => {
       userId: profile.id,
       kind: 'compare_summary',
       model: result.model,
-      provider: 'groq',
+      provider: summaryProvider,
       promptTokens: result.promptTokens,
       completionTokens: result.completionTokens,
       costUsd: result.cost,
@@ -134,7 +150,7 @@ export const POST = handle(async (req: NextRequest) => {
     await logUsage({
       userId: profile.id,
       kind: 'compare_summary',
-      provider: 'openrouter',
+      provider: summaryProvider,
       status: 'error',
       error: error instanceof Error ? error.message : String(error),
       latencyMs: Date.now() - started,
