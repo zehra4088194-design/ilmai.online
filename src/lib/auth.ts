@@ -1,7 +1,7 @@
 import 'server-only';
 import { redirect } from 'next/navigation';
 import type { User } from '@supabase/supabase-js';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, getBearerToken } from '@/lib/supabase/server';
 import { adminClient } from '@/lib/supabase/admin';
 import { env } from '@/lib/env';
 import { HttpError } from '@/lib/http';
@@ -33,7 +33,12 @@ export const isAdminProfile = (p: Pick<Profile, 'role' | 'email'>) =>
 /** Returns the signed-in user + profile, or null. */
 export async function getAuth(): Promise<{ user: User; profile: Profile; isAdmin: boolean } | null> {
   const supabase = await createClient();
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  // Web requests use the cookie session; native mobile requests supply a Supabase JWT.
+  // getUser(token) verifies the JWT with Supabase Auth rather than trusting decoded claims.
+  const bearer = await getBearerToken();
+  const { data: { user }, error: userError } = bearer
+    ? await supabase.auth.getUser(bearer)
+    : await supabase.auth.getUser();
   if (userError || !user) return null;
 
   const db = adminClient();
