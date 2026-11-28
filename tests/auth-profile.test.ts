@@ -2,11 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 
 const mocks = vi.hoisted(() => ({
-  createClient: vi.fn(), adminClient: vi.fn(), getUser: vi.fn(),
+  createClient: vi.fn(), getBearerToken: vi.fn(), adminClient: vi.fn(), getUser: vi.fn(),
   from: vi.fn(), select: vi.fn(), eq: vi.fn(), maybeSingle: vi.fn(), rpc: vi.fn(), single: vi.fn(),
 }));
 vi.mock('server-only', () => ({}));
-vi.mock('@/lib/supabase/server', () => ({ createClient: mocks.createClient }));
+vi.mock('@/lib/supabase/server', () => ({ createClient: mocks.createClient, getBearerToken: mocks.getBearerToken }));
 vi.mock('@/lib/supabase/admin', () => ({ adminClient: mocks.adminClient }));
 vi.mock('@/lib/env', () => ({ env: { adminEmails: [] } }));
 
@@ -17,6 +17,7 @@ const profile = { id: user.id, role: 'user', credits_balance: 37, pricing_dismis
 
 beforeEach(() => {
   vi.resetAllMocks();
+  mocks.getBearerToken.mockResolvedValue(null);
   mocks.createClient.mockResolvedValue({ auth: { getUser: mocks.getUser } });
   mocks.getUser.mockResolvedValue({ data: { user }, error: null });
   mocks.adminClient.mockReturnValue({ from: mocks.from, rpc: mocks.rpc });
@@ -35,6 +36,14 @@ describe('server profile lookup', () => {
     expect(result?.profile).toEqual(profile);
     expect(mocks.rpc).not.toHaveBeenCalled();
     expect(result?.isAdmin).toBe(false);
+  });
+
+  it('verifies native Bearer tokens with Supabase Auth', async () => {
+    const token = 'header.payload.signature';
+    mocks.getBearerToken.mockResolvedValue(token);
+    const result = await getAuth();
+    expect(mocks.getUser).toHaveBeenCalledExactlyOnceWith(token);
+    expect(result?.profile).toEqual(profile);
   });
 
   it('does not call the service client when signed out', async () => {
